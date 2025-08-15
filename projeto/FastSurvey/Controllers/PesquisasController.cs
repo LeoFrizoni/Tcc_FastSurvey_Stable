@@ -119,7 +119,16 @@ namespace FASTSURVEY.Controllers
             try
             {
                 var novaPesquisa = await _servicePesquisa.CadastrarPesquisaAsync(pesquisaVM);
-                return CreatedAtAction(nameof(Get), new { id = novaPesquisa.pesquisaid }, novaPesquisa);
+                // Return only primitive fields to avoid serialization issues
+                var pesquisaDto = new {
+                    pesquisaid = novaPesquisa.pesquisaid,
+                    titulo = novaPesquisa.titulo,
+                    descricao = novaPesquisa.descricao,
+                    tipopesquisaid = novaPesquisa.tipopesquisaid,
+                    loginid = novaPesquisa.loginid,
+                    templateJson = novaPesquisa.TemplateJson
+                };
+                return CreatedAtAction(nameof(Get), new { id = novaPesquisa.pesquisaid }, pesquisaDto);
             }
             catch (Exception ex)
             {

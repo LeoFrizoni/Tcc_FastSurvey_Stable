@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import TopNavbar from "../../components/layouts/TopNavBar";
 import ModalCriarPesquisa from "../../components/layouts/ModalCriarPesquisa";
 import ModalQRCode from "../../components/layouts/ModalQrCode"
@@ -19,6 +21,8 @@ import {
   Trash2
 } from "lucide-react";
 import "./createPesquisa.css";
+
+const API_BASE = "http://localhost:5062";
 
 const CriarPesquisa = () => {
   const [showModal, setShowModal] = useState(true);
@@ -44,117 +48,169 @@ const CriarPesquisa = () => {
       texto: "",
       opcoes: tipo === "multipla" || tipo === "objetiva" ? [""] : [],
       arquivo: null,
-      estilo: {
-        corFundo: "",
-        corTexto: "",
-        fonte: ""
-      }
+      estilo: { corFundo: "", corTexto: "", fonte: "" }
     };
 
     if (tipo === "anexo") {
-      inputFileRef.current.click();
+      inputFileRef.current?.click();
       novo.pendente = true;
     } else {
-      setBlocos([...blocos, novo]);
+      setBlocos(prev => [...prev, novo]);
     }
   };
 
+  // agora aceita múltiplos arquivos
   const handleArquivoSelecionado = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const novo = {
-        id: Date.now(),
-        tipo: "anexo",
-        arquivo: file,
-        estilo: {
-          corFundo: "",
-          corTexto: "",
-          fonte: ""
-        }
-      };
-      setBlocos((prev) => [...prev, novo]);
-    }
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const novos = files.map((file, i) => ({
+      id: Date.now() + i,
+      tipo: "anexo",
+      arquivo: file,
+      estilo: { corFundo: "", corTexto: "", fonte: "" }
+    }));
+    setBlocos(prev => [...prev, ...novos]);
+
+    // reseta input pra poder escolher o mesmo arquivo de novo se precisar
+    event.target.value = "";
   };
 
   const atualizarBloco = (id, dados) => {
-    const atualizados = blocos.map((bloco) =>
-      bloco.id === id ? { ...bloco, ...dados } : bloco
-    );
-    setBlocos(atualizados);
+    setBlocos(prev => prev.map(bloco => (bloco.id === id ? { ...bloco, ...dados } : bloco)));
   };
 
-  const atualizarTexto = (id, novoTexto) => {
-    atualizarBloco(id, { texto: novoTexto });
-  };
-
-  const atualizarOpcoes = (id, novasOpcoes) => {
-    atualizarBloco(id, { opcoes: novasOpcoes });
-  };
+  const atualizarTexto = (id, novoTexto) => atualizarBloco(id, { texto: novoTexto });
+  const atualizarOpcoes = (id, novasOpcoes) => atualizarBloco(id, { opcoes: novasOpcoes });
 
   const atualizarEstilo = (campo, valor) => {
-    setBlocos((prev) =>
-      prev.map((bloco) =>
-        bloco.id === selectedBlockId
-          ? { ...bloco, estilo: { ...bloco.estilo, [campo]: valor } }
-          : bloco
+    setBlocos(prev =>
+      prev.map(bloco =>
+        bloco.id === selectedBlockId ? { ...bloco, estilo: { ...bloco.estilo, [campo]: valor } } : bloco
       )
     );
   };
 
   const removerBloco = (id) => {
-    setBlocos(blocos.filter((bloco) => bloco.id !== id));
+    setBlocos(prev => prev.filter(bloco => bloco.id !== id));
     if (selectedBlockId === id) setSelectedBlockId(null);
   };
 
+  // ---- helpers anexos ----
+  const getAnexoBlocos = () =>
+    blocos.filter(b => b.tipo === "anexo" && b.arquivo instanceof File);
+
+  const uploadAnexos = async (pesquisaId) => {
+    const anexos = getAnexoBlocos();
+    if (anexos.length === 0) return { ok: 0, fail: 0 };
+
+    const uploads = anexos.map(b => {
+      const fd = new FormData();
+      fd.append("anexo", b.arquivo, b.arquivo.name);
+      return axios.post(`${API_BASE}/api/anexos/${pesquisaId}`, fd, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+    });
+
+    const results = await Promise.allSettled(uploads);
+    const ok = results.filter(r => r.status === "fulfilled").length;
+    const fail = results.length - ok;
+    return { ok, fail };
+  };
+
+  // ---------- montar VM + template ----------
   const montarPesquisaVM = () => {
     const loginId = parseInt(localStorage.getItem("userId"));
+
+    const limparOpcoes = (ops = []) =>
+      ops
+        .map(o => (typeof o === 'string' ? o.trim() : o))
+        .filter(o => Boolean(o) && (typeof o === 'string' ? o.trim().length > 0 : true));
+
+    const perguntasDiscursivas = blocos
+      .filter(b => b.tipo === "discursiva")
+      .map(b => ({ titulo: b.texto, resposta: "" }));
+
+    const perguntasObjetivas = blocos
+      .filter(b => b.tipo === "objetiva")
+      .map(b => ({
+        titulo: b.texto,
+        tipo: "objetiva",
+        opcoes: limparOpcoes(b.opcoes).map(o => ({ opcao: o, respostaCerta: null }))
+      }));
+
+    const perguntasMultiplaEscolha = blocos
+      .filter(b => b.tipo === "multipla")
+      .map(b => ({
+        titulo: b.texto,
+        tipo: "multipla",
+        opcoes: limparOpcoes(b.opcoes).map(o => ({ opcao: o, respostaCerta: null }))
+      }));
+
+    const blocosTemplate = blocos
+      .filter(b => b.tipo !== "anexo")
+      .map((b, i) => {
+        const opcoesLimpa = limparOpcoes(b.opcoes);
+        return {
+          perguntaid: b.id ?? i,
+          texto: b.texto,
+          tipo: b.tipo, // "discursiva" | "objetiva" | "multipla"
+          opcoes:
+            b.tipo === "objetiva" || b.tipo === "multipla"
+              ? opcoesLimpa.map((texto, idx) => ({ opcaoid: idx + 1, texto }))
+              : [],
+          estilo: b.estilo || { corFundo: "", corTexto: "", fonte: "" }
+        };
+      });
 
     return {
       titulo: dadosPesquisa.titulo,
       tipoPesquisaId: parseInt(dadosPesquisa.tipo),
       codigoPesquisa: 0,
       loginId,
-      perguntasDiscursivas: blocos
-        .filter((b) => b.tipo === "discursiva")
-        .map((b) => ({ titulo: b.texto, resposta: "" })),
-      perguntasObjetivas: blocos
-        .filter((b) => b.tipo === "multipla" || b.tipo === "objetiva")
-        .map((b) => ({
-          titulo: b.texto,
-          tipo: b.tipo,
-          opcoes: b.opcoes.filter((o) => o.trim()).map((o) => ({ opcao: o, respostaCerta: null }))
-        })),
-      templateJson: JSON.stringify(blocos) // ✅ inclusão do campo TemplateJson
+      perguntasDiscursivas,
+      perguntasObjetivas,
+      PerguntasMultiplaEscolha: perguntasMultiplaEscolha,
+      templateJson: JSON.stringify(blocosTemplate)
     };
   };
 
   const salvarPesquisaComPerguntas = async () => {
     try {
       const pesquisaVM = montarPesquisaVM();
-      const response = await axios.post("http://localhost:5062/api/pesquisas", pesquisaVM);
+      const response = await axios.post(`${API_BASE}/api/pesquisas`, pesquisaVM);
 
       const id = response.data.pesquisaid;
+      // sobe anexos AGORA, vinculando à pesquisa criada
+      const { ok, fail } = await uploadAnexos(id);
+
       const urlResposta = `${window.location.origin}/responder/${id}`;
       setQrUrl(urlResposta);
-      alert("Pesquisa salva com sucesso!");
+
+      if (fail === 0 && ok > 0) {
+        toast.success(`Pesquisa e ${ok} anexo(s) enviados!`, { position: 'top-center', autoClose: 3000 });
+      } else if (ok > 0 && fail > 0) {
+        toast.warn(`Pesquisa salva. ${ok} anexo(s) enviados, ${fail} falharam.`, { position: 'top-center', autoClose: 5000 });
+      } else if (ok === 0 && fail > 0) {
+        toast.error(`Pesquisa salva, mas anexos falharam.`, { position: 'top-center', autoClose: 5000 });
+      } else {
+        toast.success("Pesquisa salva com sucesso!", { position: 'top-center', autoClose: 3000 });
+      }
     } catch (erro) {
       console.error("Erro ao salvar pesquisa:", erro);
-      alert("Ocorreu um erro ao salvar. Verifique os dados e tente novamente.");
+      toast.error("Ocorreu um erro ao salvar. Verifique os dados e tente novamente.", { position: 'top-center', autoClose: 4000 });
     }
   };
 
   const renderizarBloco = (bloco) => {
     const estilo = {
-      backgroundColor: bloco.estilo.corFundo || "transparent",
-      color: bloco.estilo.corTexto || "inherit",
-      fontFamily: bloco.estilo.fonte || "inherit"
+      backgroundColor: bloco.estilo.corFundo || 'transparent',
+      color: bloco.estilo.corTexto || 'inherit',
+      fontFamily: bloco.estilo.fonte || 'inherit'
     };
 
     const propsComuns = {
-      bloco: {
-        ...bloco,
-        selecionado: bloco.id === selectedBlockId
-      },
+      bloco: { ...bloco, selecionado: bloco.id === selectedBlockId },
       onChangeTexto: atualizarTexto,
       onChangeOpcoes: atualizarOpcoes,
       onRemove: removerBloco,
@@ -197,14 +253,17 @@ const CriarPesquisa = () => {
         return null;
     }
   };
+
   return (
     <>
       <TopNavbar />
+      <ToastContainer />
       <div className="editor-container">
         <input
           type="file"
           ref={inputFileRef}
           style={{ display: "none" }}
+          multiple
           onChange={handleArquivoSelecionado}
         />
 
@@ -266,6 +325,7 @@ const CriarPesquisa = () => {
 
           {blocos.length > 0 && blocos.map(renderizarBloco)}
         </main>
+
         <aside className="sidebar-direita">
           <h3>Estilo</h3>
           <label> <Paintbrush2 size={18} /> Cor de Fundo

@@ -1,11 +1,24 @@
 
-
-import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import './resultadosPesquisa.css';
 
+import React, { useEffect, useState } from 'react';
+// Função para escolher cor de texto automática baseada na cor de fundo
+function getContrastingTextColor(bgColor) {
+  if (!bgColor) return '#222';
+  let color = bgColor.replace('#', '');
+  if (color.length === 3) {
+    color = color.split('').map(c => c + c).join('');
+  }
+  if (color.length !== 6) return '#222';
+  const r = parseInt(color.substr(0,2),16);
+  const g = parseInt(color.substr(2,2),16);
+  const b = parseInt(color.substr(4,2),16);
+  const luminance = (0.299*r + 0.587*g + 0.114*b)/255;
+  return luminance > 0.5 ? '#222' : '#fff';
+}
 const ResultadosPesquisa = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -56,8 +69,8 @@ const ResultadosPesquisa = () => {
                 key={bloco.id}
                 className={`pergunta-card${bloco.tipo === 'discursiva' ? ' pergunta-card-discursiva' : ''}`}
                 style={{
-                  backgroundColor: bloco.tipo === 'discursiva' ? '#7c3aed' : '#fff',
-                  color: bloco.tipo === 'discursiva' ? '#fff' : '#000',
+                  backgroundColor: bloco.estilo?.corFundo || 'transparent',
+                  color: bloco.estilo?.corTexto || getContrastingTextColor(bloco.estilo?.corFundo),
                   fontFamily: bloco.estilo?.fonte || 'inherit',
                   boxShadow: bloco.tipo === 'discursiva' ? '0 2px 12px rgba(124, 58, 237, 0.15)' : undefined
                 }}
@@ -73,7 +86,7 @@ const ResultadosPesquisa = () => {
                 ) : (
                   <ul className="lista-opcoes">
                     {bloco.opcoes?.map((op, i) => (
-                      <li key={i} className="opcao-item">{op}</li>
+                      <li key={op.opcaoid ?? i} className="opcao-item">{typeof op === 'object' && op !== null ? op.texto : String(op)}</li>
                     ))}
                   </ul>
                 )}

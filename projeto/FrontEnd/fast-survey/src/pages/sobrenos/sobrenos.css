@@ -10,8 +10,8 @@ html, body {
 }
 /* Container principal */
 .sobre-nos-container {
-  height: 100%;
-  width: 100%;
+  height: calc(100vh - 80px);
+  width: 100vw;
   padding: 2rem 3rem;
   background-color: #fff;
   overflow-y: auto;
@@ -50,7 +50,7 @@ html, body {
   color: #555;
   font-size: 1rem;
   margin-bottom: 1rem;
-  width: 100%;
+  max-width: 900px;
   text-align: center; /* <-- garante centralização */
 }
 
@@ -58,7 +58,7 @@ html, body {
 .sobre-nos-container ul {
   margin-top: 1rem;
   padding-left: 1.5rem;
-  width: 100%;
+  max-width: 900px;
   text-align: left; /* <-- mantido alinhado à esquerda */
 }
 
@@ -88,6 +88,7 @@ html, body {
 /* Área dos cards */
 .cards-equipe {
   display: flex;
+  flex-wrap: wrap;
   gap: 2.2rem;
   margin-top: 2rem;
   justify-content: center;
@@ -99,7 +100,7 @@ html, body {
   border: 2px solid #a78bfa;
   border-radius: 18px;
   padding: 1.5rem 1.5rem 1.2rem 1.5rem;
-  width: 100%;
+  width: 270px;
   box-shadow: 0 4px 24px rgba(124,58,237,0.10);
   display: flex;
   align-items: center;
@@ -288,6 +289,7 @@ html, body {
 /* Define um contêiner interno com alinhamento à esquerda */
 .sobre-nos-container .conteudo-limitado {
   width: 100%;
+  max-width: 960px;
   text-align: left;
   padding: 0 1rem;
   box-sizing: border-box;

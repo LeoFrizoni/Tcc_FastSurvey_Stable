@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
-import './responderPesquisa.css';
+import '../responderPesquisa/responderPesquisa.css';
 
 const ResponderPesquisa = () => {
   const { id } = useParams();
