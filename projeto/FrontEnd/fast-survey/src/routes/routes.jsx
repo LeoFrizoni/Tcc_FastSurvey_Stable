@@ -11,6 +11,18 @@ import Admin from '../pages/admin/Admin';
 import PrivateRoute from '../components/utilities/PrivateRoute';
 import ResponderPesquisa from '../pages/responderPesquisa/ResponderPesquisa';
 
+// Mobile Components
+import MobileLogin from '../pages/mobile/MobileLogin';
+import MobileHome from '../pages/mobile/MobileHome';
+import MobilePerfil from '../pages/mobile/MobilePerfil';
+import MobileSobreNos from '../pages/mobile/MobileSobreNos';
+import MobileCreatePesquisa from '../pages/mobile/MobileCreatePesquisa';
+import MobileResultadosPesquisa from '../pages/mobile/MobileResultadosPesquisa';
+import MobileEditarPesquisa from '../pages/mobile/MobileEditarPesquisa';
+import MobileAdmin from '../pages/mobile/MobileAdmin';
+import MobileResponderPesquisa from '../pages/mobile/MobileResponderPesquisa';
+import MobileMinhasPesquisas from '../pages/mobile/MobileMinhasPesquisas';
+
 const PrivateRouteAdmin = ({ children }) => {
   const tipoUsuarioId = parseInt(localStorage.getItem('tipousuarioid'), 10);
   const token = localStorage.getItem('token');
@@ -22,17 +34,23 @@ const PrivateRouteAdmin = ({ children }) => {
   return tipoUsuarioId === 15 ? children : <Navigate to="/home" />;
 };
 
+// Função para detectar mobile
+function isMobile() {
+  return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+}
+
 const AppRoutes = () => {
+  const mobile = isMobile();
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={mobile ? <MobileLogin /> : <Login />} />
 
         <Route
           path="/home"
           element={
             <PrivateRoute>
-              <HomePage />
+              {mobile ? <MobileHome /> : <HomePage />}
             </PrivateRoute>
           }
         />
@@ -40,7 +58,7 @@ const AppRoutes = () => {
           path="/perfil"
           element={
             <PrivateRoute>
-              <Perfil />
+              {mobile ? <MobilePerfil /> : <Perfil />}
             </PrivateRoute>
           }
         />
@@ -48,7 +66,7 @@ const AppRoutes = () => {
           path="/sobre-nos"
           element={
             <PrivateRoute>
-              <SobreNos />
+              {mobile ? <MobileSobreNos /> : <SobreNos />}
             </PrivateRoute>
           }
         />
@@ -56,7 +74,7 @@ const AppRoutes = () => {
           path="/criar"
           element={
             <PrivateRoute>
-              <CriarPesquisa />
+              {mobile ? <MobileCreatePesquisa /> : <CriarPesquisa />}
             </PrivateRoute>
           }
         />
@@ -64,7 +82,7 @@ const AppRoutes = () => {
           path="/minhas-pesquisas/editar/:id"
           element={
             <PrivateRoute>
-              <EditarPesquisa />
+              {mobile ? <MobileEditarPesquisa /> : <EditarPesquisa />}
             </PrivateRoute>
           }
         />
@@ -72,23 +90,27 @@ const AppRoutes = () => {
           path="/minhas-pesquisas/resultado/:id"
           element={
             <PrivateRoute>
-              <ResultadoPesquisa />
+              {mobile ? <MobileResultadosPesquisa /> : <ResultadoPesquisa />}
             </PrivateRoute>
           }
         />
-
-        
-        <Route path="/responder/:id" element={<ResponderPesquisa />} />
-
+        <Route
+          path="/minhas-pesquisas"
+          element={
+            <PrivateRoute>
+              {mobile ? <MobileMinhasPesquisas /> : <ResultadoPesquisa />}
+            </PrivateRoute>
+          }
+        />
+        <Route path="/responder/:id" element={mobile ? <MobileResponderPesquisa /> : <ResponderPesquisa />} />
         <Route
           path="/admin"
           element={
             <PrivateRouteAdmin>
-              <Admin />
+              {mobile ? <MobileAdmin /> : <Admin />}
             </PrivateRouteAdmin>
           }
         />
-
         <Route path="/" element={<Navigate to="/login" />} />
       </Routes>
     </Router>

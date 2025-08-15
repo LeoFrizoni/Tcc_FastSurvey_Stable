@@ -140,159 +140,20 @@ html, body {
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   border: 1px solid black;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border 0.18s;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   cursor: pointer;
 }
 
 .card-pesquisa:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2); 
-  border-color: #333; 
-}
-
-.card-pesquisa h3 {
-  font-size: 1.1rem;
-  margin-bottom: 0.5rem;
-  color: #333;
-}
-
-.card-pesquisa p {
-  font-size: 0.95rem;
-  color: #555;
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 8px 24px rgba(124,58,237,0.18);
+  border: 1.5px solid #7c3aed;
 }
 
 .card-pesquisa .tag {
-  align-self: flex-start;
-  background-color: #e4e1fb;
-  color: #4a3fc5;
   font-size: 0.75rem;
-  font-weight: 600;
-  padding: 0.3rem 0.6rem;
-  border-radius: 6px;
-  margin-top: auto;
-}
-
-
-
-
-
-
-
-
-/*RESPONSIVIDADE*/
-
-/* === Tablets (iPad, Android tablets) === */
-@media (max-width: 1024px) {
-  .dashboard-container {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .sidebar nav ul {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5rem;
-  }
-
-  .sidebar nav ul li {
-    margin-bottom: 0;
-  }
-
-  .sidebar footer {
-    display: none;
-  }
-
-  .main-content {
-    padding: 1.5rem;
-  }
-
-  .titulo-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.8rem;
-  }
-
-  .botao-criar {
-    width: 100%;
-    justify-content: center;
-    font-size: 1.05rem;
-    padding: 1rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
-}
-
-/* === Celulares Android & iPhones (modo retrato) === */
-@media (max-width: 600px) {
-  .main-content h2 {
-    font-size: 1.5rem;
-  }
-
-  .botao-criar {
-    font-size: 1rem;
-    padding: 0.9rem 1.1rem;
-    width: 100%;
-  }
-
-  .sidebar {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem;
-  }
-
-  .sidebar nav ul {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .sidebar nav ul li {
-    width: 100%;
-    padding: 0.8rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .card-pesquisa {
-    padding: 1.2rem;
-  }
-
-  .card-pesquisa h3 {
-    font-size: 1rem;
-  }
-
-  .card-pesquisa p {
-    font-size: 0.85rem;
-  }
-
-  .card-pesquisa .tag {
-    font-size: 0.75rem;
-  }
-
-  .titulo-header {
-    align-items: stretch;
-  }
-
-  .dashboard-container {
-    flex-direction: column;
-  }
 }
 
 /* === iPhone SE ou celulares muito pequenos (até 375px) === */

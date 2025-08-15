@@ -8,6 +8,140 @@ html, body {
   box-sizing: border-box;
   color: #333;
 }
+/* Container principal */
+.sobre-nos-container {
+  height: 100%;
+  width: 100%;
+  padding: 2rem 3rem;
+  background-color: #fff;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center; /* <-- CENTRALIZA */
+  text-align: center;  /* <-- CENTRALIZA TEXTO */
+  line-height: 1.7;
+  box-sizing: border-box;
+  border-radius: 0 0 12px 12px;
+  box-shadow: inset 0 1px 0 #eee;
+}
+
+
+/* Título principal */
+.sobre-nos-container h1 {
+  color: #2e2e2e;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* Subtítulos */
+.sobre-nos-container h2 {
+  color: #6246ea;
+  font-size: 1.3rem;
+  margin-top: 2rem;
+  margin-bottom: 0.6rem;
+  font-weight: 500;
+}
+
+/* Parágrafos */
+.sobre-nos-container p {
+  color: #555;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  text-align: center; /* <-- garante centralização */
+}
+
+/* Lista de integrantes */
+.sobre-nos-container ul {
+  margin-top: 1rem;
+  padding-left: 1.5rem;
+  width: 100%;
+  text-align: left; /* <-- mantido alinhado à esquerda */
+}
+
+.sobre-nos-container li {
+  margin-bottom: 0.6rem;
+  font-size: 1rem;
+  position: relative;
+  padding-left: 0.5rem;
+}
+
+.sobre-nos-container li::before {
+  content: '•';
+  color: #7f5af0;
+  font-weight: bold;
+  position: absolute;
+  left: -1rem;
+  top: 0;
+}
+/* Títulos com ícones alinhados */
+.sobre-nos-container .secao h1,
+.sobre-nos-container .secao h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Área dos cards */
+.cards-equipe {
+  display: flex;
+  gap: 2.2rem;
+  margin-top: 2rem;
+  justify-content: center;
+}
+
+/* Cada card de membro */
+.card-membro {
+  background: #fff;
+  border: 2px solid #a78bfa;
+  border-radius: 18px;
+  padding: 1.5rem 1.5rem 1.2rem 1.5rem;
+  width: 100%;
+  box-shadow: 0 4px 24px rgba(124,58,237,0.10);
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  transition: transform 0.22s cubic-bezier(.4,2,.6,1), box-shadow 0.22s cubic-bezier(.4,2,.6,1), border 0.18s;
+  cursor: pointer;
+}
+
+.card-membro:hover {
+  transform: translateY(-10px) scale(1.03);
+  box-shadow: 0 8px 32px rgba(124,58,237,0.18);
+  border: 2px solid #7c3aed;
+}
+
+/* Avatar genérico com iniciais */
+.avatar {
+  background: linear-gradient(135deg, #7c3aed 60%, #6246ea 100%);
+  color: #fff;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  box-shadow: 0 4px 16px rgba(124,58,237,0.13);
+  flex-shrink: 0;
+  border: 3px solid #ede9fe;
+  letter-spacing: 1px;
+}
+
+/* Nome e função */
+.card-membro h3 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.18rem;
+  color: #7c3aed;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+  
 
 /* Container principal */
 .sobre-nos-container {
@@ -149,174 +283,12 @@ html, body {
   color: #444;
   font-weight: 500;
   opacity: 0.85;
-@media (max-width: 900px) {
-  .cards-equipe {
-    gap: 1.1rem;
-  }
-  .card-membro {
-    width: 98vw;
-    max-width: 340px;
-    padding: 1.1rem 0.7rem 1.1rem 0.7rem;
-  }
-  .avatar {
-    width: 54px;
-    height: 54px;
-    font-size: 1.05rem;
-  }
-}
+
 }
 /* Define um contêiner interno com alinhamento à esquerda */
 .sobre-nos-container .conteudo-limitado {
   width: 100%;
-  max-width: 960px;
   text-align: left;
   padding: 0 1rem;
   box-sizing: border-box;
-}
-
-
-
-
-
-
-
-/*RESPONSIVIDADE*/
-
-
-/* === Tablets (iPad, Android tablets) === */
-@media (max-width: 1024px) {
-  .dashboard-container {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .sidebar nav ul {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5rem;
-  }
-
-  .sidebar nav ul li {
-    margin-bottom: 0;
-  }
-
-  .sidebar footer {
-    display: none;
-  }
-
-  .main-content {
-    padding: 1.5rem;
-  }
-
-  .titulo-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.8rem;
-  }
-
-  .botao-criar {
-    width: 100%;
-    justify-content: center;
-    font-size: 1.05rem;
-    padding: 1rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
-}
-
-/* === Celulares Android & iPhones (modo retrato) === */
-@media (max-width: 600px) {
-  .main-content h2 {
-    font-size: 1.5rem;
-  }
-
-  .botao-criar {
-    font-size: 1rem;
-    padding: 0.9rem 1.1rem;
-    width: 100%;
-  }
-
-  .sidebar {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem;
-  }
-
-  .sidebar nav ul {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .sidebar nav ul li {
-    width: 100%;
-    padding: 0.8rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .card-pesquisa {
-    padding: 1.2rem;
-  }
-
-  .card-pesquisa h3 {
-    font-size: 1rem;
-  }
-
-  .card-pesquisa p {
-    font-size: 0.85rem;
-  }
-
-  .card-pesquisa .tag {
-    font-size: 0.75rem;
-  }
-
-  .titulo-header {
-    align-items: stretch;
-  }
-
-  .dashboard-container {
-    flex-direction: column;
-  }
-}
-
-/* === iPhone SE ou celulares muito pequenos (até 375px) === */
-@media (max-width: 375px) {
-  .main-content {
-    padding: 1rem;
-  }
-
-  .botao-criar {
-    font-size: 0.95rem;
-    padding: 0.8rem 1rem;
-  }
-
-  .card-pesquisa {
-    padding: 1rem;
-  }
-
-  .card-pesquisa h3,
-  .card-pesquisa p {
-    font-size: 0.85rem;
-  }
-
-  .sidebar .logo {
-    font-size: 1.3rem;
-  }
-
-  .main-content h2 {
-    font-size: 1.3rem;
-  }
 }

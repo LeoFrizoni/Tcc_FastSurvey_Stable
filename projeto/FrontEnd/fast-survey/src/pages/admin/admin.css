@@ -1,3 +1,185 @@
+
+body, .admin-main {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #f7f7fb;
+  margin: 0;
+  min-height: 100vh;
+}
+
+.admin-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 12px 60px 12px;
+}
+
+.admin-main h1 {
+  text-align: center;
+  color: #7A3CED;
+  margin-bottom: 32px;
+  font-size: 2.2rem;
+}
+
+
+/* Top Navbar para Admin */
+.admin-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(123,47,242,0.07);
+  padding: 18px 24px;
+  margin-bottom: 32px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 18px;
+}
+.admin-navbar-title {
+  font-size: 1.5rem;
+  color: #7A3CED;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.admin-navbar-tabs {
+  display: flex;
+  gap: 10px;
+}
+.admin-navbar-tabs button {
+  background: #e6ddff;
+  color: #7A3CED;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(122,60,237,0.07);
+}
+.admin-navbar-tabs button.active {
+  background: linear-gradient(90deg, #7A3CED 60%, #6f3de3 100%);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(122,60,237,0.13);
+}
+.admin-navbar-tabs button:hover:not(.active) {
+  background: #d1c4e9;
+  color: #5b2bc4;
+}
+.admin-search {
+  margin-left: 18px;
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+  min-width: 180px;
+}
+
+.admin-section {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 16px rgba(123,47,242,0.07);
+  padding: 28px 18px 24px 18px;
+  margin-bottom: 32px;
+}
+.admin-section h2 {
+  color: #7A3CED;
+  margin-bottom: 18px;
+  font-size: 1.4rem;
+}
+.admin-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.admin-form input {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 15px;
+  background: #f8f8ff;
+}
+.admin-form button {
+  background: linear-gradient(90deg, #7A3CED 60%, #6f3de3 100%);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 15px;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow: 0 1px 4px rgba(123,47,242,0.10);
+}
+.admin-form button:hover {
+  background: linear-gradient(90deg, #6f3de3 60%, #7A3CED 100%);
+  box-shadow: 0 2px 8px rgba(123,47,242,0.18);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  margin-top: 10px;
+}
+th, td {
+  text-align: left;
+  padding: 13px 10px;
+  font-size: 15px;
+}
+th {
+  background-color: #f8f8f8;
+  color: #555;
+  font-weight: 600;
+  border-bottom: 1px solid #eee;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+td {
+  border-bottom: 1px solid #f2f2f2;
+}
+tr:nth-child(even) {
+  background: #f7f3ff;
+}
+tr:hover {
+  background: #e6ddff;
+  transition: background 0.2s;
+}
+input[type="text"], input[type="email"], input[type="password"] {
+  padding: 7px 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 15px;
+  background: #f8f8ff;
+}
+button {
+  outline: none;
+}
+
+@media (max-width: 700px) {
+  .admin-main {
+    padding: 10px 2px 40px 2px;
+  }
+  .admin-section {
+    padding: 12px 2px 10px 2px;
+  }
+  table, th, td {
+    font-size: 13px;
+  }
+  .admin-tabs button, .admin-form button {
+    font-size: 13px;
+    padding: 7px 10px;
+  }
+  .admin-search {
+    min-width: 100px;
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+}
 .admin-wrapper {
   background-color: #f0f2f5;
   width: 100vw;
@@ -337,7 +519,5 @@ button:not(.btn-sair):hover {
     font-size: 1.3rem;
   }
 
-  .main-content h2 {
-    font-size: 1.3rem;
-  }
+
 }

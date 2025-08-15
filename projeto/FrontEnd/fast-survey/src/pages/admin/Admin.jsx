@@ -1,400 +1,256 @@
+
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import './admin.css';
-import { useNavigate } from 'react-router-dom';
-import { FiLogOut } from 'react-icons/fi';
+
+const API = 'http://localhost:5062/api';
 
 const AdminPage = () => {
-  const [abaAtiva, setAbaAtiva] = useState('usuarios');
-
+  const [aba, setAba] = useState('usuarios');
   const [usuarios, setUsuarios] = useState([]);
-  const [editandoUsuario, setEditandoUsuario] = useState(null);
-  const [usuarioEditado, setUsuarioEditado] = useState({ usuario: '', email: '', senha: '' });
-
   const [tiposUsuario, setTiposUsuario] = useState([]);
-  const [editandoTipoUsuario, setEditandoTipoUsuario] = useState(null);
-  const [tipoUsuarioEditado, setTipoUsuarioEditado] = useState('');
-  const [novoTipoUsuario, setNovoTipoUsuario] = useState('');
-
   const [tiposPesquisa, setTiposPesquisa] = useState([]);
-  const [editandoTipoPesquisa, setEditandoTipoPesquisa] = useState(null);
-  const [tipoPesquisaEditado, setTipoPesquisaEditado] = useState('');
-  const [novoTipoPesquisa, setNovoTipoPesquisa] = useState('');
-
   const [filtro, setFiltro] = useState('');
-
-  const navigate = useNavigate();
+  const [edit, setEdit] = useState({});
+  const [novo, setNovo] = useState({ usuario: '', email: '', senha: '', tipousuario: '', tipopesquisa: '' });
 
   useEffect(() => {
-    if (abaAtiva === 'usuarios') buscarUsuarios();
-    if (abaAtiva === 'tipousuario') buscarTiposUsuario();
-    if (abaAtiva === 'tipopesquisa') buscarTiposPesquisa();
-  }, [abaAtiva]);
+    if (aba === 'usuarios') fetchUsuarios();
+    if (aba === 'tipousuario') fetchTiposUsuario();
+    if (aba === 'tipopesquisa') fetchTiposPesquisa();
+  }, [aba]);
 
-  const buscarUsuarios = async () => {
-    try {
-      const resposta = await axios.get('http://localhost:5062/api/login/listarlogins');
-      setUsuarios(resposta.data);
-    } catch (erro) {
-      console.error('Erro ao buscar usuários:', erro);
-    }
-  };
+  async function fetchUsuarios() {
+    const res = await fetch(`${API}/login/listarlogins`);
+    setUsuarios(await res.json());
+  }
+  async function fetchTiposUsuario() {
+    const res = await fetch(`${API}/tipousuario/Listar`);
+    setTiposUsuario(await res.json());
+  }
+  async function fetchTiposPesquisa() {
+    const res = await fetch(`${API}/tipopesquisa/ListarTipoPesquisa`);
+    setTiposPesquisa(await res.json());
+  }
 
-  const buscarTiposUsuario = async () => {
-    try {
-      const resposta = await axios.get('http://localhost:5062/api/tipousuario/Listar');
-      setTiposUsuario(resposta.data);
-    } catch (erro) {
-      console.error('Erro ao buscar tipos de usuário:', erro);
-    }
-  };
+  // CRUD Usuário
+  function startEditUsuario(u) {
+    setEdit({ ...u, type: 'usuario' });
+  }
+  async function saveUsuario() {
+    await fetch(`${API}/login/alterarloginporid/${edit.loginid}`, {
+      method: 'PUT',
+      body: JSON.stringify(edit),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setEdit({});
+    fetchUsuarios();
+  }
+  async function deleteUsuario(id) {
+    if (!window.confirm('Excluir usuário?')) return;
+    await fetch(`${API}/login/excluirlogin/${id}`, { method: 'DELETE' });
+    fetchUsuarios();
+  }
+  async function addUsuario() {
+    if (!novo.usuario || !novo.email || !novo.senha) return;
+    await fetch(`${API}/login/cadastrar`, {
+      method: 'POST',
+      body: JSON.stringify(novo),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setNovo({ ...novo, usuario: '', email: '', senha: '' });
+    fetchUsuarios();
+  }
 
-  const buscarTiposPesquisa = async () => {
-    try {
-      const resposta = await axios.get('http://localhost:5062/api/tipopesquisa/ListarTipoPesquisa');
-      setTiposPesquisa(resposta.data);
-    } catch (erro) {
-      console.error('Erro ao buscar tipos de pesquisa:', erro);
-    }
-  };
+  // CRUD TipoUsuario
+  function startEditTipoUsuario(t) {
+    setEdit({ ...t, type: 'tipousuario' });
+  }
+  async function saveTipoUsuario() {
+    await fetch(`${API}/tipousuario/Alterar/${edit.usuarioid}`, {
+      method: 'PUT',
+      body: JSON.stringify({ tipousuario1: edit.tipousuario1 }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setEdit({});
+    fetchTiposUsuario();
+  }
+  async function deleteTipoUsuario(id) {
+    if (!window.confirm('Excluir tipo de usuário?')) return;
+    await fetch(`${API}/tipousuario/Excluir/${id}`, { method: 'DELETE' });
+    fetchTiposUsuario();
+  }
+  async function addTipoUsuario() {
+    if (!novo.tipousuario) return;
+    await fetch(`${API}/tipousuario/Cadastrar`, {
+      method: 'POST',
+      body: JSON.stringify({ tipousuario1: novo.tipousuario }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setNovo({ ...novo, tipousuario: '' });
+    fetchTiposUsuario();
+  }
 
-  const excluirItem = async (id, tipo) => {
-    const confirm = window.confirm('Tem certeza que deseja excluir este item?');
-    if (!confirm) return;
+  // CRUD TipoPesquisa
+  function startEditTipoPesquisa(t) {
+    setEdit({ ...t, type: 'tipopesquisa' });
+  }
+  async function saveTipoPesquisa() {
+    await fetch(`${API}/tipopesquisa/AlterarTipoPesquisaPorId/${edit.tipopesquisaid}`, {
+      method: 'PUT',
+      body: JSON.stringify({ tipopesquisa1: edit.tipopesquisa1 }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setEdit({});
+    fetchTiposPesquisa();
+  }
+  async function deleteTipoPesquisa(id) {
+    if (!window.confirm('Excluir tipo de pesquisa?')) return;
+    await fetch(`${API}/tipopesquisa/ExcluirTipoPesquisa/${id}`, { method: 'DELETE' });
+    fetchTiposPesquisa();
+  }
+  async function addTipoPesquisa() {
+    if (!novo.tipopesquisa) return;
+    await fetch(`${API}/tipopesquisa/CadastrarTipoPesquisa`, {
+      method: 'POST',
+      body: JSON.stringify({ tipopesquisa1: novo.tipopesquisa }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    setNovo({ ...novo, tipopesquisa: '' });
+    fetchTiposPesquisa();
+  }
 
-    try {
-      if (tipo === 'usuario') {
-        await axios.delete(`http://localhost:5062/api/login/excluirlogin/${id}`);
-        buscarUsuarios();
-      } else if (tipo === 'tipousuario') {
-        await axios.delete(`http://localhost:5062/api/tipousuario/Excluir/${id}`);
-        buscarTiposUsuario();
-      } else if (tipo === 'tipopesquisa') {
-        await axios.delete(`http://localhost:5062/api/tipopesquisa/ExcluirTipoPesquisa/${id}`);
-        buscarTiposPesquisa();
-      }
-    } catch (erro) {
-      console.error(`Erro ao excluir ${tipo}:`, erro);
-    }
-  };
-
-  const salvarUsuario = async (id) => {
-    try {
-      const formData = new FormData();
-      formData.append('loginid', id);
-      formData.append('usuario', usuarioEditado.usuario);
-      formData.append('email', usuarioEditado.email);
-      formData.append('senha', usuarioEditado.senha);
-      await axios.put(`http://localhost:5062/api/login/alterarloginporid/${id}`, formData);
-      setEditandoUsuario(null);
-      buscarUsuarios();
-    } catch (erro) {
-      console.error('Erro ao editar usuário:', erro);
-    }
-  };
-
-  const salvarTipoUsuario = async (id) => {
-    try {
-      await axios.put(`http://localhost:5062/api/tipousuario/Alterar/${id}`, {
-        tipousuario1: tipoUsuarioEditado
-      });
-      setEditandoTipoUsuario(null);
-      buscarTiposUsuario();
-    } catch (erro) {
-      console.error('Erro ao editar tipo de usuário:', erro);
-    }
-  };
-
-  const salvarTipoPesquisa = async (id) => {
-    try {
-      const formData = new FormData();
-      formData.append('tipopesquisaid', id);
-      formData.append('tipopesquisa1', tipoPesquisaEditado);
-      await axios.put(`http://localhost:5062/api/tipopesquisa/AlterarTipoPesquisaPorId/${id}`, formData);
-      setEditandoTipoPesquisa(null);
-      buscarTiposPesquisa();
-    } catch (erro) {
-      console.error('Erro ao editar tipo de pesquisa:', erro);
-    }
-  };
-
-  const adicionarTipoUsuario = async () => {
-    if (!novoTipoUsuario.trim()) return;
-    try {
-      await axios.post('http://localhost:5062/api/tipousuario/Cadastrar', { tipousuario1: novoTipoUsuario });
-      setNovoTipoUsuario('');
-      buscarTiposUsuario();
-    } catch (erro) {
-      console.error('Erro ao adicionar tipo de usuário:', erro);
-    }
-  };
-
-  const adicionarTipoPesquisa = async () => {
-    if (!novoTipoPesquisa.trim()) return;
-    try {
-      const formData = new FormData();
-      formData.append('tipopesquisa1', novoTipoPesquisa);
-      await axios.post('http://localhost:5062/api/tipopesquisa/CadastrarTipoPesquisa', formData);
-      setNovoTipoPesquisa('');
-      buscarTiposPesquisa();
-    } catch (erro) {
-      console.error('Erro ao adicionar tipo de pesquisa:', erro);
-    }
-  };
+  // Render helpers
+  function renderUsuarios() {
+    return (
+      <div className="admin-section">
+        <h2>Usuários</h2>
+        <div className="admin-form">
+          <input placeholder="Usuário" value={novo.usuario} onChange={e => setNovo({ ...novo, usuario: e.target.value })} />
+          <input placeholder="Email" value={novo.email} onChange={e => setNovo({ ...novo, email: e.target.value })} />
+          <input placeholder="Senha" type="password" value={novo.senha} onChange={e => setNovo({ ...novo, senha: e.target.value })} />
+          <button onClick={addUsuario}>Adicionar</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Usuário</th><th>Email</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            {usuarios.filter(u => u.usuario?.toLowerCase().includes(filtro.toLowerCase())).map(u => (
+              <tr key={u.loginid}>
+                <td>{u.loginid}</td>
+                <td>{edit.loginid === u.loginid ? <input value={edit.usuario} onChange={e => setEdit({ ...edit, usuario: e.target.value })} /> : u.usuario}</td>
+                <td>{edit.loginid === u.loginid ? <input value={edit.email} onChange={e => setEdit({ ...edit, email: e.target.value })} /> : u.email}</td>
+                <td>
+                  {edit.loginid === u.loginid ? (
+                    <>
+                      <button onClick={saveUsuario}>Salvar</button>
+                      <button onClick={() => setEdit({})}>Cancelar</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEditUsuario(u)}>Editar</button>
+                      <button onClick={() => deleteUsuario(u.loginid)}>Excluir</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  function renderTiposUsuario() {
+    return (
+      <div className="admin-section">
+        <h2>Tipos de Usuário</h2>
+        <div className="admin-form">
+          <input placeholder="Novo tipo de usuário" value={novo.tipousuario} onChange={e => setNovo({ ...novo, tipousuario: e.target.value })} />
+          <button onClick={addTipoUsuario}>Adicionar</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            {tiposUsuario.filter(t => t.tipousuario1?.toLowerCase().includes(filtro.toLowerCase())).map(t => (
+              <tr key={t.usuarioid}>
+                <td>{t.usuarioid}</td>
+                <td>{edit.usuarioid === t.usuarioid ? <input value={edit.tipousuario1} onChange={e => setEdit({ ...edit, tipousuario1: e.target.value })} /> : t.tipousuario1}</td>
+                <td>
+                  {edit.usuarioid === t.usuarioid ? (
+                    <>
+                      <button onClick={saveTipoUsuario}>Salvar</button>
+                      <button onClick={() => setEdit({})}>Cancelar</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEditTipoUsuario(t)}>Editar</button>
+                      <button onClick={() => deleteTipoUsuario(t.usuarioid)}>Excluir</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  function renderTiposPesquisa() {
+    return (
+      <div className="admin-section">
+        <h2>Tipos de Pesquisa</h2>
+        <div className="admin-form">
+          <input placeholder="Novo tipo de pesquisa" value={novo.tipopesquisa} onChange={e => setNovo({ ...novo, tipopesquisa: e.target.value })} />
+          <button onClick={addTipoPesquisa}>Adicionar</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+          </thead>
+          <tbody>
+            {tiposPesquisa.filter(t => t.tipopesquisa1?.toLowerCase().includes(filtro.toLowerCase())).map(t => (
+              <tr key={t.tipopesquisaid}>
+                <td>{t.tipopesquisaid}</td>
+                <td>{edit.tipopesquisaid === t.tipopesquisaid ? <input value={edit.tipopesquisa1} onChange={e => setEdit({ ...edit, tipopesquisa1: e.target.value })} /> : t.tipopesquisa1}</td>
+                <td>
+                  {edit.tipopesquisaid === t.tipopesquisaid ? (
+                    <>
+                      <button onClick={saveTipoPesquisa}>Salvar</button>
+                      <button onClick={() => setEdit({})}>Cancelar</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => startEditTipoPesquisa(t)}>Editar</button>
+                      <button onClick={() => deleteTipoPesquisa(t.tipopesquisaid)}>Excluir</button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   return (
-    <div className="admin-wrapper">
-      <header className="admin-header">
-        <h2>FastSurvey | Painel Admin</h2>
-        <button className="btn-sair" aria-label="Sair" onClick={() => { localStorage.clear(); navigate('/login'); }}>
-          <FiLogOut /> Sair
-        </button>
-      </header>
-
-      <div className="admin-container">
-        <div className="aba-selector">
-          <button onClick={() => setAbaAtiva('usuarios')} className={abaAtiva === 'usuarios' ? 'ativo' : ''}>Usuários</button>
-          <button onClick={() => setAbaAtiva('tipousuario')} className={abaAtiva === 'tipousuario' ? 'ativo' : ''}>Tipo Usuário</button>
-          <button onClick={() => setAbaAtiva('tipopesquisa')} className={abaAtiva === 'tipopesquisa' ? 'ativo' : ''}>Tipo Pesquisa</button>
+    <div className="admin-main">
+      <div className="admin-navbar">
+        <div className="admin-navbar-title">Painel Administrativo</div>
+        <div className="admin-navbar-tabs">
+          <button className={aba === 'usuarios' ? 'active' : ''} onClick={() => setAba('usuarios')}>Usuários</button>
+          <button className={aba === 'tipousuario' ? 'active' : ''} onClick={() => setAba('tipousuario')}>Tipos de Usuário</button>
+          <button className={aba === 'tipopesquisa' ? 'active' : ''} onClick={() => setAba('tipopesquisa')}>Tipos de Pesquisa</button>
         </div>
-
-        {abaAtiva === 'usuarios' && (
-          <>
-            <div className="admin-toolbar">
-              <h1>Gerenciamento de Usuários</h1>
-              <p>Total: {usuarios.length}</p>
-              <input
-                type="text"
-                placeholder="Buscar por nome..."
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-              />
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Usuário</th>
-                  <th>Email</th>
-                  <th>Senha</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usuarios.filter(u => u.usuario?.toLowerCase().includes(filtro.toLowerCase())).map((u, index) => (
-                  <tr key={u.loginid}>
-                    <td>{index + 1}</td>
-                    <td>
-                      {editandoUsuario === u.loginid ? (
-                        <input
-                          value={usuarioEditado.usuario}
-                          onChange={(e) => setUsuarioEditado({ ...usuarioEditado, usuario: e.target.value })}
-                        />
-                      ) : u.usuario}
-                    </td>
-                    <td>
-                      {editandoUsuario === u.loginid ? (
-                        <input
-                          value={usuarioEditado.email}
-                          onChange={(e) => setUsuarioEditado({ ...usuarioEditado, email: e.target.value })}
-                        />
-                      ) : u.email}
-                    </td>
-                    <td>
-                      {editandoUsuario === u.loginid ? (
-                        <input
-                          type="password"
-                          placeholder="Nova senha"
-                          value={usuarioEditado.senha}
-                          onChange={(e) => setUsuarioEditado({ ...usuarioEditado, senha: e.target.value })}
-                        />
-                      ) : '******'}
-                    </td>
-                    <td>
-                      {editandoUsuario === u.loginid ? (
-                        <>
-                          <button onClick={() => salvarUsuario(u.loginid)}>Salvar</button>
-                          <button onClick={() => setEditandoUsuario(null)}>Cancelar</button>
-                          <button type="button" aria-label="Salvar usuário" onClick={() => salvarUsuario(u.loginid)}>Salvar</button>
-                          <button type="button" aria-label="Cancelar edição" onClick={() => setEditandoUsuario(null)}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => {
-                            setEditandoUsuario(u.loginid);
-                            setUsuarioEditado({ usuario: u.usuario, email: u.email, senha: '' });
-                          }}>Editar</button>
-                          <button onClick={() => excluirItem(u.loginid, 'usuario')}>Excluir</button>
-                          <button type="button" aria-label="Editar usuário" onClick={() => {
-                            setEditandoUsuario(u.loginid);
-                            setUsuarioEditado({ usuario: u.usuario, email: u.email, senha: '' });
-                          }}>Editar</button>
-                          <button type="button" aria-label="Excluir usuário" onClick={() => excluirItem(u.loginid, 'usuario')}>Excluir</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {abaAtiva === 'tipousuario' && (
-          <>
-            <div className="admin-toolbar">
-              <h1>Gerenciamento de Tipo de Usuário</h1>
-              <p>Total: {tiposUsuario.length}</p>
-              <input
-                type="text"
-                placeholder="Buscar por nome..."
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-              />
-            </div>
-
-            <div className="admin-add-form">
-              <input
-                type="text"
-                placeholder="Novo Tipo de Usuário"
-                value={novoTipoUsuario}
-                onChange={(e) => setNovoTipoUsuario(e.target.value)}
-              />
-              <button onClick={adicionarTipoUsuario}>Adicionar</button>
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nome</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tiposUsuario.filter(tipo => tipo.tipousuario1?.toLowerCase().includes(filtro.toLowerCase())).map((tipo, index) => (
-                  <tr key={tipo.usuarioid}>
-                    <td>{index + 1}</td>
-                    <td>
-                      {editandoTipoUsuario === tipo.usuarioid ? (
-                        <input
-                          value={tipoUsuarioEditado}
-                          onChange={(e) => setTipoUsuarioEditado(e.target.value)}
-                        />
-                      ) : tipo.tipousuario1}
-                    </td>
-                    <td>
-                      {editandoTipoUsuario === tipo.usuarioid ? (
-                        <>
-                          <button onClick={() => salvarTipoUsuario(tipo.usuarioid)}>Salvar</button>
-                          <button onClick={() => setEditandoTipoUsuario(null)}>Cancelar</button>
-                          <button type="button" aria-label="Salvar tipo de usuário" onClick={() => salvarTipoUsuario(tipo.usuarioid)}>Salvar</button>
-                          <button type="button" aria-label="Cancelar edição" onClick={() => setEditandoTipoUsuario(null)}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => {
-                            setEditandoTipoUsuario(tipo.usuarioid);
-                            setTipoUsuarioEditado(tipo.tipousuario1);
-                          }}>Editar</button>
-                          <button onClick={() => excluirItem(tipo.usuarioid, 'tipousuario')}>Excluir</button>
-                          <button type="button" aria-label="Editar tipo de usuário" onClick={() => {
-                            setEditandoTipoUsuario(tipo.usuarioid);
-                            setTipoUsuarioEditado(tipo.tipousuario1);
-                          }}>Editar</button>
-                          <button type="button" aria-label="Excluir tipo de usuário" onClick={() => excluirItem(tipo.usuarioid, 'tipousuario')}>Excluir</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {abaAtiva === 'tipopesquisa' && (
-          <>
-            <div className="admin-toolbar">
-              <h1>Gerenciamento de Tipo de Pesquisa</h1>
-              <p>Total: {tiposPesquisa.length}</p>
-              <input
-                type="text"
-                placeholder="Buscar por nome..."
-                value={filtro}
-                onChange={(e) => setFiltro(e.target.value)}
-              />
-            </div>
-
-            <div className="admin-add-form">
-              <input
-                type="text"
-                placeholder="Novo Tipo de Pesquisa"
-                value={novoTipoPesquisa}
-                onChange={(e) => setNovoTipoPesquisa(e.target.value)}
-              />
-              <button onClick={adicionarTipoPesquisa}>Adicionar</button>
-            </div>
-
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Nome</th>
-                  <th>Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tiposPesquisa.filter(tipo => tipo.tipopesquisa1?.toLowerCase().includes(filtro.toLowerCase())).map((tipo, index) => (
-                  <tr key={tipo.tipopesquisaid}>
-                    <td>{index + 1}</td>
-                    <td>
-                      {editandoTipoPesquisa === tipo.tipopesquisaid ? (
-                        <input
-                          value={tipoPesquisaEditado}
-                          onChange={(e) => setTipoPesquisaEditado(e.target.value)}
-                        />
-                      ) : tipo.tipopesquisa1}
-                    </td>
-                    <td>
-                      {editandoTipoPesquisa === tipo.tipopesquisaid ? (
-                        <>
-                          <button onClick={() => salvarTipoPesquisa(tipo.tipopesquisaid)}>Salvar</button>
-                          <button onClick={() => setEditandoTipoPesquisa(null)}>Cancelar</button>
-                          <button type="button" aria-label="Salvar tipo de pesquisa" onClick={() => salvarTipoPesquisa(tipo.tipopesquisaid)}>Salvar</button>
-                          <button type="button" aria-label="Cancelar edição" onClick={() => setEditandoTipoPesquisa(null)}>Cancelar</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => {
-                            setEditandoTipoPesquisa(tipo.tipopesquisaid);
-                            setTipoPesquisaEditado(tipo.tipopesquisa1);
-                          }}>Editar</button>
-                          <button onClick={() => excluirItem(tipo.tipopesquisaid, 'tipopesquisa')}>Excluir</button>
-                          <button type="button" aria-label="Editar tipo de pesquisa" onClick={() => {
-                            setEditandoTipoPesquisa(tipo.tipopesquisaid);
-                            setTipoPesquisaEditado(tipo.tipopesquisa1);
-                          }}>Editar</button>
-                          <button type="button" aria-label="Excluir tipo de pesquisa" onClick={() => excluirItem(tipo.tipopesquisaid, 'tipopesquisa')}>Excluir</button>
-              <button type="button" aria-label="Adicionar tipo de usuário" onClick={adicionarTipoUsuario}>Adicionar</button>
-                          <button type="button" aria-label="Salvar tipo de pesquisa" onClick={() => salvarTipoPesquisa(tipo.tipopesquisaid)}>Salvar</button>
-                          <button type="button" aria-label="Cancelar edição" onClick={() => setEditandoTipoPesquisa(null)}>Cancelar</button>
-                          <button type="button" aria-label="Editar tipo de pesquisa" onClick={() => {
-                            setEditandoTipoPesquisa(tipo.tipopesquisaid);
-                            setTipoPesquisaEditado(tipo.tipopesquisa1);
-                          }}>Editar</button>
-                          <button type="button" aria-label="Excluir tipo de pesquisa" onClick={() => excluirItem(tipo.tipopesquisaid, 'tipopesquisa')}>Excluir</button>
-              <button type="button" aria-label="Adicionar tipo de pesquisa" onClick={adicionarTipoPesquisa}>Adicionar</button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
+        <input className="admin-search" placeholder="Buscar..." value={filtro} onChange={e => setFiltro(e.target.value)} />
+        <button className="logout-btn" onClick={() => { localStorage.clear(); window.location.href = '/login'; }}>Logout</button>
+      </div>
+      <div className="admin-content">
+        {aba === 'usuarios' && renderUsuarios()}
+        {aba === 'tipousuario' && renderTiposUsuario()}
+        {aba === 'tipopesquisa' && renderTiposPesquisa()}
       </div>
     </div>
   );
