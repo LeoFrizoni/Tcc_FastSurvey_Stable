@@ -1,0 +1,85 @@
+﻿{
+   "CodeGenerationMode": 4,
+   "ContextClassName": "FastSurveyContext",
+   "ContextNamespace": null,
+   "FilterSchemas": false,
+   "IncludeConnectionString": true,
+   "ModelNamespace": null,
+   "OutputContextPath": null,
+   "OutputPath": "Models",
+   "PreserveCasingWithRegex": true,
+   "ProjectRootNamespace": "SISTEMA_FASTSURVEY.MODEL",
+   "Schemas": null,
+   "SelectedHandlebarsLanguage": 2,
+   "SelectedToBeGenerated": 0,
+   "T4TemplatePath": null,
+   "Tables": [
+      {
+         "Name": "public.anexos",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.login",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.opcoespergunta",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.perguntas",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.pesquisas",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.respostas",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.tipopergunta",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.tipopesquisa",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.tipousuario",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.tokens",
+         "ObjectType": 0
+      }
+   ],
+   "UiHint": null,
+   "UncountableWords": null,
+   "UseAsyncStoredProcedureCalls": true,
+   "UseBoolPropertiesWithoutDefaultSql": false,
+   "UseDatabaseNames": true,
+   "UseDatabaseNamesForRoutines": true,
+   "UseDateOnlyTimeOnly": true,
+   "UseDbContextSplitting": false,
+   "UseDecimalDataAnnotationForSprocResult": true,
+   "UseFluentApiOnly": true,
+   "UseHandleBars": false,
+   "UseHierarchyId": false,
+   "UseInflector": false,
+   "UseInternalAccessModifiersForSprocsAndFunctions": false,
+   "UseLegacyPluralizer": false,
+   "UseManyToManyEntity": false,
+   "UseNoDefaultConstructor": false,
+   "UseNoNavigations": false,
+   "UseNoObjectFilter": false,
+   "UseNodaTime": false,
+   "UseNullableReferences": false,
+   "UsePrefixNavigationNaming": false,
+   "UseSchemaFolders": false,
+   "UseSchemaNamespaces": false,
+   "UseSpatial": false,
+   "UseT4": false,
+   "UseT4Split": false
+}

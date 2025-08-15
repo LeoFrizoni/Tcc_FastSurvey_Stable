@@ -1,0 +1,235 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.modal-criar {
+  background-color: #fff;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 600px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  font-family: 'Segoe UI', sans-serif;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.modal-criar h2 {
+  text-align: center;
+  color: #2f2f2f;
+  font-size: 1.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.modal-criar input,
+.modal-criar textarea,
+.modal-criar select {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.modal-criar input:focus,
+.modal-criar textarea:focus,
+.modal-criar select:focus {
+  outline: none;
+  border-color: #7f5af0;
+  box-shadow: 0 0 0 2px rgba(127, 90, 240, 0.2);
+}
+
+.modal-criar textarea {
+  resize: vertical;
+  min-height: 80px;
+  max-height: 180px;
+}
+
+.modal-criar button {
+  background: linear-gradient(135deg, #7f5af0, #6246ea);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.modal-criar button:hover {
+  background: linear-gradient(135deg, #6c48e6, #503ed6);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#expiracao {
+  width: 100%;
+}
+
+/*RESPONSIVIDADE*/
+
+/* === Tablets (iPad, Android tablets) === */
+@media (max-width: 1024px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .sidebar nav ul {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+  }
+
+  .sidebar nav ul li {
+    margin-bottom: 0;
+  }
+
+  .sidebar footer {
+    display: none;
+  }
+
+  .main-content {
+    padding: 1.5rem;
+  }
+
+  .titulo-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.8rem;
+  }
+
+  .botao-criar {
+    width: 100%;
+    justify-content: center;
+    font-size: 1.05rem;
+    padding: 1rem;
+  }
+
+  .cards-wrapper {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+}
+
+/* === Celulares Android & iPhones (modo retrato) === */
+@media (max-width: 600px) {
+  .main-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .botao-criar {
+    font-size: 1rem;
+    padding: 0.9rem 1.1rem;
+    width: 100%;
+  }
+
+  .sidebar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .sidebar nav ul {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .sidebar nav ul li {
+    width: 100%;
+    padding: 0.8rem;
+  }
+
+  .cards-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .card-pesquisa {
+    padding: 1.2rem;
+  }
+
+  .card-pesquisa h3 {
+    font-size: 1rem;
+  }
+
+  .card-pesquisa p {
+    font-size: 0.85rem;
+  }
+
+  .card-pesquisa .tag {
+    font-size: 0.75rem;
+  }
+
+  .titulo-header {
+    align-items: stretch;
+  }
+
+  .dashboard-container {
+    flex-direction: column;
+  }
+}
+
+/* === iPhone SE ou celulares muito pequenos (até 375px) === */
+@media (max-width: 375px) {
+  .main-content {
+    padding: 1rem;
+  }
+
+  .botao-criar {
+    font-size: 0.95rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .card-pesquisa {
+    padding: 1rem;
+  }
+
+  .card-pesquisa h3,
+  .card-pesquisa p {
+    font-size: 0.85rem;
+  }
+
+  .sidebar .logo {
+    font-size: 1.3rem;
+  }
+
+  .main-content h2 {
+    font-size: 1.3rem;
+  }
+}

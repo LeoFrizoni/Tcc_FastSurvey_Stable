@@ -1,0 +1,44 @@
+/* Navbar superior fixa e elegante */
+.top-navbar {
+  height: 80px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #7f5af0, #6246ea);
+  color: white;
+  padding: 0 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Nome do projeto */
+.logo-title {
+  font-size: 1.4rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+/* Botão de voltar */
+.back-home {
+  background-color: #ffffff;
+  border: 2px solid #7A3CED;
+  color: #7A3CED;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(122, 60, 237, 0.2);
+}
+
+.back-home:hover {
+  background-color: #7A3CED;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(122, 60, 237, 0.4);
+}
