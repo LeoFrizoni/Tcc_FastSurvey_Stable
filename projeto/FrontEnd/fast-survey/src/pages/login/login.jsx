@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './login.css';
+import styles from '../login/login.module.css';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
@@ -21,9 +21,7 @@ const Login = () => {
 
   const navigate = useNavigate();
 
-  const validarSenhaForte = (senha) => {
-    return /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(senha);
-  };
+  const validarSenhaForte = (senha) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(senha);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,11 +37,8 @@ const Login = () => {
       toast.success(`Bem-vindo(a), ${resposta.data.usuario}!`);
 
       setTimeout(() => {
-        if (resposta.data.tipousuarioid === 15) {
-          navigate('/admin');
-        } else {
-          navigate('/home');
-        }
+        if (resposta.data.tipousuarioid === 15) navigate('/admin');
+        else navigate('/home');
       }, 1000);
     } catch {
       toast.error('Usuário ou senha inválidos');
@@ -71,9 +66,7 @@ const Login = () => {
       setNovoUsuario('');
       setNovaSenha('');
       setNovoEmail('');
-      setTimeout(() => {
-        setIsActive(false);
-      }, 3000);
+      setTimeout(() => setIsActive(false), 3000);
     } catch (erro) {
       toast.error('Erro ao cadastrar usuário: ' + (erro.response?.data || erro.message));
     } finally {
@@ -88,93 +81,109 @@ const Login = () => {
   );
 
   return (
-    <div className={`container ${isActive ? 'active' : ''}`} id="container">
-      {/* Cadastro */}
-      <div className="form-container sign-up">
-        <form onSubmit={handleCadastro}>
-          <h1>Crie sua conta</h1>
-          <span>Preencha seus dados para se cadastrar</span>
+    <div className={styles.viewport}>
+      <div className={`${styles.container} ${isActive ? styles.active : ''}`} id="container">
+        {/* Cadastro */}
+        <div className={`${styles['form-container']} ${styles['sign-up']}`}>
+          <form onSubmit={handleCadastro}>
+            <h1>Crie sua conta</h1>
+            <span>Preencha seus dados para se cadastrar</span>
 
-          <input
-            type="text"
-            placeholder="Nome de usuário"
-            value={novoUsuario}
-            onChange={(e) => setNovoUsuario(e.target.value)}
-            required
-          />
-          <input
-            type="email"
-            placeholder="E-mail"
-            value={novoEmail}
-            onChange={(e) => setNovoEmail(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={novaSenha}
-            onChange={(e) => setNovaSenha(e.target.value)}
-            required
-          />
+            <input
+              type="text"
+              placeholder="Nome de usuário"
+              value={novoUsuario}
+              onChange={(e) => setNovoUsuario(e.target.value)}
+              required
+            />
+            <input
+              type="email"
+              placeholder="E-mail"
+              value={novoEmail}
+              onChange={(e) => setNovoEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Senha"
+              value={novaSenha}
+              onChange={(e) => setNovaSenha(e.target.value)}
+              required
+            />
 
-          {novaSenha && (
-            <div className="validacao-senha">
-              {renderRequisito(novaSenha.length >= 8, 'Mínimo de 8 caracteres')}
-              {renderRequisito(/[A-Z]/.test(novaSenha), 'Pelo menos uma letra maiúscula')}
-              {renderRequisito(/\d/.test(novaSenha), 'Pelo menos um número')}
+            {novaSenha && (
+              <div className={styles['validacao-senha']}>
+                {renderRequisito(novaSenha.length >= 8, 'Mínimo de 8 caracteres')}
+                {renderRequisito(/[A-Z]/.test(novaSenha), 'Pelo menos uma letra maiúscula')}
+                {renderRequisito(/\d/.test(novaSenha), 'Pelo menos um número')}
+              </div>
+            )}
+
+            <button type="submit" disabled={loadingCadastro}>
+              {loadingCadastro ? 'Cadastrando...' : 'Cadastrar'}
+            </button>
+          </form>
+        </div>
+
+        {/* Login */}
+        <div className={`${styles['form-container']} ${styles['sign-in']}`}>
+          <form onSubmit={handleLogin}>
+            <h1>FastSurvey</h1>
+            <span>Entre com seu usuário e senha</span>
+
+            <input
+              type="text"
+              placeholder="Usuário"
+              value={usuario}
+              onChange={(e) => setUsuario(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Senha"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              required
+            />
+
+            <button type="submit" disabled={loadingLogin}>
+              {loadingLogin ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+        </div>
+
+        {/* Painéis alternáveis */}
+        <div className={styles['toggle-container']}>
+          <div className={styles['toggle']}>
+            <div className={`${styles['toggle-panel']} ${styles['toggle-left']}`}>
+              <h1>Olá, novo por aqui?</h1>
+              <p>Preencha seus dados para começar</p>
+              <button
+                className={`${styles.toggleBtn} ${styles.btnSolid}`} 
+                type="button"
+                aria-label="Já tenho conta"
+                onClick={() => setIsActive(false)}
+              >
+                Já tenho conta
+              </button>
             </div>
-          )}
 
-          <button type="submit" disabled={loadingCadastro}>
-            {loadingCadastro ? 'Cadastrando...' : 'Cadastrar'}
-          </button>
-        </form>
-      </div>
-
-      {/* Login */}
-      <div className="form-container sign-in">
-        <form onSubmit={handleLogin}>
-          <h1>FastSurvey</h1>
-          <span>Entre com seu usuário e senha</span>
-
-          <input
-            type="text"
-            placeholder="Usuário"
-            value={usuario}
-            onChange={(e) => setUsuario(e.target.value)}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Senha"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            required
-          />
-
-          <button type="submit" disabled={loadingLogin}>
-            {loadingLogin ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
-      </div>
-
-      {/* Painéis alternáveis */}
-      <div className="toggle-container">
-        <div className="toggle">
-          <div className="toggle-panel toggle-left">
-            <h1>Olá, novo por aqui?</h1>
-            <p>Preencha seus dados para começar</p>
-            <button className="hidden" type="button" aria-label="Já tenho conta" onClick={() => setIsActive(false)}>Já tenho conta</button>
-          </div>
-          <div className="toggle-panel toggle-right">
-            <h1>Bem-vindo de volta!</h1>
-            <p>Entre para acessar o sistema</p>
-            <button className="hidden" type="button" aria-label="Registrar-se" onClick={() => setIsActive(true)}>Registrar-se</button>
+            <div className={`${styles['toggle-panel']} ${styles['toggle-right']}`}>
+              <h1>Bem-vindo de volta!</h1>
+              <p>Entre para acessar o sistema</p>
+              <button
+                className={`${styles.toggleBtn} ${styles.btnOutline}`}
+                type="button"
+                aria-label="Registrar-se"
+                onClick={() => setIsActive(true)}
+              >
+                Registrar-se
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Toast container */}
       <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );

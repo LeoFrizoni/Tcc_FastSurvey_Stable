@@ -119,16 +119,15 @@ namespace FASTSURVEY.Controllers
             try
             {
                 var novaPesquisa = await _servicePesquisa.CadastrarPesquisaAsync(pesquisaVM);
-                // Return only primitive fields to avoid serialization issues
-                var pesquisaDto = new {
+                // Retorne apenas os campos primitivos, nunca o objeto do EF
+                return Ok(new {
                     pesquisaid = novaPesquisa.pesquisaid,
                     titulo = novaPesquisa.titulo,
                     descricao = novaPesquisa.descricao,
                     tipopesquisaid = novaPesquisa.tipopesquisaid,
                     loginid = novaPesquisa.loginid,
                     templateJson = novaPesquisa.TemplateJson
-                };
-                return CreatedAtAction(nameof(Get), new { id = novaPesquisa.pesquisaid }, pesquisaDto);
+                });
             }
             catch (Exception ex)
             {
@@ -154,13 +153,24 @@ namespace FASTSURVEY.Controllers
                 }
 
                 var pesquisaAtualizada = await _servicePesquisa.AtualizarPesquisaAsync(pesquisaVM);
-                return Ok(pesquisaAtualizada);
+                // Retorne apenas campos primitivos
+                return Ok(new {
+                    pesquisaid = pesquisaAtualizada.pesquisaid,
+                    titulo = pesquisaAtualizada.titulo,
+                    descricao = pesquisaAtualizada.descricao,
+                    tipopesquisaid = pesquisaAtualizada.tipopesquisaid,
+                    loginid = pesquisaAtualizada.loginid,
+                    templateJson = pesquisaAtualizada.TemplateJson
+                });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erro ao atualizar pesquisa: {ex.Message}");
             }
+
         }
+
+        // GET: api/Pesquisas/{id}
 
         // DELETE: api/Pesquisas/{id}
         [HttpDelete("{id}")]
@@ -187,5 +197,5 @@ namespace FASTSURVEY.Controllers
                 return StatusCode(500, $"Erro ao excluir pesquisa: {ex.Message}");
             }
         }
+        }
     }
-}

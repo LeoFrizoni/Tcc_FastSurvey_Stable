@@ -70,6 +70,8 @@ namespace FASTSURVEY.Services
                     })
                     .FirstOrDefaultAsync();
 
+                if (resultado == null)
+                    return new { mensagem = "Pesquisa não encontrada." };
                 return resultado;
             }
             catch (Exception ex)
@@ -86,22 +88,19 @@ namespace FASTSURVEY.Services
                 var listaPerguntas = new List<perguntas>();
 
                 // Mapeamento das perguntas discursivas
-                foreach (var item in pesquisaVM.PerguntasDiscursivas)
+                foreach (var item in pesquisaVM.PerguntasDiscursivas ?? new List<PerguntaDiscursiva>())
                 {
                     var pergunta = new perguntas()
                     {
                         texto = item.Titulo,
-                        tipoperguntaid = 1,
-                        respostas = new List<respostas>
-                        {
-                            new respostas { texto = item.Resposta }
-                        }
+                        tipoperguntaid = 1
+                        // Não adiciona respostas na criação da pesquisa
                     };
                     listaPerguntas.Add(pergunta);
                 }
 
                 // Mapeamento das perguntas objetivas
-                foreach (var item in pesquisaVM.PerguntasObjetivas)
+                foreach (var item in pesquisaVM.PerguntasObjetivas ?? new List<PerguntaObjetiva>())
                 {
                     var pergunta = new perguntas()
                     {
@@ -115,11 +114,26 @@ namespace FASTSURVEY.Services
                     listaPerguntas.Add(pergunta);
                 }
 
+                // Mapeamento das perguntas de múltipla escolha
+                foreach (var item in pesquisaVM.PerguntasMultiplaEscolha ?? new List<PerguntaMultiplaEscolha>())
+                {
+                    var pergunta = new perguntas()
+                    {
+                        texto = item.Titulo,
+                        tipoperguntaid = 3,
+                        opcoespergunta = item.Opcoes.Select(opcao => new opcoespergunta
+                        {
+                            texto = opcao.Opcao
+                        }).ToList()
+                    };
+                    listaPerguntas.Add(pergunta);
+                }
+
                 var pesquisa = new pesquisas
                 {
                     tipopesquisaid = pesquisaVM.TipoPesquisaId,
                     titulo = pesquisaVM.Titulo,
-                    descricao = pesquisaVM.Titulo,
+                    descricao = pesquisaVM.Descricao,
                     loginid = pesquisaVM.LoginId,
                     perguntas = listaPerguntas,
                     TemplateJson = pesquisaVM.TemplateJson // ✅ Campo novo adicionado

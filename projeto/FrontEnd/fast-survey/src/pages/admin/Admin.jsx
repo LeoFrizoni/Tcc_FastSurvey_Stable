@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import './admin.css';
+import styles from './admin.module.css';
 
 const API = 'http://localhost:5062/api';
 
@@ -122,9 +122,9 @@ const AdminPage = () => {
   // Render helpers
   function renderUsuarios() {
     return (
-      <div className="admin-section">
+  <div className={styles['admin-section']}>
         <h2>Usuários</h2>
-        <div className="admin-form">
+  <div className={styles['admin-form']}>
           <input placeholder="Usuário" value={novo.usuario} onChange={e => setNovo({ ...novo, usuario: e.target.value })} />
           <input placeholder="Email" value={novo.email} onChange={e => setNovo({ ...novo, email: e.target.value })} />
           <input placeholder="Senha" type="password" value={novo.senha} onChange={e => setNovo({ ...novo, senha: e.target.value })} />
@@ -162,9 +162,9 @@ const AdminPage = () => {
   }
   function renderTiposUsuario() {
     return (
-      <div className="admin-section">
+  <div className={styles['admin-section']}>
         <h2>Tipos de Usuário</h2>
-        <div className="admin-form">
+  <div className={styles['admin-form']}>
           <input placeholder="Novo tipo de usuário" value={novo.tipousuario} onChange={e => setNovo({ ...novo, tipousuario: e.target.value })} />
           <button onClick={addTipoUsuario}>Adicionar</button>
         </div>
@@ -199,9 +199,9 @@ const AdminPage = () => {
   }
   function renderTiposPesquisa() {
     return (
-      <div className="admin-section">
+  <div className={styles['admin-section']}>
         <h2>Tipos de Pesquisa</h2>
-        <div className="admin-form">
+  <div className={styles['admin-form']}>
           <input placeholder="Novo tipo de pesquisa" value={novo.tipopesquisa} onChange={e => setNovo({ ...novo, tipopesquisa: e.target.value })} />
           <button onClick={addTipoPesquisa}>Adicionar</button>
         </div>
@@ -236,18 +236,18 @@ const AdminPage = () => {
   }
 
   return (
-    <div className="admin-main">
-      <div className="admin-navbar">
-        <div className="admin-navbar-title">Painel Administrativo</div>
-        <div className="admin-navbar-tabs">
-          <button className={aba === 'usuarios' ? 'active' : ''} onClick={() => setAba('usuarios')}>Usuários</button>
-          <button className={aba === 'tipousuario' ? 'active' : ''} onClick={() => setAba('tipousuario')}>Tipos de Usuário</button>
-          <button className={aba === 'tipopesquisa' ? 'active' : ''} onClick={() => setAba('tipopesquisa')}>Tipos de Pesquisa</button>
+  <div className={styles['admin-main']}>
+  <div className={styles['admin-navbar']}>
+  <div className={styles['admin-navbar-title']}>Painel Administrativo</div>
+  <div className={styles['admin-navbar-tabs']}>
+          <button className={aba === 'usuarios' ? styles['active'] : ''} onClick={() => setAba('usuarios')}>Usuários</button>
+          <button className={aba === 'tipousuario' ? styles['active'] : ''} onClick={() => setAba('tipousuario')}>Tipos de Usuário</button>
+          <button className={aba === 'tipopesquisa' ? styles['active'] : ''} onClick={() => setAba('tipopesquisa')}>Tipos de Pesquisa</button>
         </div>
-        <input className="admin-search" placeholder="Buscar..." value={filtro} onChange={e => setFiltro(e.target.value)} />
-        <button className="logout-btn" onClick={() => { localStorage.clear(); window.location.href = '/login'; }}>Logout</button>
+  <input className={styles['admin-search']} placeholder="Buscar..." value={filtro} onChange={e => setFiltro(e.target.value)} />
+  <button className={styles['logout-btn']} onClick={() => { localStorage.clear(); window.location.href = '/login'; }}>Logout</button>
       </div>
-      <div className="admin-content">
+  <div className={styles['admin-content']}>
         {aba === 'usuarios' && renderUsuarios()}
         {aba === 'tipousuario' && renderTiposUsuario()}
         {aba === 'tipopesquisa' && renderTiposPesquisa()}

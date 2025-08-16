@@ -1,0 +1,128 @@
+:root {
+  --brand: #7a3ced;
+  --brand-hover: #692bd8;
+  --brand-ghost: #e4d6fa;
+  --bg: #f7f6fb;
+  --text: #222;
+}
+
+/* --------- CONTAINER DA PÁGINA --------- */
+.page {
+  min-height: calc(100vh - 64px);
+  background: var(--bg);
+  padding: 24px clamp(16px, 3vw, 40px) 56px; /* controla recuo lateral */
+  color: var(--text);
+}
+
+/* --------- CABEÇALHO --------- */
+.header {
+  max-width: none;      /* ocupa toda a largura */
+  margin: 0 0 18px;     /* só margem inferior */
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.header p {
+  font-size: 0.95rem;
+  color: #666;
+  margin: 0;
+}
+
+/* --------- ÁREA DE CONTEÚDO --------- */
+.center {
+  display: flex;
+  justify-content: flex-start; /* alinha à esquerda */
+  padding: 8px 0;
+  max-width: none;
+  margin: 0;
+}
+
+/* --------- CARD DE PERFIL --------- */
+.card {
+  background: #f7f3ff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(122, 60, 237, 0.1);
+  padding: 22px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+
+  width: min(640px, 100%); /* 🔽 limite reduzido */
+  min-width: 280px;
+  border: 1px solid var(--brand-ghost);
+}
+
+
+/* --------- AVATAR --------- */
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand), var(--brand-hover));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.8rem;
+  flex-shrink: 0;
+}
+
+/* --------- INFORMAÇÕES --------- */
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info li {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 22px auto 1fr;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border: 1px solid #e6e2f1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.info li svg {
+  color: var(--brand);
+}
+
+.info strong {
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+/* --------- RESPONSIVIDADE --------- */
+@media (max-width: 640px) {
+  .center {
+    justify-content: center;
+  }
+
+  .card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .avatar {
+    margin: 0 auto 6px;
+    width: 64px;
+    height: 64px;
+    font-size: 1.6rem;
+  }
+
+  .info li {
+    grid-template-columns: 18px auto 1fr;
+  }
+}

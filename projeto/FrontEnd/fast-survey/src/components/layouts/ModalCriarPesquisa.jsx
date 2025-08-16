@@ -8,6 +8,7 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
   const [tipoSelecionado, setTipoSelecionado] = useState("");
   const [tempoExpiracao, setTempoExpiracao] = useState(1); 
   const [tipos, setTipos] = useState([]);
+  const [erros, setErros] = useState({});
 
   useEffect(() => {
     async function carregarTipos() {
@@ -22,10 +23,13 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
   }, []);
 
   const handleConfirm = () => {
-    if (!titulo || !descricao || !tipoSelecionado || tempoExpiracao <= 0) {
-      alert("Preencha todos os campos corretamente.");
-      return;
-    }
+    const novosErros = {};
+    if (!titulo) novosErros.titulo = "Título é obrigatório.";
+    if (!descricao) novosErros.descricao = "Descrição é obrigatória.";
+    if (!tipoSelecionado) novosErros.tipo = "Selecione o tipo de pesquisa.";
+    if (!tempoExpiracao || tempoExpiracao <= 0) novosErros.tempoExpiracao = "Informe um tempo válido.";
+    setErros(novosErros);
+    if (Object.keys(novosErros).length > 0) return;
 
     onConfirm({
       titulo,
@@ -48,7 +52,9 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
             placeholder="Digite o título da pesquisa"
+            style={erros.titulo ? { borderColor: '#e74c3c' } : {}}
           />
+          {erros.titulo && <span style={{ color: '#e74c3c', fontSize: '0.95rem' }}>{erros.titulo}</span>}
         </div>
 
         <div className="form-group">
@@ -58,7 +64,9 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
             value={descricao}
             onChange={(e) => setDescricao(e.target.value)}
             placeholder="Descreva a pesquisa brevemente"
+            style={erros.descricao ? { borderColor: '#e74c3c' } : {}}
           />
+          {erros.descricao && <span style={{ color: '#e74c3c', fontSize: '0.95rem' }}>{erros.descricao}</span>}
         </div>
 
         <div className="form-group">
@@ -67,6 +75,7 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
             id="tipo"
             value={tipoSelecionado}
             onChange={(e) => setTipoSelecionado(e.target.value)}
+            style={erros.tipo ? { borderColor: '#e74c3c' } : {}}
           >
             <option value="">Selecione um tipo</option>
             {tipos
@@ -77,6 +86,7 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
                 </option>
               ))}
           </select>
+          {erros.tipo && <span style={{ color: '#e74c3c', fontSize: '0.95rem' }}>{erros.tipo}</span>}
         </div>
 
         <div className="form-group">
@@ -88,7 +98,9 @@ const ModalCriarPesquisa = ({ onConfirm }) => {
             value={tempoExpiracao}
             onChange={(e) => setTempoExpiracao(e.target.value)}
             placeholder="Ex: 1"
+            style={erros.tempoExpiracao ? { borderColor: '#e74c3c' } : {}}
           />
+          {erros.tempoExpiracao && <span style={{ color: '#e74c3c', fontSize: '0.95rem' }}>{erros.tempoExpiracao}</span>}
         </div>
 
         <button onClick={handleConfirm}>Começar</button>

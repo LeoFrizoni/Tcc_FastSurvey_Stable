@@ -2,7 +2,7 @@
 import React from 'react';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import { Rocket, Target, Users, Lightbulb } from 'lucide-react';
-import './sobrenos.css';
+import styles from './sobrenos.module.css'; 
 
 // Array de membros da equipe para facilitar manutenção e escalabilidade
 const equipe = [
@@ -37,10 +37,10 @@ const SobreNos = () => {
   return (
     <>
       <TopNavbar />
-      <div className="sobre-nos-container">
-        <div className="conteudo-limitado">
+  <div className={styles['sobre-nos-container']}>
+  <div className={styles['conteudo-limitado']}>
           {/* Seção sobre o projeto */}
-          <div className="secao">
+          <div className={styles['secao']}>
             <h1><Rocket size={24} /> Sobre o FastSurvey</h1>
             <p>
               O <strong>FastSurvey</strong> é uma plataforma desenvolvida com o propósito de simplificar e agilizar a criação
@@ -49,7 +49,7 @@ const SobreNos = () => {
           </div>
 
           {/* Seção missão */}
-          <div className="secao">
+          <div className={styles['secao']}>
             <h2><Target size={20} /> Nossa Missão</h2>
             <p>
               Tornar o processo de criação de pesquisas tão simples quanto escrever um post. Acreditamos na tecnologia como ponte para decisões melhores.
@@ -57,12 +57,12 @@ const SobreNos = () => {
           </div>
 
           {/* Seção equipe */}
-          <div className="secao">
+          <div className={styles['secao']}>
             <h2><Users size={20} /> Equipe</h2>
-            <div className="cards-equipe">
+            <div className={styles['cards-equipe']}>
               {equipe.map((membro, idx) => (
-                <div className="card-membro" key={membro.nome}>
-                  <div className="avatar" aria-label={membro.aria}>{membro.avatar}</div>
+                <div className={styles['card-membro']} key={membro.nome}>
+                  <div className={styles['avatar']} aria-label={membro.aria}>{membro.avatar}</div>
                   <div>
                     <h3>{membro.nome}</h3>
                     <p>{membro.funcao}</p>
@@ -73,7 +73,7 @@ const SobreNos = () => {
           </div>
 
           {/* Seção tecnologias */}
-          <div className="secao">
+          <div className={styles['secao']}>
             <h2><Lightbulb size={20} /> Tecnologias Utilizadas</h2>
             <p>
               ReactJS, Node.js, C# com Entity Framework, SQL Server, Lucide Icons, e muito amor por código limpo e usabilidade.

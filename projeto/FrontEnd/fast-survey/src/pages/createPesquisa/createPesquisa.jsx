@@ -1,9 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import TopNavbar from "../../components/layouts/TopNavBar";
 import ModalCriarPesquisa from "../../components/layouts/ModalCriarPesquisa";
-import ModalQRCode from "../../components/layouts/ModalQrCode"
+import ModalQRCode from "../../components/layouts/ModalQrCode";
+import ModalPreviewPesquisa from "../../components/layouts/ModalPreviewPesquisa";
 import Discursiva from "../../components/perguntas/discursiva";
 import MultiplaEscolha from "../../components/perguntas/multiplaEscolha";
 import Objetiva from "../../components/perguntas/objetiva";
@@ -20,7 +21,9 @@ import {
   Droplet,
   Trash2
 } from "lucide-react";
-import "./createPesquisa.css";
+import styles from "./createPesquisa.module.css";
+import CabecalhoPesquisa from "../../components/layouts/CabecalhoPesquisa";
+import InformacoesPesquisa from "../../components/layouts/InformacoesPesquisa";
 
 const API_BASE = "http://localhost:5062";
 
@@ -28,6 +31,7 @@ const CriarPesquisa = () => {
   const [showModal, setShowModal] = useState(true);
   const [isPerguntasAberto, setIsPerguntasAberto] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
+  const [mostrarModalPreview, setMostrarModalPreview] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
 
@@ -40,6 +44,25 @@ const CriarPesquisa = () => {
   });
 
   const [blocos, setBlocos] = useState([]);
+  const [autorNome, setAutorNome] = useState("");
+  const [tiposPesquisa, setTiposPesquisa] = useState([]);
+
+  useEffect(() => {
+    const loginId = localStorage.getItem("userId");
+    if (loginId) {
+      axios.get(`http://localhost:5062/api/login/SelecionarLoginPorId/${loginId}`)
+        .then(res => {
+          setAutorNome(res.data.usuario || "Usuário");
+        })
+        .catch(() => setAutorNome("Usuário"));
+    }
+  }, []);
+
+  useEffect(() => {
+    axios.get("http://localhost:5062/api/tipopesquisa/ListarTipoPesquisa")
+      .then(res => setTiposPesquisa(res.data))
+      .catch(() => setTiposPesquisa([]));
+  }, []);
 
   const adicionarBloco = (tipo) => {
     const novo = {
@@ -121,6 +144,8 @@ const CriarPesquisa = () => {
   // ---------- montar VM + template ----------
   const montarPesquisaVM = () => {
     const loginId = parseInt(localStorage.getItem("userId"));
+    const autor = autorNome;
+    const dataCriacao = new Date().toLocaleDateString('pt-BR');
 
     const limparOpcoes = (ops = []) =>
       ops
@@ -165,9 +190,12 @@ const CriarPesquisa = () => {
 
     return {
       titulo: dadosPesquisa.titulo,
+      descricao: dadosPesquisa.descricao,
       tipoPesquisaId: parseInt(dadosPesquisa.tipo),
       codigoPesquisa: 0,
       loginId,
+      autor,
+      dataCriacao,
       perguntasDiscursivas,
       perguntasObjetivas,
       PerguntasMultiplaEscolha: perguntasMultiplaEscolha,
@@ -179,8 +207,13 @@ const CriarPesquisa = () => {
     try {
       const pesquisaVM = montarPesquisaVM();
       const response = await axios.post(`${API_BASE}/api/pesquisas`, pesquisaVM);
-
-      const id = response.data.pesquisaid;
+      console.log('Resposta do backend ao salvar pesquisa:', response.data);
+      // Tenta pegar o id de diferentes formas
+      const id = response.data.pesquisaid || response.data.id || response.data.pesquisaid || (response.data.pesquisa && response.data.pesquisa.pesquisaid);
+      if (!id) {
+        toast.error("Não foi possível obter o ID da pesquisa criada. Verifique o backend.", { position: 'top-center', autoClose: 5000 });
+        return;
+      }
       // sobe anexos AGORA, vinculando à pesquisa criada
       const { ok, fail } = await uploadAnexos(id);
 
@@ -201,10 +234,29 @@ const CriarPesquisa = () => {
       toast.error("Ocorreu um erro ao salvar. Verifique os dados e tente novamente.", { position: 'top-center', autoClose: 4000 });
     }
   };
+  // Função para mover bloco para cima ou para baixo
+  const moverBloco = (id, direcao) => {
+    setBlocos(prev => {
+      const idx = prev.findIndex(b => b.id === id);
+      if (idx === -1) return prev;
+      // Só permite mover perguntas (discursiva, multipla, objetiva)
+      const tipo = prev[idx].tipo;
+      if (!["discursiva", "multipla", "objetiva"].includes(tipo)) return prev;
+      const novo = [...prev];
+      const novoIdx = direcao === "up" ? idx - 1 : idx + 1;
+      // Só troca se o bloco alvo for também uma pergunta
+      if (novoIdx < 0 || novoIdx >= novo.length) return prev;
+      if (!["discursiva", "multipla", "objetiva"].includes(novo[novoIdx].tipo)) return prev;
+      // Troca os blocos
+      [novo[idx], novo[novoIdx]] = [novo[novoIdx], novo[idx]];
+      return novo;
+    });
+  };
+
 
   const renderizarBloco = (bloco) => {
     const estilo = {
-      backgroundColor: bloco.estilo.corFundo || 'transparent',
+      backgroundColor: bloco.estilo.corFundo || 'white',
       color: bloco.estilo.corTexto || 'inherit',
       fontFamily: bloco.estilo.fonte || 'inherit'
     };
@@ -218,18 +270,63 @@ const CriarPesquisa = () => {
       style: estilo
     };
 
+    // Botões de mover para cima/baixo alinhados à direita
+    const moveButtons = ["discursiva", "multipla", "objetiva"].includes(bloco.tipo) ? (
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem", marginLeft: "auto" }}>
+        <button
+          className={styles['btn-mover']}
+          title="Mover para cima"
+          onClick={(e) => { e.stopPropagation(); moverBloco(bloco.id, "up"); }}
+          disabled={blocos.findIndex(b => b.id === bloco.id) === 0}
+        >↑</button>
+        <button
+          className={styles['btn-mover']}
+          title="Mover para baixo"
+          onClick={(e) => { e.stopPropagation(); moverBloco(bloco.id, "down"); }}
+          disabled={blocos.findIndex(b => b.id === bloco.id) === blocos.length - 1}
+        >↓</button>
+      </div>
+    ) : null;
+
     switch (bloco.tipo) {
       case "discursiva":
-        return <Discursiva key={bloco.id} {...propsComuns} />;
+        return (
+          <div key={bloco.id} style={{}} onClick={() => setSelectedBlockId(bloco.id)}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <Discursiva {...propsComuns} style={estilo} />
+              </div>
+              {moveButtons}
+            </div>
+          </div>
+        );
       case "multipla":
-        return <MultiplaEscolha key={bloco.id} {...propsComuns} />;
+        return (
+          <div key={bloco.id} style={{}} onClick={() => setSelectedBlockId(bloco.id)}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <MultiplaEscolha {...propsComuns} style={estilo} />
+              </div>
+              {moveButtons}
+            </div>
+          </div>
+        );
       case "objetiva":
-        return <Objetiva key={bloco.id} {...propsComuns} />;
+        return (
+          <div key={bloco.id} style={{}} onClick={() => setSelectedBlockId(bloco.id)}>
+            <div style={{ display: "flex", alignItems: "flex-start" }}>
+              <div style={{ flex: 1 }}>
+                <Objetiva {...propsComuns} style={estilo} />
+              </div>
+              {moveButtons}
+            </div>
+          </div>
+        );
       case "anexo":
         return (
           <div
             key={bloco.id}
-            className={`bloco-pergunta ${bloco.selecionado ? "selecionado" : ""}`}
+            className={`${styles['bloco-pergunta']} ${bloco.selecionado ? styles['selecionado'] : ''}`}
             style={{
               ...estilo,
               padding: '1rem',
@@ -242,7 +339,7 @@ const CriarPesquisa = () => {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h4 style={{ margin: 0 }}>Arquivo Anexo</h4>
-              <button className="btn-remover" onClick={() => removerBloco(bloco.id)} title="Remover anexo">
+              <button className={styles['btn-remover']} onClick={() => removerBloco(bloco.id)} title="Remover anexo">
                 <Trash2 size={18} />
               </button>
             </div>
@@ -254,11 +351,13 @@ const CriarPesquisa = () => {
     }
   };
 
+  const nomeTipoPesquisa = tiposPesquisa.find(tp => tp.tipopesquisaid === parseInt(dadosPesquisa.tipo))?.tipopesquisa1 || "—";
+
   return (
     <>
       <TopNavbar />
       <ToastContainer />
-      <div className="editor-container">
+      <div className={styles['editor-container']}>
         <input
           type="file"
           ref={inputFileRef}
@@ -276,32 +375,41 @@ const CriarPesquisa = () => {
           />
         )}
 
-        <aside className="sidebar-esquerda">
-          <div className="sidebar-scroll">
+        <aside className={styles['sidebar-esquerda']}>
+          <div className={styles['sidebar-scroll']}>
             <h3>Componentes</h3>
             <ul>
-              <li className="item-clique" onClick={() => setIsPerguntasAberto(!isPerguntasAberto)}>
+              <li className={styles['item-clique']} onClick={() => setIsPerguntasAberto(!isPerguntasAberto)}>
                 {isPerguntasAberto ? <ChevronUp size={18} /> : <ChevronDown size={18} />} Perguntas
               </li>
               {isPerguntasAberto && (
-                <ul className="submenu">
-                  <li className="item-clique" onClick={() => adicionarBloco("discursiva")}> <FileText size={18} /> Discursiva </li>
-                  <li className="item-clique" onClick={() => adicionarBloco("multipla")}> <Circle size={18} /> Múltipla Escolha </li>
-                  <li className="item-clique" onClick={() => adicionarBloco("objetiva")}> <Circle size={18} /> Objetiva (única) </li>
+                <ul className={styles['submenu']}>
+                  <li className={styles['item-clique']} onClick={() => adicionarBloco("discursiva")}> <FileText size={18} /> Discursiva </li>
+                  <li className={styles['item-clique']} onClick={() => adicionarBloco("multipla")}> <Circle size={18} /> Múltipla Escolha </li>
+                  <li className={styles['item-clique']} onClick={() => adicionarBloco("objetiva")}> <Circle size={18} /> Objetiva (única) </li>
                 </ul>
               )}
-              <li className="item-clique" onClick={() => adicionarBloco("anexo")}> <Paperclip size={18} /> Anexo </li>
+              <li className={styles['item-clique']} onClick={() => adicionarBloco("anexo")}> <Paperclip size={18} /> Anexo </li>
             </ul>
           </div>
-
-          <div className="salvar-wrapper">
-            <button className="salvar-btn" onClick={salvarPesquisaComPerguntas}>
+          <div className={styles['salvar-wrapper']}>
+            <button className={styles['salvar-btn']} style={{ marginBottom: '8px' }} onClick={() => setMostrarModalPreview(true)}>
+              Preview da Pesquisa
+            </button>
+            <ModalPreviewPesquisa
+              isOpen={mostrarModalPreview}
+              onClose={() => setMostrarModalPreview(false)}
+              dadosPesquisa={dadosPesquisa}
+              blocos={blocos}
+              nomeTipoPesquisa={nomeTipoPesquisa}
+              autorNome={autorNome}
+            />
+            <button className={styles['salvar-btn']} onClick={salvarPesquisaComPerguntas}>
               <Save size={18} style={{ marginRight: "6px" }} /> Salvar Pesquisa
             </button>
-
             {qrUrl && (
               <>
-                <button className="salvar-btn" onClick={() => setMostrarModalQr(true)}>
+                <button className={styles['salvar-btn']} onClick={() => setMostrarModalQr(true)}>
                   Visualizar QR Code
                 </button>
                 <ModalQRCode
@@ -314,19 +422,39 @@ const CriarPesquisa = () => {
           </div>
         </aside>
 
-        <main className="area-construcao">
-          <h2>{dadosPesquisa.titulo}</h2>
-          <p>{dadosPesquisa.descricao}</p>
-          <p><em>Tipo: {dadosPesquisa.tipo}</em></p>
+        <main className={styles['area-construcao']}>
+          <CabecalhoPesquisa
+            autor={autorNome}
+            data={(() => {
+              if (dadosPesquisa && dadosPesquisa.dataCriacao) return dadosPesquisa.dataCriacao;
+              const hoje = new Date();
+              return hoje.toLocaleDateString('pt-BR');
+            })()}
+            selecionado={false}
+            style={{
+              background: "linear-gradient(90deg, #f8f9fd 0%, #eef2fa 100%)",
+              border: "1.5px solid #e0e7ef",
+              borderRadius: "14px",
+              boxShadow: "0 2px 12px rgba(44, 62, 80, 0.06)",
+              marginBottom: "2rem",
+              padding: "1.8rem 2.2rem",
+              fontFamily: "'Segoe UI', 'Inter', Arial, sans-serif"
+            }}
+          />
+          <InformacoesPesquisa
+            titulo={dadosPesquisa.titulo}
+            descricao={dadosPesquisa.descricao}
+            tipoPesquisa={nomeTipoPesquisa}
+          />
 
-          <div className={`area-preview ${blocos.length > 0 ? "invisivel" : ""}`}>
+          <div className={`${styles['area-preview']} ${blocos.length > 0 ? styles['invisivel'] : ''}`}>
             <p>Adicione blocos para montar sua pesquisa</p>
           </div>
 
           {blocos.length > 0 && blocos.map(renderizarBloco)}
         </main>
 
-        <aside className="sidebar-direita">
+        <aside className={styles['sidebar-direita']}>
           <h3>Estilo</h3>
           <label> <Paintbrush2 size={18} /> Cor de Fundo
             <input type="color" onChange={(e) => atualizarEstilo("corFundo", e.target.value)} disabled={!selectedBlockId} />

@@ -1,3 +1,16 @@
+#root {
+  all: revert !important;     /* devolve as propriedades padrões */
+  display: block !important;
+  position: static !important;
+  width: 100% !important;
+  min-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+
 html, body {
   margin: 0;
   padding: 0;

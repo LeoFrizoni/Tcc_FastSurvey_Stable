@@ -21,24 +21,28 @@
 }
 
 /* Botão de voltar */
-.back-home {
-  background-color: #ffffff;
-  border: 2px solid #7A3CED;
-  color: #7A3CED;
+/* Botão de voltar — versão invertida com maior especificidade */
+/* Botão de voltar — corrigido */
+.top-navbar .back-home {
+  background-color: #ffffff;   /* fundo branco */
+  color: #7A3CED;              /* texto roxo */
+  border-color: #7A3CED;       /* borda roxa */
   padding: 8px 16px;
   border-radius: 8px;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   display: flex;
   align-items: center;
   gap: 6px;
   box-shadow: 0 2px 6px rgba(122, 60, 237, 0.2);
 }
 
-.back-home:hover {
-  background-color: #7A3CED;
-  color: #fff;
+.top-navbar .back-home:hover,
+.top-navbar .back-home:focus-visible {
+  background-color: #7A3CED;   /* roxo sólido */
+  color: #ffffff;              /* texto branco */
+  border: 2px solid #7A3CED;   /* borda roxa */
   box-shadow: 0 4px 12px rgba(122, 60, 237, 0.4);
 }

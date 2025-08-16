@@ -1,3 +1,33 @@
+/* Soft reset para a div #root */
+#root {
+  all: unset;
+  display: block;
+  min-height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+}
+
+/* Botões de seta para reordenar perguntas */
+.btn-seta {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  transition: background 0.2s;
+  margin: 0;
+  padding: 0;
+}
+.btn-seta:enabled:hover {
+  background: #ece9fa;
+}
+.btn-seta:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
 /* RESPONSIVIDADE AVANÇADA PARA CRIAÇÃO DE PESQUISA */
 @media (max-width: 900px) {
   .editor-container {
@@ -298,13 +328,6 @@ html, body {
   padding: 6px 10px;
   font-size: 0.9rem;
 }
-
-
-
-
-
-
-
 
 /*RESPONSIVIDADE*/
 

@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.pesquisas
     tipopesquisaid integer NOT NULL,
     titulo character varying(100) COLLATE pg_catalog."default" NOT NULL,
     descricao character varying(500) COLLATE pg_catalog."default" NOT NULL,
+    "TemplateJson" text COLLATE pg_catalog."default",
     CONSTRAINT pesquisas_pkey PRIMARY KEY (pesquisaid)
 );
 

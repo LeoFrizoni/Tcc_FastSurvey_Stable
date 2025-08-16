@@ -27,8 +27,11 @@ builder.Services.AddCors(options =>
 
 // Controllers e Swagger
 builder.Services.AddControllers();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.OperationFilter<FASTSURVEY.IFormFileOperationFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 

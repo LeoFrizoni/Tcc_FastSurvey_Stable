@@ -1,3 +1,4 @@
+/* ===== Bloco base ===== */
 .bloco-pergunta {
   background: #fff;
   border: 1px solid #e3e3e3;
@@ -6,144 +7,9 @@
   margin-bottom: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   transition: box-shadow 0.3s ease;
-}
 
-.bloco-pergunta:hover {
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-}
-
-.cabecalho-pergunta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.cabecalho-pergunta h4 {
-  font-size: 1.1rem;
+  /* cor padrão para o conteúdo do bloco */
   color: #333;
-  margin: 0;
-}
-
-.btn-remover {
-  background: transparent;
-  border: none;
-  color: #999;
-  cursor: pointer;
-  padding: 0.3rem;
-  border-radius: 6px;
-  transition: color 0.2s ease, background-color 0.2s ease;
-}
-
-.btn-remover:hover {
-  color: #fff;
-  background-color: #e63946;
-}
-
-.input-pergunta {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  transition: border-color 0.2s ease;
-}
-
-.input-pergunta:focus {
-  outline: none;
-  border-color: #7f5af0;
-}
-
-.resposta-simulada {
-  width: 100%;
-  height: 100px;
-  padding: 0.75rem 1rem;
-  font-size: 0.95rem;
-  background-color: #f9f9f9;
-  border: 1px dashed #bbb;
-  border-radius: 10px;
-  resize: none;
-  color: #777;
-}
-
-/* Alinhamento refinado */
-.opcao-input {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.6rem;
-}
-
-/* Checkbox mais compacto */
-.checkbox-simulador {
-  width: 22px;
-  height: 22px;
-  accent-color: #7f5af0;
-  cursor: not-allowed;
-  flex-shrink: 0;
-  margin-left: 4px;
-  margin-right: 2px;
-  align-self: stretch;
-  margin-top: auto;
-  margin-bottom: auto;
-}
-
-/* Campo de texto da opção */
-.input-opcao {
-  flex: 1;
-  padding: 0.65rem 1rem;
-  font-size: 0.95rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  transition: border-color 0.2s ease;
-}
-
-.input-opcao:focus {
-  border-color: #7f5af0;
-  outline: none;
-}
-
-.adicionar-opcao-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-  padding: 0.7rem 1.2rem;
-  font-size: 0.95rem;
-  background: linear-gradient(135deg, #7f5af0, #6246ea);
-  color: white;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.3s ease, transform 0.1s ease;
-}
-
-.adicionar-opcao-btn:hover {
-  background: linear-gradient(135deg, #6c48e6, #503ed6);
-  transform: scale(1.02);
-}
-
-.radio-simulador {
-  width: 18px;
-  height: 18px;
-  accent-color: #7f5af0;
-  flex-shrink: 0;
-  margin-left: 4px;
-  margin-right: 2px;
-  align-self: center;
-  cursor: not-allowed;
-}
-
-.bloco-pergunta {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  transition: all 0.2s ease;
-  background-color: white;
 }
 
 .bloco-pergunta.selecionado {
@@ -151,149 +17,105 @@
   box-shadow: 0 0 8px rgba(108, 99, 255, 0.25);
 }
 
+.bloco-pergunta:hover { box-shadow: 0 6px 18px rgba(0,0,0,.06); }
 
-
-
-
-
-
-/*RESPONSIVIDADE*/
-
-
-/* === Tablets (iPad, Android tablets) === */
-@media (max-width: 1024px) {
-  .dashboard-container {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .sidebar nav ul {
-    display: flex;
-    flex-direction: row;
-    gap: 1.5rem;
-  }
-
-  .sidebar nav ul li {
-    margin-bottom: 0;
-  }
-
-  .sidebar footer {
-    display: none;
-  }
-
-  .main-content {
-    padding: 1.5rem;
-  }
-
-  .titulo-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.8rem;
-  }
-
-  .botao-criar {
-    width: 100%;
-    justify-content: center;
-    font-size: 1.05rem;
-    padding: 1rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  }
+/* ===== Cabeçalho ===== */
+.cabecalho-pergunta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: .75rem;
+  margin-bottom: 1rem;
 }
 
-/* === Celulares Android & iPhones (modo retrato) === */
-@media (max-width: 600px) {
-  .main-content h2 {
-    font-size: 1.5rem;
-  }
-
-  .botao-criar {
-    font-size: 1rem;
-    padding: 0.9rem 1.1rem;
-    width: 100%;
-  }
-
-  .sidebar {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1rem;
-  }
-
-  .sidebar nav ul {
-    flex-direction: column;
-    width: 100%;
-  }
-
-  .sidebar nav ul li {
-    width: 100%;
-    padding: 0.8rem;
-  }
-
-  .cards-wrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .card-pesquisa {
-    padding: 1.2rem;
-  }
-
-  .card-pesquisa h3 {
-    font-size: 1rem;
-  }
-
-  .card-pesquisa p {
-    font-size: 0.85rem;
-  }
-
-  .card-pesquisa .tag {
-    font-size: 0.75rem;
-  }
-
-  .titulo-header {
-    align-items: stretch;
-  }
-
-  .dashboard-container {
-    flex-direction: column;
-  }
+/* O título é o único que herda a cor vinda do style */
+.cabecalho-pergunta h4 {
+  font-size: 1.1rem;
+  margin: 0;
+  color: inherit; /* vai usar style.color do h4 */
 }
 
-/* === iPhone SE ou celulares muito pequenos (até 375px) === */
-@media (max-width: 375px) {
-  .main-content {
-    padding: 1rem;
-  }
+/* ===== Botões ===== */
+.btn-remover {
+  background: transparent;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: .3rem;
+  border-radius: 6px;
+  transition: color .2s ease, background-color .2s ease;
+}
+.btn-remover:hover { color: #fff; background-color: #e63946; }
 
-  .botao-criar {
-    font-size: 0.95rem;
-    padding: 0.8rem 1rem;
-  }
+/* ===== Campos ===== */
+.input-pergunta,
+.input-opcao {
+  width: 100%;
+  padding: .75rem 1rem;
+  font-size: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  transition: border-color .2s ease;
+  color: #333 !important;        /* fixa a cor dos campos */
+  font-family: inherit;
+}
+.input-pergunta { margin-bottom: 1rem; }
 
-  .card-pesquisa {
-    padding: 1rem;
-  }
+.input-pergunta:focus,
+.input-opcao:focus {
+  outline: none;
+  border-color: #7f5af0;
+}
 
-  .card-pesquisa h3,
-  .card-pesquisa p {
-    font-size: 0.85rem;
-  }
+/* Placeholders */
+.input-pergunta::placeholder,
+.input-opcao::placeholder,
+.resposta-simulada::placeholder {
+  color: #999 !important;
+  opacity: .85;
+}
 
-  .sidebar .logo {
-    font-size: 1.3rem;
-  }
+/* ===== Resposta simulada ===== */
+.resposta-simulada {
+  width: 100%;
+  height: 100px;
+  padding: .75rem 1rem;
+  font-size: .95rem;
+  background-color: #f9f9f9;
+  border: 1px dashed #bbb;
+  border-radius: 10px;
+  resize: none;
+  color: #333 !important;
+  font-family: inherit;
+}
 
-  .main-content h2 {
-    font-size: 1.3rem;
-  }
+/* ===== Opções ===== */
+.opcao-input {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-bottom: .6rem;
+}
+.checkbox-simulador { width: 22px; height: 22px; accent-color: #7f5af0; cursor: not-allowed; flex-shrink: 0; }
+.radio-simulador    { width: 18px; height: 18px; accent-color: #7f5af0; cursor: not-allowed; flex-shrink: 0; }
+
+/* ===== Botão “Adicionar opção” ===== */
+.adicionar-opcao-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .5rem;
+  padding: .7rem 1.2rem;
+  font-size: .95rem;
+  background: linear-gradient(135deg, #7f5af0, #6246ea);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background .3s ease, transform .1s ease;
+}
+.adicionar-opcao-btn:hover {
+  background: linear-gradient(135deg, #6c48e6, #503ed6);
+  transform: scale(1.02);
 }
