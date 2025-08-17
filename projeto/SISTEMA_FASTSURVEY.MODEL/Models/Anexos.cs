@@ -15,5 +15,17 @@ public partial class anexos
 
     public string extensao { get; set; }
 
+    public int? perguntaid { get; set; }
+
+    public string nomeoriginal { get; set; }
+
+    public string contenttype { get; set; }
+
+    public long? tamanhobytes { get; set; }
+
+    public string base64data { get; set; }
+
+    public virtual perguntas pergunta { get; set; }
+
     public virtual pesquisas pesquisa { get; set; }
 }

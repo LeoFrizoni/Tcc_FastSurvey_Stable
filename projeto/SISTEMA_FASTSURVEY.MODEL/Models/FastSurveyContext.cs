@@ -39,7 +39,7 @@ public partial class FastSurveyContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("Host=localhost;Database=FastSurvey;Username=postgres;Password=admin");
+        => optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -47,12 +47,18 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.anexoid).HasName("anexos_pkey");
 
+            entity.Property(e => e.contenttype).HasMaxLength(150);
             entity.Property(e => e.extensao)
                 .IsRequired()
                 .HasMaxLength(25);
             entity.Property(e => e.nome)
                 .IsRequired()
-                .HasMaxLength(25);
+                .HasMaxLength(255);
+            entity.Property(e => e.nomeoriginal).HasMaxLength(255);
+
+            entity.HasOne(d => d.pergunta).WithMany(p => p.anexos)
+                .HasForeignKey(d => d.perguntaid)
+                .HasConstraintName("anexos_perguntaid_fkey");
 
             entity.HasOne(d => d.pesquisa).WithMany(p => p.anexos)
                 .HasForeignKey(d => d.pesquisaid)
@@ -101,9 +107,7 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.perguntaid).HasName("perguntas_pkey");
 
-            entity.Property(e => e.texto)
-                .IsRequired()
-                .HasMaxLength(200);
+            entity.Property(e => e.texto).IsRequired();
 
             entity.HasOne(d => d.pesquisa).WithMany(p => p.perguntas)
                 .HasForeignKey(d => d.pesquisaid)
@@ -143,9 +147,7 @@ public partial class FastSurveyContext : DbContext
             entity.HasKey(e => e.respostaid).HasName("respostas_pkey");
 
             entity.Property(e => e.dataresposta).HasColumnType("timestamp without time zone");
-            entity.Property(e => e.texto)
-                .IsRequired()
-                .HasMaxLength(200);
+            entity.Property(e => e.texto).IsRequired();
 
             entity.HasOne(d => d.pergunta).WithMany(p => p.respostas)
                 .HasForeignKey(d => d.perguntaid)

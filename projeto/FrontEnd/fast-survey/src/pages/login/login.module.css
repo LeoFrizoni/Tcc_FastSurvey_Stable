@@ -302,3 +302,109 @@
     transform: none;
   }
 }
+
+/* ===== Modal LGPD ===== */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9990;
+  backdrop-filter: blur(2px);
+}
+
+.modalContent {
+  width: min(720px, 92vw);
+  max-height: 84vh;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.modalHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modalClose {
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.modalBody {
+  padding: 16px 20px;
+  overflow: auto;
+  line-height: 1.5;
+}
+
+.modalBody h3 {
+  margin: 14px 0 6px;
+  font-size: 1rem;
+}
+
+.modalFooter {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 20px 16px;
+  background: #fafafa;
+}
+
+.checkboxRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+  justify-content: end;
+}
+
+.btnPrimary {
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: #e5e7eb;
+  color: #111827;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnSecondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

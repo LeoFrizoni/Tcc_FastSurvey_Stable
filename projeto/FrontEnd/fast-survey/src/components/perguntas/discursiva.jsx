@@ -2,11 +2,14 @@ import React from "react";
 import { Trash2 } from "lucide-react";
 import "./pergunta.css";
 
-const Discursiva = ({ bloco, onChangeTexto, onRemove, style, onClick }) => {
+const Discursiva = ({ bloco, onChangeTexto, onRemoveImagem, style, onClick }) => {
   const estiloContainer = {
     backgroundColor: style?.backgroundColor || "transparent",
     fontFamily: style?.fontFamily || "inherit",
+    color: style?.color || "inherit",
   };
+
+  const unica = Array.isArray(bloco.imagens) && bloco.imagens.length === 1;
 
   return (
     <div
@@ -14,13 +17,6 @@ const Discursiva = ({ bloco, onChangeTexto, onRemove, style, onClick }) => {
       style={estiloContainer}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
     >
-      <div className="cabecalho-pergunta">
-        <h4 style={{ color: style?.color || "inherit" }}>Pergunta Discursiva</h4>
-        <button className="btn-remover" onClick={() => onRemove(bloco.id)} title="Remover pergunta">
-          <Trash2 size={18} />
-        </button>
-      </div>
-
       <input
         type="text"
         value={bloco.texto}
@@ -29,11 +25,29 @@ const Discursiva = ({ bloco, onChangeTexto, onRemove, style, onClick }) => {
         className="input-pergunta"
       />
 
-      <textarea
-        disabled
-        placeholder="Resposta do usuário..."
-        className="resposta-simulada"
-      />
+      {/* PREVIEW ENTRE INPUT E RESPOSTA */}
+      {Array.isArray(bloco.imagens) && bloco.imagens.length > 0 && (
+        <div className={`galeria-imagens ${unica ? "centralizada" : ""}`}>
+          {bloco.imagens.map((img, i) => (
+            <div key={i} className={`thumb-imagem ${unica ? "grande" : ""}`}>
+              <img
+                src={img.previewUrl}
+                alt={img.file?.name || `imagem-${i}`}
+              />
+              <button
+                className="btn-remover-img"
+                title="Remover imagem"
+                onClick={(e) => { e.stopPropagation(); onRemoveImagem(bloco.id, i); }}
+                aria-label="Remover imagem"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <textarea disabled placeholder="Resposta do usuário..." className="resposta-simulada" />
     </div>
   );
 };

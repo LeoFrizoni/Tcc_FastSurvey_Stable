@@ -70,6 +70,26 @@ function ActionsPanel({ onEnviar, onExportar, disableActions, totalRespostas }) 
   );
 }
 
+/** Galeria entre o texto da pergunta e os inputs */
+function GaleriaPergunta({ imagens }) {
+  if (!Array.isArray(imagens) || imagens.length === 0) return null;
+  return (
+    <div className={styles.previewRow}>
+      {imagens.map((img, i) => {
+        const src = img.previewUrl; // se no futuro vier URL pública
+        const label = img.nome || img.file?.name || `imagem-${i}`;
+        return src ? (
+          <div key={i} className={styles.thumb}>
+            <img src={src} alt={label} />
+          </div>
+        ) : (
+          <span key={i} className={styles.fileChip}>{label}</span>
+        );
+      })}
+    </div>
+  );
+}
+
 const ResponderPesquisa = () => {
   const { id } = useParams();
   const [pesquisa, setPesquisa] = useState(null);
@@ -308,6 +328,9 @@ const ResponderPesquisa = () => {
                         <span className={styles.qIndex}>{index + 1}.</span>
                         <h4 className={styles.qText}>{b.texto}</h4>
                       </div>
+
+                      {/* >>> IMAGENS ENTRE O TEXTO E OS CAMPOS <<< */}
+                      <GaleriaPergunta imagens={b.imagens} />
 
                       {tipo === 'discursiva' && (
                         <div className={styles.field}>

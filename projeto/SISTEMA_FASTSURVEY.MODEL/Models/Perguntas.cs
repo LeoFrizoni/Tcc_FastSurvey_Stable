@@ -15,6 +15,8 @@ public partial class perguntas
 
     public string texto { get; set; }
 
+    public virtual ICollection<anexos> anexos { get; set; } = new List<anexos>();
+
     public virtual ICollection<opcoespergunta> opcoespergunta { get; set; } = new List<opcoespergunta>();
 
     public virtual pesquisas pesquisa { get; set; }

@@ -1,7 +1,19 @@
+:root {
+  --paper: #ffffff;
+  --ink: #111827;
+  --muted: #6b7280;
+  --brand: #7c3aed;
+  --brand-ink: #5b21b6;
+  --ring: rgba(124,58,237,.35);
+  --border: #e0e7ef;
+  --bg-soft: #f8f9fd;
+  --shadow: 0 2px 16px rgba(44,62,80,0.12);
+}
+
+/* Overlay e conteúdo do modal */
 .modalOverlay {
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
   background: rgba(0,0,0,0.4);
@@ -9,30 +21,33 @@
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  padding: 16px; /* evita colar nas bordas em mobile */
 }
 
 .modalContent {
-  background: #fff;
+  background: var(--paper);
+  color: var(--ink);
   padding: 1.2rem 2rem 2rem 2rem;
   border-radius: 12px;
-  box-shadow: 0 2px 16px rgba(44,62,80,0.12);
-  min-width: 350px;
-  max-width: 600px;
+  box-shadow: var(--shadow);
+  min-width: min(350px, 100%);
+  width: min(600px, 100%);
   max-height: 80vh;
-  overflow-y: auto;
+  overflow: auto; /* permite rolar conteúdo longo */
   position: relative;
+  border: 1px solid var(--border);
 }
 
 .closeBtn {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: #6c63ff;
+  background: var(--brand);
   color: #fff;
   border: none;
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   font-size: 16px;
   cursor: pointer;
   z-index: 10;
@@ -40,16 +55,71 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: background .2s, transform .08s;
 }
-.closeBtn:hover {
-  background: #4b43b8;
-}
+.closeBtn:hover { background: var(--brand-ink); transform: translateY(-1px); }
+.closeBtn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ring); }
 
+/* Bloco de preview genérico */
 .blocoPreview {
   margin-bottom: 1rem;
   padding: 1rem;
-  background: #f8f9fd;
+  background: var(--bg-soft);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.blocoPreview img,
+.blocoPreview video,
+.blocoPreview canvas,
+.blocoPreview iframe {
+  max-width: 100%;
+  height: auto;
+  display: block;
   border-radius: 8px;
-  border: 1px solid #e0e7ef;
+}
+
+/* ====== Classes usadas no JSX do modal (definidas como globais) ======
+   O componente ModalPreviewPesquisa.jsx usa className="bloco-pergunta", etc.
+   Como este é um CSS Module, definimos como :global(...) para funcionarem. */
+:global(.bloco-pergunta){
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+}
+:global(.cabecalho-pergunta h4){
+  margin: 0 0 8px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1f2a44;
+}
+:global(.input-pergunta){
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+:global(.resposta-simulada){
+  width: 100%;
+  min-height: 110px;
+  border-radius: 10px;
+  border: 1px dashed #d1d5db;
+  background: #fafafa;
+  padding: 10px 12px;
+  font-size: .98rem;
+  color: var(--ink);
+}
+:global(.opcao-input){
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+/* Mini-galeria usada no preview (quando houver imagens) */
+:global(.galeria-preview-row){
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px 0;
 }

@@ -7,8 +7,13 @@ CREATE TABLE IF NOT EXISTS public.anexos
 (
     anexoid serial NOT NULL,
     pesquisaid integer NOT NULL,
-    nome character varying(25) COLLATE pg_catalog."default" NOT NULL,
+    nome character varying(255) COLLATE pg_catalog."default" NOT NULL,
     extensao character varying(25) COLLATE pg_catalog."default" NOT NULL,
+    perguntaid integer,
+    nomeoriginal character varying(255) COLLATE pg_catalog."default",
+    contenttype character varying(150) COLLATE pg_catalog."default",
+    tamanhobytes bigint,
+    base64data text COLLATE pg_catalog."default",
     CONSTRAINT anexos_pkey PRIMARY KEY (anexoid)
 );
 
@@ -37,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.perguntas
     perguntaid serial NOT NULL,
     tipoperguntaid integer NOT NULL,
     pesquisaid integer NOT NULL,
-    texto character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    texto text COLLATE pg_catalog."default" NOT NULL,
     CONSTRAINT perguntas_pkey PRIMARY KEY (perguntaid)
 );
 
@@ -56,7 +61,7 @@ CREATE TABLE IF NOT EXISTS public.respostas
 (
     respostaid serial NOT NULL,
     perguntaid integer NOT NULL,
-    texto character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    texto text COLLATE pg_catalog."default" NOT NULL,
     dataresposta timestamp without time zone NOT NULL,
     CONSTRAINT respostas_pkey PRIMARY KEY (respostaid)
 );
@@ -92,6 +97,13 @@ CREATE TABLE IF NOT EXISTS public.tokens
     dataexpirado timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT tokens_pkey PRIMARY KEY (tokenid)
 );
+
+ALTER TABLE IF EXISTS public.anexos
+    ADD CONSTRAINT anexos_perguntaid_fkey FOREIGN KEY (perguntaid)
+    REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
+
 
 ALTER TABLE IF EXISTS public.anexos
     ADD CONSTRAINT anexos_pesquisaid_fkey FOREIGN KEY (pesquisaid)

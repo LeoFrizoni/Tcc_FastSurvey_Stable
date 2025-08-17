@@ -1,5 +1,6 @@
 // resultadosPesquisa.jsx (alinhado ao Criar/Preview)
-// Respeita apenas estilo: { corFundo, corTexto, fonte } e opcoes { opcaoid, texto }
+// Respeita estilo: { corFundo, corTexto, fonte } e opcoes { opcaoid, texto }.
+// Exibe imagens como miniaturas se houver previewUrl; senão, mostra chips com nome.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -11,17 +12,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 function normalizeTipo(tipo) {
-  return String(tipo || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
+  return String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 }
 function getContrastingTextColor(bgColor) {
   if (!bgColor) return '#222222';
   let c = String(bgColor).trim();
-  if (c.startsWith('var(') || c === 'transparent' || c.startsWith('rgba') || c.startsWith('rgb')) {
-    return '#222222';
-  }
+  if (c.startsWith('var(') || c === 'transparent' || c.startsWith('rgba') || c.startsWith('rgb')) return '#222222';
   c = c.replace('#', '');
   if (c.length === 3) c = c.split('').map(ch => ch + ch).join('');
   if (!/^([0-9a-f]{6})$/i.test(c)) return '#222222';
@@ -31,7 +27,6 @@ function getContrastingTextColor(bgColor) {
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 140 ? '#222222' : '#ffffff';
 }
-// apenas os 3 campos do estilo do CriarPesquisa
 function buildBlocoInlineStyle(estilo) {
   const { corFundo, corTexto, fonte } = estilo || {};
   const computedText = corTexto || getContrastingTextColor(corFundo);
@@ -52,17 +47,30 @@ function ModalAcoesLateralResultados({ onResponder, onQrCode, onExportarPDF }) {
   return (
     <aside className={styles.actionsPanel} aria-label="Ações">
       <h3 className={styles.actionsTitle}>Ações</h3>
-      <button className={styles.primaryBtn} type="button" onClick={onResponder}>
-        Responder pesquisa
-      </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
-        Mostrar QR Code
-      </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>
-        Exportar PDF
-      </button>
+      <button className={styles.primaryBtn} type="button" onClick={onResponder}>Responder pesquisa</button>
+      <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>Mostrar QR Code</button>
+      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>Exportar PDF</button>
       <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
     </aside>
+  );
+}
+
+function GaleriaResultados({ imagens }) {
+  if (!Array.isArray(imagens) || imagens.length === 0) return null;
+  return (
+    <div className={styles.previewRow}>
+      {imagens.map((img, i) => {
+        const src = img.previewUrl; // só existirá se seu backend salvar URL pública (no momento salvamos só nome)
+        const label = img.nome || img.file?.name || `imagem-${i}`;
+        return src ? (
+          <div key={i} className={styles.thumb}>
+            <img src={src} alt={label} />
+          </div>
+        ) : (
+          <span key={i} className={styles.fileChip}>{label}</span>
+        );
+      })}
+    </div>
   );
 }
 
@@ -112,7 +120,6 @@ const ResultadosPesquisa = () => {
 
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-
       const imgWidth = pageWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
@@ -198,6 +205,9 @@ const ResultadosPesquisa = () => {
                       <span className={styles.qIndex}>{index + 1}.</span>
                       <h4 className={styles.qText}>{bloco.texto}</h4>
                     </div>
+
+                    {/* IMAGENS ENTRE TEXTO E RESPOSTA/OPÇÕES */}
+                    <GaleriaResultados imagens={bloco.imagens} />
 
                     {tipo === 'discursiva' && (
                       <div className={styles.answerBoxMuted}>

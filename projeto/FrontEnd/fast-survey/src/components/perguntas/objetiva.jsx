@@ -2,17 +2,31 @@ import React from "react";
 import { Trash2, Plus } from "lucide-react";
 import "./pergunta.css";
 
-const Objetiva = ({ bloco, onChangeTexto, onChangeOpcoes, onRemove, style, onClick }) => {
+const Objetiva = ({
+  bloco,
+  onChangeTexto,
+  onChangeOpcoes,
+  onRemoveImagem,
+  style,
+  onClick
+}) => {
   const atualizarOpcao = (index, valor) => {
     const novasOpcoes = [...bloco.opcoes];
     novasOpcoes[index] = valor;
     onChangeOpcoes(bloco.id, novasOpcoes);
   };
+  const removerOpcao = (index) => {
+    const novas = bloco.opcoes.filter((_, i) => i !== index);
+    onChangeOpcoes(bloco.id, novas);
+  };
 
   const estiloContainer = {
     backgroundColor: style?.backgroundColor || "transparent",
     fontFamily: style?.fontFamily || "inherit",
+    color: style?.color || "inherit",
   };
+
+  const unica = Array.isArray(bloco.imagens) && bloco.imagens.length === 1;
 
   return (
     <div
@@ -20,13 +34,6 @@ const Objetiva = ({ bloco, onChangeTexto, onChangeOpcoes, onRemove, style, onCli
       style={estiloContainer}
       onClick={(e) => { e.stopPropagation(); onClick(); }}
     >
-      <div className="cabecalho-pergunta">
-        <h4 style={{ color: style?.color || "inherit" }}>Pergunta Objetiva (resposta única)</h4>
-        <button className="btn-remover" onClick={() => onRemove(bloco.id)} title="Remover pergunta">
-          <Trash2 size={18} />
-        </button>
-      </div>
-
       <input
         type="text"
         value={bloco.texto}
@@ -35,8 +42,30 @@ const Objetiva = ({ bloco, onChangeTexto, onChangeOpcoes, onRemove, style, onCli
         className="input-pergunta"
       />
 
+      {/* PREVIEW ENTRE INPUT E OPÇÕES */}
+      {Array.isArray(bloco.imagens) && bloco.imagens.length > 0 && (
+        <div className={`galeria-imagens ${unica ? "centralizada" : ""}`}>
+          {bloco.imagens.map((img, i) => (
+            <div key={i} className={`thumb-imagem ${unica ? "grande" : ""}`}>
+              <img src={img.previewUrl} alt={img.file?.name || `imagem-${i}`} />
+              <button
+                className="btn-remover-img"
+                title="Remover imagem"
+                onClick={(e) => { e.stopPropagation(); onRemoveImagem(bloco.id, i); }}
+                aria-label="Remover imagem"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {bloco.opcoes.map((opcao, index) => {
-        const valor = typeof opcao === "object" && opcao !== null ? (opcao.texto ?? opcao.opcao ?? "") : opcao;
+        const valor =
+          typeof opcao === "object" && opcao !== null
+            ? (opcao.texto ?? opcao.opcao ?? "")
+            : opcao;
         return (
           <div key={index} className="opcao-input">
             <input type="radio" disabled className="radio-simulador" />
@@ -47,14 +76,21 @@ const Objetiva = ({ bloco, onChangeTexto, onChangeOpcoes, onRemove, style, onCli
               placeholder={`Opção ${index + 1}`}
               className="input-opcao"
             />
-            <button className="btn-remover" onClick={() => onRemove(opcao)} title="Remover opção">
+            <button
+              className="btn-remover"
+              onClick={() => removerOpcao(index)}
+              title="Remover opção"
+            >
               <Trash2 size={16} />
             </button>
           </div>
         );
       })}
 
-      <button className="adicionar-opcao-btn" onClick={() => onChangeOpcoes(bloco.id, [...bloco.opcoes, ""])}>
+      <button
+        className="adicionar-opcao-btn"
+        onClick={() => onChangeOpcoes(bloco.id, [...bloco.opcoes, ""])}
+      >
         <Plus size={16} /> Adicionar Opção
       </button>
     </div>
