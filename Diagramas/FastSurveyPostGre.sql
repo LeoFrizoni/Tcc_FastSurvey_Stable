@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS public.opcoespergunta
     opcaoid serial NOT NULL,
     perguntaid integer NOT NULL,
     texto character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    correta boolean NOT NULL DEFAULT false,
     CONSTRAINT opcoespergunta_pkey PRIMARY KEY (opcaoid)
 );
 
@@ -43,6 +44,8 @@ CREATE TABLE IF NOT EXISTS public.perguntas
     tipoperguntaid integer NOT NULL,
     pesquisaid integer NOT NULL,
     texto text COLLATE pg_catalog."default" NOT NULL,
+    temgabarito boolean NOT NULL DEFAULT false,
+    permitemultiplaselecao boolean NOT NULL DEFAULT false,
     CONSTRAINT perguntas_pkey PRIMARY KEY (perguntaid)
 );
 
@@ -62,8 +65,22 @@ CREATE TABLE IF NOT EXISTS public.respostas
     respostaid serial NOT NULL,
     perguntaid integer NOT NULL,
     texto text COLLATE pg_catalog."default" NOT NULL,
-    dataresposta timestamp without time zone NOT NULL,
+    dataresposta timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT respostas_pkey PRIMARY KEY (respostaid)
+);
+
+CREATE TABLE IF NOT EXISTS public.respostas_anexos
+(
+    respostaid integer NOT NULL,
+    anexoid integer NOT NULL,
+    CONSTRAINT respostas_anexos_pkey PRIMARY KEY (respostaid, anexoid)
+);
+
+CREATE TABLE IF NOT EXISTS public.respostas_opcoes
+(
+    respostaid integer NOT NULL,
+    opcaoid integer NOT NULL,
+    CONSTRAINT respostas_opcoes_pkey PRIMARY KEY (respostaid, opcaoid)
 );
 
 CREATE TABLE IF NOT EXISTS public.tipopergunta
@@ -84,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.tipopesquisa
 
 CREATE TABLE IF NOT EXISTS public.tipousuario
 (
-    usuarioid integer NOT NULL DEFAULT nextval('usuarios_usuarioid_seq'::regclass),
+    usuarioid serial NOT NULL,
     tipousuario character varying(50) COLLATE pg_catalog."default",
     CONSTRAINT usuarios_pkey PRIMARY KEY (usuarioid)
 );
@@ -124,6 +141,8 @@ ALTER TABLE IF EXISTS public.opcoespergunta
     REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_opcoespergunta_perguntaid
+    ON public.opcoespergunta(perguntaid);
 
 
 ALTER TABLE IF EXISTS public.perguntas
@@ -159,5 +178,39 @@ ALTER TABLE IF EXISTS public.respostas
     REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_respostas_perguntaid
+    ON public.respostas(perguntaid);
+
+
+ALTER TABLE IF EXISTS public.respostas_anexos
+    ADD CONSTRAINT respostas_anexos_anexoid_fkey FOREIGN KEY (anexoid)
+    REFERENCES public.anexos (anexoid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
+
+
+ALTER TABLE IF EXISTS public.respostas_anexos
+    ADD CONSTRAINT respostas_anexos_respostaid_fkey FOREIGN KEY (respostaid)
+    REFERENCES public.respostas (respostaid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+
+
+ALTER TABLE IF EXISTS public.respostas_opcoes
+    ADD CONSTRAINT respostas_opcoes_opcaoid_fkey FOREIGN KEY (opcaoid)
+    REFERENCES public.opcoespergunta (opcaoid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_respostasopcoes_opcaoid
+    ON public.respostas_opcoes(opcaoid);
+
+
+ALTER TABLE IF EXISTS public.respostas_opcoes
+    ADD CONSTRAINT respostas_opcoes_respostaid_fkey FOREIGN KEY (respostaid)
+    REFERENCES public.respostas (respostaid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_respostasopcoes_respostaid
+    ON public.respostas_opcoes(respostaid);
 
 END;
