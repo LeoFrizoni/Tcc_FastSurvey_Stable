@@ -1,6 +1,10 @@
-// resultadosPesquisa.jsx (alinhado ao Criar/Preview)
-// Respeita estilo: { corFundo, corTexto, fonte } e opcoes { opcaoid, texto }.
-// Exibe imagens como miniaturas se houver previewUrl; senão, mostra chips com nome.
+import CabecalhoPesquisa from '../../components/layouts/CabecalhoPesquisa';
+import InformacoesPesquisa from '../../components/layouts/InformacoesPesquisa';
+// src/pages/resultados/resultadosPesquisa.jsx
+// Resultados (alinhado ao Criar/Preview)
+// Respeita estilo salvo no TemplateJson: { corFundo, corTexto, fonte, padding, largura, alinhamento, borda, sombra, bordaRadius }
+// e opcoes { opcaoid, texto }. Exibe imagens como miniaturas (se tiver previewUrl) ou chips com nome.
+// Inclui cabeçalho com Autor e Data.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -12,8 +16,12 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 function normalizeTipo(tipo) {
-  return String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return String(tipo || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
 }
+
 function getContrastingTextColor(bgColor) {
   if (!bgColor) return '#222222';
   let c = String(bgColor).trim();
@@ -27,29 +35,61 @@ function getContrastingTextColor(bgColor) {
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 140 ? '#222222' : '#ffffff';
 }
+
+function toPx(v, fallback) {
+  if (v === 0) return '0px';
+  if (v == null) return fallback;
+  const s = String(v).trim();
+  if (s.endsWith('px') || s.endsWith('%') || s.endsWith('rem')) return s;
+  const num = Number(s);
+  return Number.isFinite(num) ? `${num}px` : fallback;
+}
+
 function buildBlocoInlineStyle(estilo) {
-  const { corFundo, corTexto, fonte } = estilo || {};
+  const {
+    corFundo, corTexto, fonte, alinhamento,
+    largura, padding, paddingX, paddingY,
+    borda, bordaRadius, sombra
+  } = estilo || {};
+
   const computedText = corTexto || getContrastingTextColor(corFundo);
+
+  let finalPadding = padding ?? undefined;
+  if (paddingX != null || paddingY != null) {
+    const px = toPx(paddingX, '16px');
+    const py = toPx(paddingY, '14px');
+    finalPadding = `${py} ${px}`;
+  }
+
   return {
     style: {
-      backgroundColor: corFundo || 'white',
+      backgroundColor: corFundo || 'var(--paper)',
       color: computedText,
       fontFamily: fonte || 'inherit',
-      border: '1px solid var(--border)',
-      borderRadius: '12px',
-      boxShadow: '0 1px 2px rgba(16,24,40,.04)',
-      padding: '14px 16px'
+      textAlign: alinhamento || 'left',
+      maxWidth: largura ? toPx(largura, '100%') : '100%',
+      padding: finalPadding || '14px 16px',
+      border: borda || '1px solid var(--border)',
+      borderRadius: toPx(bordaRadius, '12px'),
+      boxShadow: sombra || '0 1px 2px rgba(16,24,40,.04)',
+      transition: 'border-color .12s, box-shadow .12s'
     }
   };
 }
 
-function ModalAcoesLateralResultados({ onResponder, onQrCode, onExportarPDF }) {
+function ActionsAside({ onResponder, onQrCode, onExportarPDF }) {
   return (
     <aside className={styles.actionsPanel} aria-label="Ações">
       <h3 className={styles.actionsTitle}>Ações</h3>
-      <button className={styles.primaryBtn} type="button" onClick={onResponder}>Responder pesquisa</button>
-      <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>Mostrar QR Code</button>
-      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>Exportar PDF</button>
+      <button className={styles.primaryBtn} type="button" onClick={onResponder} aria-label="Abrir modo Responder">
+        Responder pesquisa
+      </button>
+      <button className={styles.secondaryBtn} type="button" onClick={onQrCode} aria-label="Mostrar QR Code">
+        Mostrar QR Code
+      </button>
+      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF} aria-label="Exportar PDF">
+        Exportar PDF
+      </button>
       <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
     </aside>
   );
@@ -60,12 +100,12 @@ function GaleriaResultados({ imagens }) {
   return (
     <div className={styles.previewRow}>
       {imagens.map((img, i) => {
-        const src = img.previewUrl; // só existirá se seu backend salvar URL pública (no momento salvamos só nome)
+        const src = img.previewUrl;
         const label = img.nome || img.file?.name || `imagem-${i}`;
         return src ? (
-          <div key={i} className={styles.thumb}>
-            <img src={src} alt={label} />
-          </div>
+          <figure key={i} className={styles.thumb}>
+            <img src={src} alt={label} loading="lazy" />
+          </figure>
         ) : (
           <span key={i} className={styles.fileChip}>{label}</span>
         );
@@ -114,29 +154,31 @@ const ResultadosPesquisa = () => {
   async function exportarPDF() {
     if (!pdfRef.current) return;
     try {
-      const canvas = await html2canvas(pdfRef.current, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(pdfRef.current, {
+        scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: document.documentElement.scrollWidth
+      });
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const imgW = pageW - margin * 2;
+      const imgH = (canvas.height * imgW) / canvas.width;
+      let heightLeft = imgH;
+      let position = margin;
 
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+      heightLeft -= pageH;
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
+      while (heightLeft > -pageH) {
         pdf.addPage();
-        position = heightLeft - imgHeight;
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        position = heightLeft + margin;
+        pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
+        heightLeft -= pageH;
       }
 
-      pdf.save('resultado-pesquisa.pdf');
+      const safeTitle = (pesquisa?.titulo || 'resultado-pesquisa').replace(/[\\/:*?"<>|]+/g, '').slice(0, 60);
+      pdf.save(`${safeTitle}.pdf`);
     } catch {
       alert('Erro ao exportar PDF.');
     }
@@ -148,7 +190,7 @@ const ResultadosPesquisa = () => {
         <TopNavbar />
         <div className={styles.page}>
           <div className={styles.grid}>
-            <div className={styles.card}>
+            <div className={styles.card} aria-busy="true" aria-live="polite">
               <div className={styles.skeletonTitle} />
               <div className={styles.skeletonText} />
               <div className={styles.skeletonBlock} />
@@ -170,7 +212,7 @@ const ResultadosPesquisa = () => {
       <>
         <TopNavbar />
         <div className={styles.page}>
-          <div className={styles.errorBox}>
+          <div className={styles.errorBox} role="alert">
             <h2>Ops!</h2>
             <p>{erro || 'Não foi possível carregar esta pesquisa.'}</p>
           </div>
@@ -179,42 +221,59 @@ const ResultadosPesquisa = () => {
     );
   }
 
+  // ==== Autor & Data (com fallbacks)
+  const autor =
+    pesquisa?.login?.usuario ??
+    pesquisa?.autor?.nome ??
+    pesquisa?.autor ??
+    pesquisa?.usuario?.nome ??
+    '—';
+
+  const dataRaw =
+    pesquisa?.dataCriacao ??
+    pesquisa?.dataregistro ??
+    pesquisa?.dataRegistro ??
+    pesquisa?.createdAt ??
+    pesquisa?.criadoEm;
+
+  const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
+
   return (
     <>
       <TopNavbar />
       <main className={styles.page}>
-        <div className={styles.header}>
-          <div className={styles.headerCard}>
-            <h1 className={styles.title}>{pesquisa.titulo}</h1>
-            {pesquisa.descricao && <p className={styles.subtitle}>{pesquisa.descricao}</p>}
-            <span className={styles.badge}>Tipo: {pesquisa.tipoPesquisa?.descricao || 'Indefinido'}</span>
-          </div>
-        </div>
-
+        <section ref={pdfRef} className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
+          <CabecalhoPesquisa autor={autor} data={dataStr} />
+          <InformacoesPesquisa
+            titulo={pesquisa.titulo}
+            descricao={pesquisa.descricao}
+            tipoPesquisa={pesquisa.tipoPesquisa?.descricao || 'Indefinido'}
+          />
+        </section>
         <div className={styles.grid}>
-          <section ref={pdfRef} className={styles.formArea} aria-label="Estrutura da pesquisa">
+          <section className={styles.formArea} aria-label="Estrutura da pesquisa">
+            {blocos.length === 0 && (
+              <div className={styles.emptyBox}>
+                Nenhum bloco cadastrado nesta pesquisa.
+              </div>
+            )}
             {blocos.map((bloco, index) => {
               const { style: blocoInline } = buildBlocoInlineStyle(bloco?.estilo);
               const tipo = normalizeTipo(bloco.tipo);
               const key = bloco.perguntaid ?? bloco.id ?? index;
-
               return (
                 <div key={key} className={styles.blockWrapper}>
-                  <div className={styles.block} style={blocoInline}>
+                  <article className={styles.block} style={blocoInline}>
                     <div className={styles.blockHeader}>
-                      <span className={styles.qIndex}>{index + 1}.</span>
+                      <span className={styles.qIndex} aria-hidden> {index + 1}. </span>
                       <h4 className={styles.qText}>{bloco.texto}</h4>
                     </div>
-
-                    {/* IMAGENS ENTRE TEXTO E RESPOSTA/OPÇÕES */}
                     <GaleriaResultados imagens={bloco.imagens} />
-
                     {tipo === 'discursiva' && (
-                      <div className={styles.answerBoxMuted}>
+                      <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
                         Resposta do usuário...
                       </div>
                     )}
-
                     {(tipo === 'objetiva' || tipo === 'multipla') && Array.isArray(bloco.opcoes) && (
                       <ul className={styles.optionsList}>
                         {bloco.opcoes.map((op, i) => {
@@ -227,23 +286,20 @@ const ResultadosPesquisa = () => {
                         })}
                       </ul>
                     )}
-
                     {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
                       <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
                     )}
-                  </div>
+                  </article>
                 </div>
               );
             })}
           </section>
-
-          <ModalAcoesLateralResultados
+          <ActionsAside
             onResponder={() => navigate(`/responder/${id}`)}
             onQrCode={() => setMostrarModalQr(true)}
             onExportarPDF={exportarPDF}
           />
         </div>
-
         <ModalQRCode
           isOpen={mostrarModalQr}
           onClose={() => setMostrarModalQr(false)}

@@ -1,3 +1,4 @@
+/* src/pages/resultados/resultadosPesquisa.module.css */
 :root{
   --bg: #f6f4fa;
   --paper: #ffffff;
@@ -13,18 +14,11 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 
-/* Escopo de página para evitar conflito com outras telas (opcional) */
-.resultadosRoot {
-  min-height: 100vh;
-  width: 100%;
-  display: block;
-  background: var(--bg);
-}
-
 .page{
   max-width: 1100px;
   margin: 0 auto;
   padding: 20px clamp(14px, 3vw, 28px) 40px;
+  background: var(--bg);
 }
 
 .header{ margin: 8px 0 12px; }
@@ -71,7 +65,18 @@ html, body { height: 100%; }
 
 .formArea{ background: transparent; padding: 0; }
 
+.emptyBox{
+  background: var(--paper);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--muted);
+  padding: 20px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
 .blockWrapper{ width: 100%; margin: 0 0 14px; }
+
 .block{
   background: var(--paper);
   border: 1px solid var(--border);
@@ -189,8 +194,8 @@ html, body { height: 100%; }
 }
 .thumb{
   position: relative;
-  width: 220px;
-  height: 160px;
+  width: min(240px, 100%);
+  height: 170px;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -205,4 +210,15 @@ html, body { height: 100%; }
   border-radius: 8px;
   font-size: 12px;
   background: #fafafa;
+}
+.metaInfo{
+  margin-top: 6px;
+  font-size: .9rem;
+  color: var(--muted);
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.metaInfo span{
+  display: inline-block;
 }

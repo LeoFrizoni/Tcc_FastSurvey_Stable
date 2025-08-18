@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FASTSURVEY.Controllers
 {
@@ -9,74 +11,117 @@ namespace FASTSURVEY.Controllers
     [ApiController]
     public class TipoPesquisaController : ControllerBase
     {
-        private FastSurveyContext _context;
-        private RepositoryTipoPesquisa _repositoryTipoPesquisa;
+        private readonly RepositoryTipoPesquisa _repo;
 
         public TipoPesquisaController(FastSurveyContext context)
         {
-            _context = context;
-            _repositoryTipoPesquisa = new RepositoryTipoPesquisa(_context, true);
+            _repo = new RepositoryTipoPesquisa(context, true);
         }
 
-        [HttpPost("Adicionar TipoPesquisa")]
-        public IActionResult AdicionarTipoPesquisa([FromForm] tipopesquisa tipoPesquisa)//FromBody
+        // POST: api/TipoPesquisa/AdicionarTipoPesquisa
+        [HttpPost("AdicionarTipoPesquisa")]
+        public async Task<IActionResult> Post([FromBody] tipopesquisa body)
         {
-            if (tipoPesquisa == null)
+            if (body == null || string.IsNullOrWhiteSpace(body.tipopesquisa1))
+                return BadRequest("Descrição do tipo de pesquisa é obrigatória.");
+
+            try
             {
-                return BadRequest("Tipo de pesquisa inválido.");
+                var criado = await _repo.IncluirAsync(body);
+                return CreatedAtAction(nameof(GetPorId),
+                    new { id = criado.tipopesquisaid },
+                    new { criado.tipopesquisaid, tipopesquisa = criado.tipopesquisa1, criado.desabilitado });
             }
-            _repositoryTipoPesquisa.Incluir(tipoPesquisa);
-            return Ok(tipoPesquisa);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao inserir tipo de pesquisa: {ex.Message}");
+            }
         }
 
+        // GET: api/TipoPesquisa/ListarTipoPesquisa
         [HttpGet("ListarTipoPesquisa")]
-        public IActionResult ListarTipoPesquisa()
+        public async Task<IActionResult> Get()
         {
-            var tiposPesquisa = _repositoryTipoPesquisa.SelecionarTodos();
-            if (tiposPesquisa == null || !tiposPesquisa.Any())
+            try
             {
-                return NotFound("Nenhum tipo de pesquisa encontrado.");
+                var todos = await _repo.SelecionarTodosAsync();
+                if (todos == null || !todos.Any())
+                    return NotFound("Nenhum tipo de pesquisa encontrado.");
+
+                return Ok(todos.Select(t => new
+                {
+                    t.tipopesquisaid,
+                    tipopesquisa = t.tipopesquisa1,
+                    t.desabilitado
+                }));
             }
-            return Ok(tiposPesquisa);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao listar tipos de pesquisa: {ex.Message}");
+            }
         }
 
+        // GET: api/TipoPesquisa/SelecionarTipoPesquisaPorId/5
         [HttpGet("SelecionarTipoPesquisaPorId/{id}")]
-        public IActionResult SelecionarTipoPesquisa(int id)
+        public async Task<IActionResult> GetPorId(int id)
         {
-            var tipoPesquisa = _repositoryTipoPesquisa.SelecionarChave(id);
-            if (tipoPesquisa == null)
+            if (id <= 0) return BadRequest("ID inválido.");
+
+            try
             {
-                return NotFound("Tipo de pesquisa não encontrado.");
+                var tp = await _repo.SelecionarChaveAsync(id);
+                if (tp == null) return NotFound("Tipo de pesquisa não encontrado.");
+
+                return Ok(new { tp.tipopesquisaid, tipopesquisa = tp.tipopesquisa1, tp.desabilitado });
             }
-            return Ok(tipoPesquisa);
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao selecionar tipo de pesquisa: {ex.Message}");
+            }
         }
 
+        // PUT: api/TipoPesquisa/AlterarTipoPesquisaPorId/5
         [HttpPut("AlterarTipoPesquisaPorId/{id}")]
-        public IActionResult AlterarTipoPesquisa(int id, [FromForm] tipopesquisa tipoPesquisa)//FromBody
+        public async Task<IActionResult> Put(int id, [FromBody] tipopesquisa body)
         {
-            if (tipoPesquisa == null)
+            if (id <= 0 || body == null || id != body.tipopesquisaid)
+                return BadRequest("Dados inválidos.");
+
+            try
             {
-                return BadRequest("Tipo de pesquisa inválido.");
+                var existente = await _repo.SelecionarChaveAsync(id);
+                if (existente == null) return NotFound("Tipo de pesquisa não encontrado.");
+
+                existente.tipopesquisa1 = body.tipopesquisa1?.Trim();
+                existente.desabilitado = body.desabilitado;
+
+                await _repo.AlterarAsync(existente);
+                return NoContent();
             }
-            var tipoPesquisaExistente = _repositoryTipoPesquisa.SelecionarChave(id);
-            if (tipoPesquisaExistente == null)
+            catch (Exception ex)
             {
-                return NotFound("Tipo de pesquisa não encontrado.");
+                return StatusCode(500, $"Erro ao atualizar tipo de pesquisa: {ex.Message}");
             }
-            _repositoryTipoPesquisa.Alterar(tipoPesquisa);
-            return Ok(tipoPesquisa);
         }
 
+        // DELETE: api/TipoPesquisa/ExcluirTipoPesquisa/5
         [HttpDelete("ExcluirTipoPesquisa/{id}")]
-        public IActionResult ExcluirTipoPesquisa(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var tipoPesquisa = _repositoryTipoPesquisa.SelecionarChave(id);
-            if (tipoPesquisa == null)
+            if (id <= 0) return BadRequest("ID inválido.");
+
+            try
             {
-                return NotFound("Tipo de pesquisa não encontrado.");
+                var existente = await _repo.SelecionarChaveAsync(id);
+                if (existente == null) return NotFound("Tipo de pesquisa não encontrado.");
+
+                await _repo.ExcluirAsync(existente);
+                return NoContent();
             }
-            _repositoryTipoPesquisa.Excluir(tipoPesquisa);
-            return Ok("Tipo de pesquisa excluído com sucesso.");
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao excluir tipo de pesquisa: {ex.Message}");
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿namespace FASTSURVEY.Models
+﻿// FASTSURVEY/Models/PesquisaVM.cs
+namespace FASTSURVEY.Models
 {
     public class PesquisaVM
     {
@@ -9,10 +10,9 @@
         public int TipoPesquisaId { get; set; }
         public int CodigoPesquisa { get; set; }
         public int LoginId { get; set; }
-        public List<PerguntaDiscursiva>? PerguntasDiscursivas { get; set; }
-        public List<PerguntaObjetiva>? PerguntasObjetivas { get; set; }
-        public List<PerguntaMultiplaEscolha>? PerguntasMultiplaEscolha { get; set; }
+        public List<PerguntaDiscursivaDto>? PerguntasDiscursivas { get; set; }
+        public List<PerguntaObjetivaDto>? PerguntasObjetivas { get; set; }
+        public List<PerguntaMultiplaEscolhaDto>? PerguntasMultiplaEscolha { get; set; }
         public string? TemplateJson { get; set; }
     }
-
 }

@@ -13,5 +13,11 @@ public partial class opcoespergunta
 
     public string texto { get; set; }
 
+    public bool correta { get; set; }
+
     public virtual perguntas pergunta { get; set; }
+
+    public virtual ICollection<respostas> resposta { get; set; } = new List<respostas>();
+
+    public virtual ICollection<respostas_opcoes> respostas_opcoes { get; set; } = new List<respostas_opcoes>();
 }

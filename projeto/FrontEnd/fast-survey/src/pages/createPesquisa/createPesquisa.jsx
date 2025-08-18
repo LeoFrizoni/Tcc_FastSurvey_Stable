@@ -68,21 +68,48 @@ const CriarPesquisa = () => {
   }, []);
 
   const adicionarBloco = (tipo) => {
-    const novo = {
+    const base = {
       id: Date.now(),
       tipo,
       texto: "",
-      opcoes: tipo === "multipla" || tipo === "objetiva" ? [""] : [],
-      arquivo: null, // usado no bloco "anexo" da PESQUISA
-      attachments: [], // arquivos anexados à PERGUNTA (pdf, doc, etc)
-      imagens: [], // { file, previewUrl } por PERGUNTA
-      estilo: { corFundo: "", corTexto: "", fonte: "" }
+      opcoes: [],
+      arquivo: null,
+      attachments: [],
+      imagens: [],
+      estilo: { corFundo: "", corTexto: "", fonte: "" },
     };
 
+    /** complementos por tipo */
+    if (tipo === "discursiva") {
+      setBlocos((prev) => [
+        ...prev,
+        { ...base, opcoes: [], respostaExemplo: "" },
+      ]);
+      return;
+    }
+    if (tipo === "multipla") {
+      setBlocos((prev) => [
+        ...prev,
+        {
+          ...base,
+          opcoes: [""],
+          temGabarito: false,
+          permitirMultiplaSelecao: true,
+          corretas: [],
+        },
+      ]);
+      return;
+    }
+    if (tipo === "objetiva") {
+      setBlocos((prev) => [
+        ...prev,
+        { ...base, opcoes: [""], temGabarito: false, corretaIndex: null },
+      ]);
+      return;
+    }
     if (tipo === "anexo") {
       inputFileRef.current?.click();
-    } else {
-      setBlocos((prev) => [...prev, novo]);
+      return;
     }
   };
 
@@ -111,7 +138,11 @@ const CriarPesquisa = () => {
     const files = Array.from(e.target.files || []);
     if (attachToBlockId && files.length > 0) {
       setBlocos((prev) =>
-        prev.map((b) => (b.id === attachToBlockId ? { ...b, attachments: [...(b.attachments || []), ...files] } : b))
+        prev.map((b) =>
+          b.id === attachToBlockId
+            ? { ...b, attachments: [...(b.attachments || []), ...files] }
+            : b
+        )
       );
     }
     setAttachToBlockId(null);
@@ -132,7 +163,11 @@ const CriarPesquisa = () => {
 
       if (imagens.length > 0) {
         setBlocos((prev) =>
-          prev.map((b) => (b.id === imageToBlockId ? { ...b, imagens: [...(b.imagens || []), ...imagens] } : b))
+          prev.map((b) =>
+            b.id === imageToBlockId
+              ? { ...b, imagens: [...(b.imagens || []), ...imagens] }
+              : b
+          )
         );
       }
     }
@@ -141,10 +176,36 @@ const CriarPesquisa = () => {
   };
 
   const atualizarBloco = (id, dados) => {
-    setBlocos((prev) => prev.map((bloco) => (bloco.id === id ? { ...bloco, ...dados } : bloco)));
+    setBlocos((prev) =>
+      prev.map((bloco) => (bloco.id === id ? { ...bloco, ...dados } : bloco))
+    );
   };
   const atualizarTexto = (id, novoTexto) => atualizarBloco(id, { texto: novoTexto });
   const atualizarOpcoes = (id, novasOpcoes) => atualizarBloco(id, { opcoes: novasOpcoes });
+
+  // NOVOS: flags e gabaritos
+  const toggleGabarito = (id, val) => atualizarBloco(id, { temGabarito: !!val });
+  const togglePermiteMultipla = (id, val) =>
+    atualizarBloco(id, { permitirMultiplaSelecao: !!val, ...(val ? {} : { corretas: [] }) });
+
+  const setCorretaIndex = (id, idx) => atualizarBloco(id, { corretaIndex: idx });
+
+  const toggleCorretaMultipla = (id, idx) => {
+    setBlocos((prev) =>
+      prev.map((b) => {
+        if (b.id !== id) return b;
+        const atual = Array.isArray(b.corretas) ? [...b.corretas] : [];
+        if (b.permitirMultiplaSelecao) {
+          const tem = atual.includes(idx);
+          const novo = tem ? atual.filter((i) => i !== idx) : [...atual, idx];
+          return { ...b, corretas: novo };
+        } else {
+          // se não permite múltipla, fica somente uma correta
+          return { ...b, corretas: [idx] };
+        }
+      })
+    );
+  };
 
   const atualizarEstilo = (campo, valor) => {
     setBlocos((prev) =>
@@ -162,11 +223,15 @@ const CriarPesquisa = () => {
   // remove 1 imagem de uma pergunta pelo índice
   const removerImagemPergunta = (blockId, imgIndex) => {
     setBlocos((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, imagens: (b.imagens || []).filter((_, i) => i !== imgIndex) } : b))
+      prev.map((b) =>
+        b.id === blockId
+          ? { ...b, imagens: (b.imagens || []).filter((_, i) => i !== imgIndex) }
+          : b
+      )
     );
   };
 
-  // ---- uploads ----
+  // ---------- uploads ----------
   const getAnexoBlocos = () => blocos.filter((b) => b.tipo === "anexo" && b.arquivo instanceof File);
 
   const uploadAnexosPesquisa = async (pesquisaId) => {
@@ -185,10 +250,21 @@ const CriarPesquisa = () => {
     return { ok, fail };
   };
 
-  // pega perguntas da pesquisa (ajuste a rota se a sua for diferente)
+  // pega perguntas da pesquisa
   const fetchPerguntasDaPesquisa = async (pesquisaId) => {
     const resp = await axios.get(`${API_BASE}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`);
+    // Espera-se algo como { perguntas: [...] }
     return resp.data?.perguntas ?? [];
+  };
+
+  // pega opções da pergunta (para mapear índices → ids)
+  const fetchOpcoesDaPergunta = async (perguntaId) => {
+    try {
+      const resp = await axios.get(`${API_BASE}/api/OpcoesPergunta/Pergunta/${perguntaId}`);
+      return Array.isArray(resp.data) ? resp.data : [];
+    } catch {
+      return [];
+    }
   };
 
   const mapBlocosToPerguntaIds = (perguntas) => {
@@ -248,38 +324,88 @@ const CriarPesquisa = () => {
 
     const perguntasObjetivas = blocos
       .filter((b) => b.tipo === "objetiva")
-      .map((b) => ({
-        titulo: b.texto,
-        tipo: "objetiva",
-        opcoes: limparOpcoes(b.opcoes).map((o) => ({ opcao: o, respostaCerta: null }))
-      }));
+      .map((b) => {
+        const ops = limparOpcoes(b.opcoes);
+        return {
+          titulo: b.texto,
+          tipo: "objetiva",
+          temGabarito: !!b.temGabarito,
+          permitirMultiplaSelecao: false,
+          opcoes: ops.map((o, idx) => ({
+            opcao: o,
+            correta: !!b.temGabarito && b.corretaIndex === idx
+          }))
+        };
+      });
 
     const perguntasMultiplaEscolha = blocos
       .filter((b) => b.tipo === "multipla")
-      .map((b) => ({
-        titulo: b.texto,
-        tipo: "multipla",
-        opcoes: limparOpcoes(b.opcoes).map((o) => ({ opcao: o, respostaCerta: null }))
-      }));
+      .map((b) => {
+        const ops = limparOpcoes(b.opcoes);
+        const corretas = Array.isArray(b.corretas) ? b.corretas : [];
+        return {
+          titulo: b.texto,
+          tipo: "multipla",
+          temGabarito: !!b.temGabarito,
+          permitirMultiplaSelecao: !!b.permitirMultiplaSelecao,
+          opcoes: ops.map((o, idx) => ({
+            opcao: o,
+            correta: !!b.temGabarito && corretas.includes(idx)
+          }))
+        };
+      });
 
+    // JSON de template para refletir no front (Responder/Preview)
     const blocosTemplate = blocos
       .filter((b) => b.tipo !== "anexo")
       .map((b, i) => {
         const opcoesLimpa = limparOpcoes(b.opcoes);
-        return {
+        const base = {
           perguntaid: b.id ?? i,
           texto: b.texto,
           tipo: b.tipo,
-          opcoes:
-            b.tipo === "objetiva" || b.tipo === "multipla"
-              ? opcoesLimpa.map((texto, idx) => ({ opcaoid: idx + 1, texto }))
-              : [],
           estilo: b.estilo || { corFundo: "", corTexto: "", fonte: "" },
           imagens: (b.imagens || []).map((img, idx) => ({
             idx,
             nome: img.file?.name
           }))
         };
+
+        if (b.tipo === "objetiva") {
+          return {
+            ...base,
+            temGabarito: !!b.temGabarito,
+            corretaIndex: b.corretaIndex ?? null,
+            opcoes: opcoesLimpa.map((texto, idx) => ({
+              opcaoid: idx + 1,
+              texto,
+              correta: !!b.temGabarito && b.corretaIndex === idx
+            }))
+          };
+        }
+
+        if (b.tipo === "multipla") {
+          const corretas = Array.isArray(b.corretas) ? b.corretas : [];
+          return {
+            ...base,
+            temGabarito: !!b.temGabarito,
+            permitirMultiplaSelecao: !!b.permitirMultiplaSelecao,
+            opcoes: opcoesLimpa.map((texto, idx) => ({
+              opcaoid: idx + 1,
+              texto,
+              correta: !!b.temGabarito && corretas.includes(idx)
+            }))
+          };
+        }
+
+        if (b.tipo === "discursiva") {
+          return {
+            ...base,
+            respostaExemplo: b.respostaExemplo || ""
+          };
+        }
+
+        return { ...base, opcoes: [] };
       });
 
     return {
@@ -297,6 +423,55 @@ const CriarPesquisa = () => {
     };
   };
 
+  // ---------- GABARITO: aplicar no backend após criar a pesquisa ----------
+  const aplicarGabaritosNoBackend = async (perguntas, blocoToPerguntaId) => {
+    // Vamos iterar somente blocos de pergunta
+    const blocosPerguntas = blocos.filter((b) =>
+      ["discursiva", "objetiva", "multipla"].includes(b.tipo)
+    );
+
+    for (const b of blocosPerguntas) {
+      const perguntaId = blocoToPerguntaId.get(b.id);
+      if (!perguntaId) continue;
+
+      // Apenas objetiva e múltipla possuem gabarito
+      if (b.tipo !== "objetiva" && b.tipo !== "multipla") continue;
+
+      // Buscar opções da pergunta para mapear índices → ids
+      const opcoes = await fetchOpcoesDaPergunta(perguntaId);
+      if (!Array.isArray(opcoes) || opcoes.length === 0) continue;
+
+      // Montar DTO a partir do bloco
+      const dto = {
+        temGabarito: !!b.temGabarito,
+        permiteMultiplaSelecao: b.tipo === "multipla" ? !!b.permitirMultiplaSelecao : false,
+        opcoesCorretas: []
+      };
+
+      if (dto.temGabarito) {
+        if (b.tipo === "objetiva" && typeof b.corretaIndex === "number") {
+          const alvo = opcoes[b.corretaIndex];
+          if (alvo?.opcaoid) dto.opcoesCorretas = [alvo.opcaoid];
+        }
+        if (b.tipo === "multipla" && Array.isArray(b.corretas)) {
+          dto.opcoesCorretas = b.corretas
+            .map((idx) => opcoes[idx]?.opcaoid)
+            .filter(Boolean);
+        }
+      }
+
+      try {
+        await axios.put(`${API_BASE}/api/Perguntas/${perguntaId}/gabarito`, dto);
+      } catch (e) {
+        console.error("Falha ao definir gabarito da pergunta", perguntaId, e);
+        toast.warn(`Não foi possível definir gabarito de uma pergunta (#${perguntaId}).`, {
+          position: "top-center",
+          autoClose: 4000
+        });
+      }
+    }
+  };
+
   const salvarPesquisaComPerguntas = async () => {
     try {
       const pesquisaVM = montarPesquisaVM();
@@ -307,12 +482,22 @@ const CriarPesquisa = () => {
         return;
       }
 
+      // 1) Upload dos anexos da pesquisa
       const r1 = await uploadAnexosPesquisa(id);
 
+      // 2) Buscar perguntas criadas pelo backend
       const perguntas = await fetchPerguntasDaPesquisa(id);
+
+      // 3) Mapear blocos → perguntaId pela ordem
       const mapa = mapBlocosToPerguntaIds(perguntas);
+
+      // 4) Aplicar gabaritos (PUT Perguntas/{id}/gabarito)
+      await aplicarGabaritosNoBackend(perguntas, mapa);
+
+      // 5) Upload de anexos/imagens por pergunta
       const r2 = await uploadAnexosPergunta(id, mapa);
 
+      // QR + feedback
       const urlResposta = `${window.location.origin}/responder/${id}`;
       setQrUrl(urlResposta);
 
@@ -424,7 +609,7 @@ const CriarPesquisa = () => {
       onChangeTexto: atualizarTexto,
       onChangeOpcoes: atualizarOpcoes,
       onRemove: removerBloco,
-      onRemoveImagem: removerImagemPergunta, // NOVO
+      onRemoveImagem: removerImagemPergunta,
       onClick: () => setSelectedBlockId(bloco.id),
       style: estilo
     };
@@ -463,7 +648,11 @@ const CriarPesquisa = () => {
             <div style={{ display: "flex", alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
                 {renderHeaderPergunta("Pergunta Discursiva", bloco)}
-                <Discursiva {...propsComuns} style={estilo} />
+                <Discursiva
+                  {...propsComuns}
+                  onChangeRespostaExemplo={(id, v) => atualizarBloco(id, { respostaExemplo: v })}
+                  style={estilo}
+                />
                 {renderPreviewAnexosPergunta(bloco)}
               </div>
               {moveButtons}
@@ -476,7 +665,13 @@ const CriarPesquisa = () => {
             <div style={{ display: "flex", alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
                 {renderHeaderPergunta("Pergunta Múltipla Escolha", bloco)}
-                <MultiplaEscolha {...propsComuns} style={estilo} />
+                <MultiplaEscolha
+                  {...propsComuns}
+                  onToggleGabarito={toggleGabarito}
+                  onTogglePermiteMultipla={togglePermiteMultipla}
+                  onToggleCorreta={toggleCorretaMultipla}
+                  style={estilo}
+                />
                 {renderPreviewAnexosPergunta(bloco)}
               </div>
               {moveButtons}
@@ -489,7 +684,12 @@ const CriarPesquisa = () => {
             <div style={{ display: "flex", alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
                 {renderHeaderPergunta("Pergunta Objetiva (única)", bloco)}
-                <Objetiva {...propsComuns} style={estilo} />
+                <Objetiva
+                  {...propsComuns}
+                  onToggleGabarito={toggleGabarito}
+                  onSetCorretaIndex={setCorretaIndex}
+                  style={estilo}
+                />
                 {renderPreviewAnexosPergunta(bloco)}
               </div>
               {moveButtons}

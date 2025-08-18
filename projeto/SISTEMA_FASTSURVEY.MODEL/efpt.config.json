@@ -39,6 +39,14 @@
          "ObjectType": 0
       },
       {
+         "Name": "public.respostas_anexos",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.respostas_opcoes",
+         "ObjectType": 0
+      },
+      {
          "Name": "public.tipopergunta",
          "ObjectType": 0
       },

@@ -37,6 +37,11 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<tokens> tokens { get; set; }
 
+    public virtual DbSet<respostas_anexos> respostas_anexos { get; set; }
+
+    public virtual DbSet<respostas_opcoes> respostas_opcoes { get; set; }
+
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
@@ -93,6 +98,11 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.opcaoid).HasName("opcoespergunta_pkey");
 
+            entity.HasIndex(e => e.perguntaid, "idx_opcoespergunta_perguntaid");
+
+            entity.HasIndex(e => new { e.perguntaid, e.texto }, "ux_opcoespergunta_perguntaid_texto").IsUnique();
+
+            entity.Property(e => e.correta).HasDefaultValue(false);
             entity.Property(e => e.texto)
                 .IsRequired()
                 .HasMaxLength(200);
@@ -107,6 +117,8 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.perguntaid).HasName("perguntas_pkey");
 
+            entity.Property(e => e.permitemultiplaselecao).HasDefaultValue(false);
+            entity.Property(e => e.temgabarito).HasDefaultValue(false);
             entity.Property(e => e.texto).IsRequired();
 
             entity.HasOne(d => d.pesquisa).WithMany(p => p.perguntas)
@@ -146,7 +158,13 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.respostaid).HasName("respostas_pkey");
 
-            entity.Property(e => e.dataresposta).HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.dataresposta, "idx_respostas_dataresposta");
+
+            entity.HasIndex(e => e.perguntaid, "idx_respostas_perguntaid");
+
+            entity.Property(e => e.dataresposta)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("timestamp without time zone");
             entity.Property(e => e.texto).IsRequired();
 
             entity.HasOne(d => d.pergunta).WithMany(p => p.respostas)
@@ -181,7 +199,6 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.usuarioid).HasName("usuarios_pkey");
 
-            entity.Property(e => e.usuarioid).HasDefaultValueSql("nextval('usuarios_usuarioid_seq'::regclass)");
             entity.Property(e => e.tipousuario1)
                 .HasMaxLength(50)
                 .HasColumnName("tipousuario");
@@ -200,6 +217,46 @@ public partial class FastSurveyContext : DbContext
             entity.Property(e => e.token)
                 .IsRequired()
                 .HasMaxLength(6);
+        });
+        modelBuilder.Entity<respostas_anexos>(entity =>
+        {
+            entity.ToTable("respostas_anexos");
+            entity.HasKey(e => new { e.respostaid, e.anexoid })
+                  .HasName("respostas_anexos_pkey");
+
+            entity.HasOne(e => e.resposta)
+                  .WithMany(p => p.respostas_anexos) // adicione ICollection<respostas_anexos> em respostas
+                  .HasForeignKey(e => e.respostaid)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("respostas_anexos_respostaid_fkey");
+
+            entity.HasOne(e => e.anexo)
+                  .WithMany(p => p.respostas_anexos) // adicione ICollection<respostas_anexos> em anexos
+                  .HasForeignKey(e => e.anexoid)
+                  .OnDelete(DeleteBehavior.ClientSetNull)
+                  .HasConstraintName("respostas_anexos_anexoid_fkey");
+        });
+
+        modelBuilder.Entity<respostas_opcoes>(entity =>
+        {
+            entity.ToTable("respostas_opcoes");
+            entity.HasKey(e => new { e.respostaid, e.opcaoid })
+                  .HasName("respostas_opcoes_pkey");
+
+            entity.HasIndex(e => e.opcaoid).HasDatabaseName("idx_respostasopcoes_opcaoid");
+            entity.HasIndex(e => e.respostaid).HasDatabaseName("idx_respostasopcoes_respostaid");
+
+            entity.HasOne(e => e.resposta)
+                  .WithMany(p => p.respostas_opcoes) // adicione ICollection<respostas_opcoes> em respostas
+                  .HasForeignKey(e => e.respostaid)
+                  .OnDelete(DeleteBehavior.Cascade)
+                  .HasConstraintName("respostas_opcoes_respostaid_fkey");
+
+            entity.HasOne(e => e.opcao)
+                  .WithMany(p => p.respostas_opcoes) // adicione ICollection<respostas_opcoes> em opcoespergunta
+                  .HasForeignKey(e => e.opcaoid)
+                  .OnDelete(DeleteBehavior.ClientSetNull)
+                  .HasConstraintName("respostas_opcoes_opcaoid_fkey");
         });
 
         OnModelCreatingPartial(modelBuilder);

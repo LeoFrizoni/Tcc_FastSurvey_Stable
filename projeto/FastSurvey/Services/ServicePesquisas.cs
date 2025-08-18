@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Models;
+﻿using FASTSURVEY.Models.DTO;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
@@ -11,28 +11,35 @@ namespace FASTSURVEY.Services
 {
     public class ServicePesquisas
     {
-        private FastSurveyContext _context;
-        private RepositoryAnexos _repositoryAnexos { get; set; }
-        private RepositoryPesquisas _RepositoryPesquisas { get; set; }
-        private RepositoryPerguntas _RepositoryPerguntas { get; set; }
-        private RepositoryTipoPergunta _RepositoryTipoPergunta { get; set; }
-        private RepositoryTipoPesquisa _RepositoryTipoPesquisa { get; set; }
-        private RepositoryRespostas _RepositoryRespostas { get; set; }
+        private readonly FastSurveyContext _context;
+
+        private readonly RepositoryAnexos _repositoryAnexos;
+        private readonly RepositoryPesquisas _repoPesquisas;
+        private readonly RepositoryPerguntas _repoPerguntas;
+        private readonly RepositoryTipoPergunta _repoTipoPergunta;
+        private readonly RepositoryTipoPesquisa _repoTipoPesquisa;
+        private readonly RepositoryRespostas _repoRespostas;
+
+        // Serviço especializado para perguntas (criação a partir dos DTOs)
+        private readonly ServicePerguntas _servicePerguntas;
 
         public ServicePesquisas(FastSurveyContext context)
         {
             _context = context;
+
             _repositoryAnexos = new RepositoryAnexos(_context, true);
-            _RepositoryPesquisas = new RepositoryPesquisas(_context, true);
-            _RepositoryPerguntas = new RepositoryPerguntas(_context, true);
-            _RepositoryTipoPergunta = new RepositoryTipoPergunta(_context, true);
-            _RepositoryTipoPesquisa = new RepositoryTipoPesquisa(_context, true);
-            _RepositoryRespostas = new RepositoryRespostas(_context, true);
+            _repoPesquisas = new RepositoryPesquisas(_context, true);
+            _repoPerguntas = new RepositoryPerguntas(_context, true);
+            _repoTipoPergunta = new RepositoryTipoPergunta(_context, true);
+            _repoTipoPesquisa = new RepositoryTipoPesquisa(_context, true);
+            _repoRespostas = new RepositoryRespostas(_context, true);
+
+            _servicePerguntas = new ServicePerguntas(_context);
         }
 
         public async Task<List<pesquisas>> ListarTodasPesquisasAsync()
         {
-            return await _RepositoryPesquisas.SelecionarTodosAsync();
+            return await _repoPesquisas.SelecionarTodosAsync();
         }
 
         public async Task<object> BuscarPesquisaPorIdAsync(int id)
@@ -42,6 +49,7 @@ namespace FASTSURVEY.Services
                 var resultado = await _context.pesquisas
                     .Include(p => p.perguntas)
                         .ThenInclude(p => p.opcoespergunta)
+                    .Include(p => p.login)
                     .Where(p => p.pesquisaid == id)
                     .Select(p => new
                     {
@@ -52,26 +60,37 @@ namespace FASTSURVEY.Services
                         {
                             descricao = p.tipopesquisa != null ? p.tipopesquisa.tipopesquisa1 : "Indefinido"
                         },
-                        perguntas = p.perguntas.Select(pergunta => new
-                        {
-                            perguntaid = pergunta.perguntaid,
-                            titulo = pergunta.texto,
-                            tipo = pergunta.tipoperguntaid == 1 ? "discursiva" :
-                                   pergunta.tipoperguntaid == 2 ? "objetiva" :
-                                   pergunta.tipoperguntaid == 3 ? "multipla" : "desconhecida",
-                            tipoPerguntaId = pergunta.tipoperguntaid,
-                            opcoes = pergunta.opcoespergunta.Select(o => new
+                        autor = p.login != null ? p.login.usuario : "",
+                        dataCriacao = p.login != null ? p.login.dataregistro : (DateTime?)null,
+                        perguntas = p.perguntas
+                            .OrderBy(pg => pg.perguntaid)
+                            .Select(pergunta => new
                             {
-                                opcaoid = o.opcaoid,
-                                texto = o.texto
-                            }).ToList()
-                        }).ToList(),
+                                perguntaid = pergunta.perguntaid,
+                                titulo = pergunta.texto,
+                                tipo = pergunta.tipoperguntaid == 1 ? "discursiva" :
+                                       pergunta.tipoperguntaid == 2 ? "objetiva" :
+                                       pergunta.tipoperguntaid == 3 ? "multipla" : "desconhecida",
+                                tipoPerguntaId = pergunta.tipoperguntaid,
+                                temGabarito = pergunta.temgabarito,
+                                permitirMultiplaSelecao = pergunta.permitemultiplaselecao,
+                                opcoes = pergunta.opcoespergunta
+                                    .OrderBy(o => o.opcaoid)
+                                    .Select(o => new
+                                    {
+                                        opcaoid = o.opcaoid,
+                                        texto = o.texto,
+                                        correta = o.correta
+                                    })
+                                    .ToList()
+                            }).ToList(),
                         templateJson = p.TemplateJson
                     })
                     .FirstOrDefaultAsync();
 
                 if (resultado == null)
                     return new { mensagem = "Pesquisa não encontrada." };
+
                 return resultado;
             }
             catch (Exception ex)
@@ -81,94 +100,70 @@ namespace FASTSURVEY.Services
             }
         }
 
-        public async Task<pesquisas> CadastrarPesquisaAsync(PesquisaVM pesquisaVM)
+        /// <summary>
+        /// Cria a Pesquisa e, em seguida, cria TODAS as perguntas (discursivas/objetivas/múltiplas)
+        /// a partir da PesquisaVM. Tudo em transação.
+        /// </summary>
+        public async Task<pesquisas> CadastrarPesquisaAsync(FASTSURVEY.Models.PesquisaVM vm)
         {
+            if (vm == null) throw new ArgumentNullException(nameof(vm));
+            if (string.IsNullOrWhiteSpace(vm.Titulo)) throw new ArgumentException("Título da pesquisa é obrigatório.");
+
+            using var tx = await _context.Database.BeginTransactionAsync();
+
             try
             {
-                var listaPerguntas = new List<perguntas>();
-
-                // Mapeamento das perguntas discursivas
-                foreach (var item in pesquisaVM.PerguntasDiscursivas ?? new List<PerguntaDiscursiva>())
-                {
-                    var pergunta = new perguntas()
-                    {
-                        texto = item.Titulo,
-                        tipoperguntaid = 1
-                        // Não adiciona respostas na criação da pesquisa
-                    };
-                    listaPerguntas.Add(pergunta);
-                }
-
-                // Mapeamento das perguntas objetivas
-                foreach (var item in pesquisaVM.PerguntasObjetivas ?? new List<PerguntaObjetiva>())
-                {
-                    var pergunta = new perguntas()
-                    {
-                        texto = item.Titulo,
-                        tipoperguntaid = 2,
-                        opcoespergunta = item.Opcoes.Select(opcao => new opcoespergunta
-                        {
-                            texto = opcao.Opcao
-                        }).ToList()
-                    };
-                    listaPerguntas.Add(pergunta);
-                }
-
-                // Mapeamento das perguntas de múltipla escolha
-                foreach (var item in pesquisaVM.PerguntasMultiplaEscolha ?? new List<PerguntaMultiplaEscolha>())
-                {
-                    var pergunta = new perguntas()
-                    {
-                        texto = item.Titulo,
-                        tipoperguntaid = 3,
-                        opcoespergunta = item.Opcoes.Select(opcao => new opcoespergunta
-                        {
-                            texto = opcao.Opcao
-                        }).ToList()
-                    };
-                    listaPerguntas.Add(pergunta);
-                }
-
                 var pesquisa = new pesquisas
                 {
-                    tipopesquisaid = pesquisaVM.TipoPesquisaId,
-                    titulo = pesquisaVM.Titulo,
-                    descricao = pesquisaVM.Descricao,
-                    loginid = pesquisaVM.LoginId,
-                    perguntas = listaPerguntas,
-                    TemplateJson = pesquisaVM.TemplateJson // ✅ Campo novo adicionado
+                    tipopesquisaid = vm.TipoPesquisaId,
+                    titulo = vm.Titulo,
+                    descricao = vm.Descricao ?? string.Empty,
+                    loginid = vm.LoginId,
+                    TemplateJson = vm.TemplateJson
                 };
 
-                return await _RepositoryPesquisas.IncluirAsync(pesquisa);
+                // Primeiro inclui a PESQUISA para obter o ID
+                await _repoPesquisas.IncluirAsync(pesquisa);
+
+                // Agora cria as PERGUNTAS vinculadas a esta pesquisa
+                await _servicePerguntas.CriarPerguntasAPartirDaVMAsync(pesquisa.pesquisaid, vm);
+
+                await tx.CommitAsync();
+                return pesquisa;
             }
             catch (Exception ex)
             {
-                throw new Exception("Erro ao cadastrar pesquisa: " + ex.Message);
+                await tx.RollbackAsync();
+                throw new Exception("Erro ao cadastrar pesquisa: " + ex.Message, ex);
             }
         }
 
-        public async Task<pesquisas> AtualizarPesquisaAsync(PesquisaVM pesquisaVM)
+        /// <summary>
+        /// Atualiza dados básicos e TemplateJson. (Atualização granular de perguntas pode ser feita via ServicePerguntas)
+        /// </summary>
+        public async Task<pesquisas> AtualizarPesquisaAsync(FASTSURVEY.Models.PesquisaVM vm)
         {
-            var pesquisaExistente = await _RepositoryPesquisas.SelecionarChaveAsync(pesquisaVM.CodigoPesquisa);
+            if (vm == null) throw new ArgumentNullException(nameof(vm));
+            if (vm.CodigoPesquisa <= 0) throw new ArgumentException("Código da pesquisa inválido.");
 
-            if (pesquisaExistente == null)
+            var pesquisa = await _repoPesquisas.SelecionarChaveAsync(vm.CodigoPesquisa);
+            if (pesquisa == null)
                 throw new Exception("Pesquisa não encontrada.");
 
-            pesquisaExistente.titulo = pesquisaVM.Titulo;
-            pesquisaExistente.tipopesquisaid = pesquisaVM.TipoPesquisaId;
-            pesquisaExistente.TemplateJson = pesquisaVM.TemplateJson; // ✅ Atualiza o template também
+            pesquisa.titulo = vm.Titulo ?? pesquisa.titulo;
+            pesquisa.descricao = vm.Descricao ?? pesquisa.descricao;
+            pesquisa.tipopesquisaid = vm.TipoPesquisaId > 0 ? vm.TipoPesquisaId : pesquisa.tipopesquisaid;
+            pesquisa.TemplateJson = vm.TemplateJson ?? pesquisa.TemplateJson;
 
-            // Atualização de perguntas pode ser adicionada aqui se necessário
-
-            return await _RepositoryPesquisas.AlterarAsync(pesquisaExistente);
+            return await _repoPesquisas.AlterarAsync(pesquisa);
         }
 
         public async Task ExcluirPesquisaAsync(int id)
         {
-            var pesquisa = await _RepositoryPesquisas.SelecionarChaveAsync(id);
+            var pesquisa = await _repoPesquisas.SelecionarChaveAsync(id);
             if (pesquisa != null)
             {
-                await _RepositoryPesquisas.ExcluirAsync(pesquisa);
+                await _repoPesquisas.ExcluirAsync(pesquisa);
             }
         }
     }

@@ -103,20 +103,10 @@ const HomePage = () => {
         setPesquisas([]);
       }
 
-      try {
-        const { data: pastasApi } = await axios.get(`${API_BASE}/api/pastas/usuario/${loginId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const arr = Array.isArray(pastasApi) ? pastasApi : [];
-        setPastas(arr);
-        ensureLocalMapSync(arr);
-      } catch (err) {
-        console.warn('Endpoint de pastas não encontrado. Usando fallback localStorage.');
-        const map = readLocalMap(MAP_STORAGE_KEY);
-        setPastas(map.pastas || []);
-      } finally {
-        setLoading(false);
-      }
+  // Usar apenas o fallback localStorage para pastas (recurso visual)
+  const map = readLocalMap(MAP_STORAGE_KEY);
+  setPastas(map.pastas || []);
+  setLoading(false);
     };
     bootstrap();
   }, [loginId, token, navigate, ensureLocalMapSync, MAP_STORAGE_KEY]);

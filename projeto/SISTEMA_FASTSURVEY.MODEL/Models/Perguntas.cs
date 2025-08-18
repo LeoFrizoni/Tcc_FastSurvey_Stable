@@ -15,6 +15,10 @@ public partial class perguntas
 
     public string texto { get; set; }
 
+    public bool temgabarito { get; set; }
+
+    public bool permitemultiplaselecao { get; set; }
+
     public virtual ICollection<anexos> anexos { get; set; } = new List<anexos>();
 
     public virtual ICollection<opcoespergunta> opcoespergunta { get; set; } = new List<opcoespergunta>();

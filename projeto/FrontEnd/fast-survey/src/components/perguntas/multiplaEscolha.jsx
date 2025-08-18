@@ -8,7 +8,10 @@ const MultiplaEscolha = ({
   onChangeOpcoes,
   onRemoveImagem,
   style,
-  onClick
+  onClick,
+  onToggleGabarito,
+  onTogglePermiteMultipla,
+  onToggleCorreta,
 }) => {
   const atualizarOpcao = (index, valor) => {
     const novasOpcoes = [...bloco.opcoes];
@@ -28,11 +31,17 @@ const MultiplaEscolha = ({
 
   const unica = Array.isArray(bloco.imagens) && bloco.imagens.length === 1;
 
+  const isCorreta = (idx) =>
+    Array.isArray(bloco.corretas) && bloco.corretas.includes(idx);
+
   return (
     <div
       className={`bloco-pergunta ${bloco.selecionado ? "selecionado" : ""}`}
       style={estiloContainer}
-      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
     >
       <input
         type="text"
@@ -51,7 +60,10 @@ const MultiplaEscolha = ({
               <button
                 className="btn-remover-img"
                 title="Remover imagem"
-                onClick={(e) => { e.stopPropagation(); onRemoveImagem(bloco.id, i); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveImagem(bloco.id, i);
+                }}
                 aria-label="Remover imagem"
               >
                 <Trash2 size={18} />
@@ -61,14 +73,48 @@ const MultiplaEscolha = ({
         </div>
       )}
 
+      {/* Configurações da pergunta */}
+      <div className="grupo-config">
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={!!bloco.temGabarito}
+            onChange={(e) => onToggleGabarito(bloco.id, e.target.checked)}
+          />
+          <span>Há gabarito?</span>
+        </label>
+
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={!!bloco.permitirMultiplaSelecao}
+            onChange={(e) =>
+              onTogglePermiteMultipla(bloco.id, e.target.checked)
+            }
+          />
+          <span>Permitir múltipla seleção</span>
+        </label>
+      </div>
+
       {bloco.opcoes.map((opcao, index) => {
         const valor =
           typeof opcao === "object" && opcao !== null
-            ? (opcao.texto ?? opcao.opcao ?? "")
+            ? opcao.texto ?? opcao.opcao ?? ""
             : opcao;
+
+        const simulador =
+          bloco.permitirMultiplaSelecao ? (
+            <input type="checkbox" disabled className="checkbox-simulador" />
+          ) : (
+            <input type="radio" disabled className="radio-simulador" />
+          );
+
         return (
           <div key={index} className="opcao-input">
-            <input type="checkbox" disabled className="checkbox-simulador" />
+            {/* Simulador de como o usuário verá */}
+            {simulador}
+
+            {/* Editor de texto da opção */}
             <input
               type="text"
               value={valor}
@@ -76,6 +122,25 @@ const MultiplaEscolha = ({
               placeholder={`Opção ${index + 1}`}
               className="input-opcao"
             />
+
+            {/* Marcar correta (se houver gabarito) */}
+            {bloco.temGabarito && (
+              <label className="marcar-correta">
+                <input
+                  type={bloco.permitirMultiplaSelecao ? "checkbox" : "radio"}
+                  name={`gabarito-multipla-${bloco.id}`}
+                  checked={
+                    bloco.permitirMultiplaSelecao
+                      ? isCorreta(index)
+                      : isCorreta(index)
+                  }
+                  onChange={() => onToggleCorreta(bloco.id, index)}
+                />
+                <span>Correta</span>
+              </label>
+            )}
+
+            {/* Remover opção */}
             <button
               className="btn-remover"
               onClick={() => removerOpcao(index)}

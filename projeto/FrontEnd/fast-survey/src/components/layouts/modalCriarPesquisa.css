@@ -1,3 +1,8 @@
+/* Garante que opções do select fiquem visíveis */
+.modal-criar select option {
+  color: #222;
+  background: #fff;
+}
 .modal-overlay {
   position: fixed;
   top: 0;

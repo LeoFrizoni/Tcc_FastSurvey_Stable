@@ -1,6 +1,5 @@
 ﻿using FASTSURVEY.Models;
 using FASTSURVEY.Services;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -12,10 +11,11 @@ namespace FASTSURVEY.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Produces("application/json")]
     public class PesquisasController : ControllerBase
     {
-        private FastSurveyContext _context;
-        private ServicePesquisas _servicePesquisa;
+        private readonly FastSurveyContext _context;
+        private readonly ServicePesquisas _servicePesquisa;
 
         public PesquisasController(FastSurveyContext context)
         {
@@ -31,9 +31,7 @@ namespace FASTSURVEY.Controllers
             {
                 var pesquisas = await _servicePesquisa.ListarTodasPesquisasAsync();
                 if (pesquisas == null || pesquisas.Count == 0)
-                {
                     return NotFound("Nenhuma pesquisa encontrada.");
-                }
 
                 return Ok(pesquisas);
             }
@@ -47,20 +45,64 @@ namespace FASTSURVEY.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(int id)
         {
-            if (id <= 0)
-            {
-                return BadRequest("ID inválido.");
-            }
+            if (id <= 0) return BadRequest("ID inválido.");
 
             try
             {
                 var pesquisa = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
-                if (pesquisa == null)
-                {
-                    return NotFound("Pesquisa não encontrada.");
-                }
-
+                if (pesquisa == null) return NotFound("Pesquisa não encontrada.");
                 return Ok(pesquisa);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Erro ao buscar pesquisa: {ex.Message}");
+            }
+        }
+
+        // ✅ usado pelo front (createPesquisa.jsx) para mapear perguntas por ordem
+        // GET: api/Pesquisas/BuscarPesquisaPorId/{id}
+        [HttpGet("BuscarPesquisaPorId/{id}")]
+        public async Task<IActionResult> BuscarPesquisaPorId(int id)
+        {
+            if (id <= 0) return BadRequest("ID inválido.");
+
+            try
+            {
+                var pesquisa = await _context.pesquisas
+                    .AsNoTracking()
+                    .Include(p => p.perguntas)
+                        .ThenInclude(pg => pg.opcoespergunta)
+                    .FirstOrDefaultAsync(p => p.pesquisaid == id);
+
+                if (pesquisa == null) return NotFound("Pesquisa não encontrada.");
+
+                var perguntas = pesquisa.perguntas
+                    .OrderBy(pg => pg.perguntaid) // ajuste se tiver coluna de ordem
+                    .Select(pg => new
+                    {
+                        perguntaid = pg.perguntaid,
+                        tipoperguntaid = pg.tipoperguntaid,
+                        texto = pg.texto,
+                        temgabarito = pg.temgabarito,
+                        permitemultiplaselecao = pg.permitemultiplaselecao,
+                        opcoes = pg.opcoespergunta
+                            .OrderBy(o => o.opcaoid)
+                            .Select(o => new
+                            {
+                                opcaoid = o.opcaoid,
+                                texto = o.texto,
+                                correta = o.correta
+                            }).ToList()
+                    })
+                    .ToList();
+
+                return Ok(new
+                {
+                    pesquisaid = pesquisa.pesquisaid,
+                    titulo = pesquisa.titulo,
+                    descricao = pesquisa.descricao,
+                    perguntas
+                });
             }
             catch (Exception ex)
             {
@@ -75,6 +117,7 @@ namespace FASTSURVEY.Controllers
             try
             {
                 var pesquisas = _context.pesquisas
+                    .AsNoTracking()
                     .Where(p => p.loginid == loginId)
                     .Select(p => new
                     {
@@ -83,18 +126,25 @@ namespace FASTSURVEY.Controllers
                         descricao = p.descricao,
                         tipoPesquisa = new
                         {
+                            // no seu mapeamento a propriedade é tipopesquisa1
                             descricao = p.tipopesquisa != null ? p.tipopesquisa.tipopesquisa1 : ""
                         },
                         perguntas = p.perguntas.Select(pergunta => new
                         {
                             perguntaid = pergunta.perguntaid,
                             titulo = pergunta.texto,
-                            tipo = pergunta.tipoperguntaid == 1 ? "discursiva" : "multipla",
-                            opcoes = pergunta.opcoespergunta.Select(o => new
-                            {
-                                opcaoid = o.opcaoid,
-                                texto = o.texto
-                            }).ToList()
+                            // 1: discursiva, 2: objetiva, 3: multipla
+                            tipo = pergunta.tipoperguntaid == 1
+                                ? "discursiva"
+                                : (pergunta.tipoperguntaid == 2 ? "objetiva" : "multipla"),
+                            opcoes = pergunta.opcoespergunta
+                                .OrderBy(o => o.opcaoid)
+                                .Select(o => new
+                                {
+                                    opcaoid = o.opcaoid,
+                                    texto = o.texto,
+                                    correta = o.correta
+                                }).ToList()
                         }).ToList()
                     })
                     .ToList();
@@ -112,15 +162,13 @@ namespace FASTSURVEY.Controllers
         public async Task<IActionResult> Post([FromBody] PesquisaVM pesquisaVM)
         {
             if (pesquisaVM == null || string.IsNullOrWhiteSpace(pesquisaVM.Titulo))
-            {
                 return BadRequest("Dados da pesquisa são inválidos.");
-            }
 
             try
             {
                 var novaPesquisa = await _servicePesquisa.CadastrarPesquisaAsync(pesquisaVM);
-                // Retorne apenas os campos primitivos, nunca o objeto do EF
-                return Ok(new {
+                return Ok(new
+                {
                     pesquisaid = novaPesquisa.pesquisaid,
                     titulo = novaPesquisa.titulo,
                     descricao = novaPesquisa.descricao,
@@ -140,21 +188,17 @@ namespace FASTSURVEY.Controllers
         public async Task<IActionResult> Put(int id, [FromBody] PesquisaVM pesquisaVM)
         {
             if (id <= 0 || pesquisaVM == null || id != pesquisaVM.CodigoPesquisa)
-            {
                 return BadRequest("Dados inválidos.");
-            }
 
             try
             {
                 var pesquisaExistente = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
                 if (pesquisaExistente == null)
-                {
                     return NotFound("Pesquisa não encontrada.");
-                }
 
                 var pesquisaAtualizada = await _servicePesquisa.AtualizarPesquisaAsync(pesquisaVM);
-                // Retorne apenas campos primitivos
-                return Ok(new {
+                return Ok(new
+                {
                     pesquisaid = pesquisaAtualizada.pesquisaid,
                     titulo = pesquisaAtualizada.titulo,
                     descricao = pesquisaAtualizada.descricao,
@@ -167,27 +211,19 @@ namespace FASTSURVEY.Controllers
             {
                 return StatusCode(500, $"Erro ao atualizar pesquisa: {ex.Message}");
             }
-
         }
-
-        // GET: api/Pesquisas/{id}
 
         // DELETE: api/Pesquisas/{id}
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            if (id <= 0)
-            {
-                return BadRequest("ID inválido.");
-            }
+            if (id <= 0) return BadRequest("ID inválido.");
 
             try
             {
                 var pesquisa = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
                 if (pesquisa == null)
-                {
                     return NotFound("Pesquisa não encontrada.");
-                }
 
                 await _servicePesquisa.ExcluirPesquisaAsync(id);
                 return NoContent();
@@ -197,5 +233,5 @@ namespace FASTSURVEY.Controllers
                 return StatusCode(500, $"Erro ao excluir pesquisa: {ex.Message}");
             }
         }
-        }
     }
+}

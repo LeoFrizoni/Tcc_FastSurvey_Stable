@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace FASTSURVEY.Controllers
 {
@@ -9,25 +11,27 @@ namespace FASTSURVEY.Controllers
     [ApiController]
     public class TipoPerguntaController : ControllerBase
     {
-        private FastSurveyContext _context;
-        private RepositoryTipoPergunta _repositoryTipoPergunta;
+        private readonly RepositoryTipoPergunta _repo;
+
         public TipoPerguntaController(FastSurveyContext context)
         {
-            _context = context;
-            _repositoryTipoPergunta = new RepositoryTipoPergunta(_context, true);
+            _repo = new RepositoryTipoPergunta(context, true);
         }
 
+        // POST: api/TipoPergunta/AdicionarTipoPergunta
         [HttpPost("AdicionarTipoPergunta")]
-        public IActionResult Post([FromForm] tipopergunta tipoPergunta) //FromBody
+        public async Task<IActionResult> Post([FromBody] tipopergunta body)
         {
-            if (tipoPergunta == null)
-            {
-                return BadRequest("Tipo de pergunta não pode ser nulo.");
-            }
+            if (body == null || string.IsNullOrWhiteSpace(body.tipopergunta1))
+                return BadRequest("Descrição do tipo de pergunta é obrigatória.");
+
             try
             {
-                _repositoryTipoPergunta.Incluir(tipoPergunta);
-                return Ok("ok");
+                var criado = await _repo.IncluirAsync(body);
+                // retorna só os campos primitivos
+                return CreatedAtAction(nameof(GetPorId),
+                    new { id = criado.tipoperguntaid },
+                    new { criado.tipoperguntaid, tipopergunta = criado.tipopergunta1, criado.desabilitado });
             }
             catch (Exception ex)
             {
@@ -35,13 +39,19 @@ namespace FASTSURVEY.Controllers
             }
         }
 
+        // GET: api/TipoPergunta/ListarTipoPergunta
         [HttpGet("ListarTipoPergunta")]
-        public IActionResult Get()
+        public async Task<IActionResult> Get()
         {
             try
             {
-                var tiposPergunta = _repositoryTipoPergunta.SelecionarTodos();
-                return Ok(tiposPergunta);
+                var todos = await _repo.SelecionarTodosAsync();
+                return Ok(todos.Select(t => new
+                {
+                    t.tipoperguntaid,
+                    tipopergunta = t.tipopergunta1,
+                    t.desabilitado
+                }));
             }
             catch (Exception ex)
             {
@@ -49,49 +59,42 @@ namespace FASTSURVEY.Controllers
             }
         }
 
+        // GET: api/TipoPergunta/SelecionarTipoPerguntaPorId/5
         [HttpGet("SelecionarTipoPerguntaPorId/{id}")]
-        public IActionResult Get(int id)
+        public async Task<IActionResult> GetPorId(int id)
         {
+            if (id <= 0) return BadRequest("ID inválido.");
+
             try
             {
-                var tipoPergunta = _repositoryTipoPergunta.SelecionarChave(id);
-                if (tipoPergunta == null)
-                {
-                    return NotFound("Tipo de pergunta não encontrado.");
-                }
-                return Ok(tipoPergunta);
+                var tp = await _repo.SelecionarChaveAsync(id);
+                if (tp == null) return NotFound("Tipo de pergunta não encontrado.");
+
+                return Ok(new { tp.tipoperguntaid, tipopergunta = tp.tipopergunta1, tp.desabilitado });
             }
             catch (Exception ex)
             {
                 return StatusCode(500, $"Erro ao selecionar tipo de pergunta: {ex.Message}");
             }
-
         }
 
+        // PUT: api/TipoPergunta/AlterarTipoPerguntaPorId/5
         [HttpPut("AlterarTipoPerguntaPorId/{id}")]
-        public async Task<IActionResult> Put(int id, [FromForm] tipopergunta tipoPergunta)//FromBody
+        public async Task<IActionResult> Put(int id, [FromBody] tipopergunta body)
         {
-            if (id <= 0 || tipoPergunta == null || id != tipoPergunta.tipoperguntaid)
-            {
+            if (id <= 0 || body == null || id != body.tipoperguntaid)
                 return BadRequest("Dados inválidos.");
-            }
 
             try
             {
-                // Verifica se o tipo de pergunta existe no banco
-                var tipoPerguntaExistente = await _repositoryTipoPergunta.SelecionarChaveAsync(id);
-                if (tipoPerguntaExistente == null)
-                {
-                    return NotFound("Tipo de pergunta não encontrado.");
-                }
+                var existente = await _repo.SelecionarChaveAsync(id);
+                if (existente == null) return NotFound("Tipo de pergunta não encontrado.");
 
-                // Atualiza o tipo de pergunta com base no ID
-                tipoPerguntaExistente.tipopergunta1 = tipoPergunta.tipopergunta1; // Atualize conforme necessário
+                existente.tipopergunta1 = body.tipopergunta1?.Trim();
+                existente.desabilitado = body.desabilitado;
 
-                // Chama o repositório para persistir as alterações
-                await _repositoryTipoPergunta.AlterarAsync(tipoPerguntaExistente);
-
-                return NoContent(); // Retorna 204 No Content
+                await _repo.AlterarAsync(existente);
+                return NoContent();
             }
             catch (Exception ex)
             {
@@ -99,19 +102,19 @@ namespace FASTSURVEY.Controllers
             }
         }
 
-
+        // DELETE: api/TipoPergunta/ExcluirTipoPergunta/5
         [HttpDelete("ExcluirTipoPergunta/{id}")]
-        public IActionResult Delete(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            var tipoPergunta = _repositoryTipoPergunta.SelecionarChave(id);
-            if (tipoPergunta == null)
-            {
-                return NotFound("Tipo de pergunta não encontrado.");
-            }
+            if (id <= 0) return BadRequest("ID inválido.");
+
             try
             {
-                _repositoryTipoPergunta.Excluir(tipoPergunta);
-                return Ok("ok");
+                var existente = await _repo.SelecionarChaveAsync(id);
+                if (existente == null) return NotFound("Tipo de pergunta não encontrado.");
+
+                await _repo.ExcluirAsync(existente);
+                return NoContent();
             }
             catch (Exception ex)
             {
