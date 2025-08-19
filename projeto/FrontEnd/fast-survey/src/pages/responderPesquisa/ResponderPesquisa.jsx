@@ -1,9 +1,5 @@
 import CabecalhoPesquisa from '../../components/layouts/CabecalhoPesquisa';
 import InformacoesPesquisa from '../../components/layouts/InformacoesPesquisa';
-// src/pages/responder/responderPesquisa.jsx
-// Responder (alinhado ao Criar/Preview)
-// Respeita estilo salvo: { corFundo, corTexto, fonte } e opcoes { opcaoid, texto }.
-// Inclui cabeçalho com Autor e Data.
 
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import jsPDF from 'jspdf';
@@ -51,7 +47,7 @@ function buildBlocoInlineStyle(estilo) {
 
 function ActionsPanel({ onEnviar, onExportar, disableActions, totalRespostas }) {
   return (
-    <aside className={styles.actionsPanel} aria-label="Ações">
+    <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       <div className={styles.actionsHeader}>
         <h3>Ações</h3>
         <p className={styles.actionsHint}>
@@ -166,12 +162,18 @@ const ResponderPesquisa = () => {
   const exportarPDF = async () => {
     const container = pdfRef.current;
     if (!container) return;
-    const toHide = container.querySelectorAll('.btn-pdf-hide');
-    toHide.forEach(el => el && el.classList.add('hide-pdf'));
+
+    document.body.classList.add('pdf-export-mode');
     try {
+      window.scrollTo(0, 0);
       const canvas = await html2canvas(container, {
-        scale: 2, useCORS: true, backgroundColor: '#ffffff', windowWidth: document.documentElement.scrollWidth
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth
       });
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -187,20 +189,22 @@ const ResponderPesquisa = () => {
       pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
       heightLeft -= pageH;
 
-      while (heightLeft > -pageH) {
+      while (heightLeft > 0) {
+        position = margin - (imgH - heightLeft);
         pdf.addPage();
-        position = heightLeft + margin;
         pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
         heightLeft -= pageH;
       }
 
-      const safeTitle = (pesquisa?.titulo || 'resposta-pesquisa').replace(/[\\/:*?"<>|]+/g, '').slice(0, 60);
+      const safeTitle = (pesquisa?.titulo || 'resposta-pesquisa')
+        .replace(/[\\/:*?"<>|]+/g, '')
+        .slice(0, 60);
       pdf.save(`${safeTitle}.pdf`);
       toast.success('PDF exportado com sucesso!', { position: 'top-center', autoClose: 2500 });
     } catch {
       toast.error('Erro ao exportar PDF.', { position: 'top-center', autoClose: 4000 });
     } finally {
-      toHide.forEach(el => el && el.classList.remove('hide-pdf'));
+      document.body.classList.remove('pdf-export-mode');
     }
   };
 
@@ -297,7 +301,6 @@ const ResponderPesquisa = () => {
     );
   }
 
-  // ==== Autor & Data (com fallbacks)
   const autor =
     pesquisa?.login?.usuario ??
     pesquisa?.autor?.nome ??
@@ -320,119 +323,126 @@ const ResponderPesquisa = () => {
         <TopNavbar />
         <ToastContainer />
         <main className={styles.page}>
-          <div className={styles.header}>
-            <section ref={pdfRef} className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-              <CabecalhoPesquisa autor={autor} data={dataStr} />
-              <InformacoesPesquisa
-                titulo={pesquisa.titulo}
-                descricao={pesquisa.descricao}
-                tipoPesquisa={pesquisa?.tipoPesquisa?.descricao ?? '—'}
-              />
-              {anexos.length > 0 && (
-                <div className={styles.attachments}>
-                  <h3>Anexos da Pesquisa</h3>
-                  <ul>
-                    {anexos.map(anexo => (
-                      <li key={anexo.anexoid}>
-                        <a
-                          className={styles.attachmentLink}
-                          href={`http://localhost:5062/Uploads/${anexo.nome}${anexo.extensao}`}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          📎 {anexo.nome}{anexo.extensao}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-          </div>
+          {/* GRID: coluna esquerda (conteúdo/PDF) + coluna direita (painel) */}
           <div className={styles.grid}>
-            <section className={styles.formArea} aria-label="Formulário da pesquisa">
-              {blocos.map((b, index) => {
-                const tipo = normalizeTipo(b.tipo);
-                const perguntaId = b.perguntaid ?? b.id ?? index;
-                const { style: blocoInline } = buildBlocoInlineStyle(b?.estilo);
-                const resp = respostas[perguntaId];
-                const baseId = `pergunta-${perguntaId}`;
-                return (
-                  <div key={perguntaId} className={styles.blockWrapper}>
-                    <div className={styles.block} style={blocoInline}>
-                      <div className={styles.blockHeader}>
-                        <span className={styles.qIndex} aria-hidden>{index + 1}.</span>
-                        <h4 className={styles.qText}>{b.texto}</h4>
-                      </div>
-                      <GaleriaPergunta imagens={b.imagens} />
-                      {tipo === 'discursiva' && (
-                        <div className={styles.field}>
-                          <label htmlFor={`${baseId}-txt`} className="sr-only">Resposta</label>
-                          <textarea
-                            id={`${baseId}-txt`}
-                            className={styles.textarea}
-                            onChange={e => handleTextareaChange(perguntaId, e.target.value)}
-                            placeholder="Resposta do usuário..."
-                            rows={4}
-                          />
-                        </div>
-                      )}
-                      {tipo === 'objetiva' && Array.isArray(b.opcoes) && (
-                        <div className={styles.optionsCol}>
-                          {b.opcoes.map((op, idx) => {
-                            const isObj = op && typeof op === 'object';
-                            const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
-                            const label = isObj ? (op.texto ?? String(value)) : String(op);
-                            const inputId = `${baseId}-opt-${idx}`;
-                            const checked = resp?.valor === value;
-                            return (
-                              <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
-                                <input
-                                  id={inputId}
-                                  type="radio"
-                                  name={baseId}
-                                  checked={!!checked}
-                                  onChange={() => handleRadioChange(perguntaId, value)}
-                                  className={`${styles.radio} ${styles.inputControl}`}
-                                />
-                                <span className={styles.optionLabel}>{label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {tipo === 'multipla' && Array.isArray(b.opcoes) && (
-                        <div className={styles.optionsCol}>
-                          {b.opcoes.map((op, idx) => {
-                            const isObj = op && typeof op === 'object';
-                            const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
-                            const label = isObj ? (op.texto ?? String(value)) : String(op);
-                            const inputId = `${baseId}-chk-${idx}`;
-                            const checked = Array.isArray(resp?.valor) && resp.valor.includes(value);
-                            return (
-                              <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
-                                <input
-                                  id={inputId}
-                                  type="checkbox"
-                                  checked={!!checked}
-                                  onChange={() => handleCheckboxChange(perguntaId, value)}
-                                  className={`${styles.checkbox} ${styles.inputControl}`}
-                                />
-                                <span className={styles.optionLabel}>{label}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
-                        <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
-                      )}
+            {/* ===== Coluna esquerda — entra no PDF ===== */}
+            <section ref={pdfRef} className={styles.exportArea}>
+              <div className={styles.header}>
+                <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
+                  <CabecalhoPesquisa autor={autor} data={dataStr} />
+                  <InformacoesPesquisa
+                    titulo={pesquisa.titulo}
+                    descricao={pesquisa.descricao}
+                    tipoPesquisa={pesquisa?.tipoPesquisa?.descricao ?? '—'}
+                  />
+                  {anexos.length > 0 && (
+                    <div className={styles.attachments}>
+                      <h3>Anexos da Pesquisa</h3>
+                      <ul>
+                        {anexos.map(anexo => (
+                          <li key={anexo.anexoid}>
+                            <a
+                              className={styles.attachmentLink}
+                              href={`http://localhost:5062/Uploads/${anexo.nome}${anexo.extensao}`}
+                              download
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              📎 {anexo.nome}{anexo.extensao}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </section>
+              </div>
+
+              <section className={styles.formArea} aria-label="Formulário da pesquisa">
+                {blocos.map((b, index) => {
+                  const tipo = normalizeTipo(b.tipo);
+                  const perguntaId = b.perguntaid ?? b.id ?? index;
+                  const { style: blocoInline } = buildBlocoInlineStyle(b?.estilo);
+                  const resp = respostas[perguntaId];
+                  const baseId = `pergunta-${perguntaId}`;
+                  return (
+                    <div key={perguntaId} className={`${styles.blockWrapper} ${styles.avoidBreak}`}>
+                      <div className={styles.block} style={blocoInline}>
+                        <div className={styles.blockHeader}>
+                          <span className={styles.qIndex} aria-hidden>{index + 1}.</span>
+                          <h4 className={styles.qText}>{b.texto}</h4>
+                        </div>
+                        <GaleriaPergunta imagens={b.imagens} />
+                        {tipo === 'discursiva' && (
+                          <div className={styles.field}>
+                            <label htmlFor={`${baseId}-txt`} className="sr-only">Resposta</label>
+                            <textarea
+                              id={`${baseId}-txt`}
+                              className={styles.textarea}
+                              onChange={e => handleTextareaChange(perguntaId, e.target.value)}
+                              placeholder="Resposta do usuário..."
+                              rows={4}
+                            />
+                          </div>
+                        )}
+                        {tipo === 'objetiva' && Array.isArray(b.opcoes) && (
+                          <div className={styles.optionsCol}>
+                            {b.opcoes.map((op, idx) => {
+                              const isObj = op && typeof op === 'object';
+                              const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
+                              const label = isObj ? (op.texto ?? String(value)) : String(op);
+                              const inputId = `${baseId}-opt-${idx}`;
+                              const checked = resp?.valor === value;
+                              return (
+                                <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
+                                  <input
+                                    id={inputId}
+                                    type="radio"
+                                    name={baseId}
+                                    checked={!!checked}
+                                    onChange={() => handleRadioChange(perguntaId, value)}
+                                    className={`${styles.radio} ${styles.inputControl}`}
+                                  />
+                                  <span className={styles.optionLabel}>{label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {tipo === 'multipla' && Array.isArray(b.opcoes) && (
+                          <div className={styles.optionsCol}>
+                            {b.opcoes.map((op, idx) => {
+                              const isObj = op && typeof op === 'object';
+                              const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
+                              const label = isObj ? (op.texto ?? String(value)) : String(op);
+                              const inputId = `${baseId}-chk-${idx}`;
+                              const checked = Array.isArray(resp?.valor) && resp.valor.includes(value);
+                              return (
+                                <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
+                                  <input
+                                    id={inputId}
+                                    type="checkbox"
+                                    checked={!!checked}
+                                    onChange={() => handleCheckboxChange(perguntaId, value)}
+                                    className={`${styles.checkbox} ${styles.inputControl}`}
+                                  />
+                                  <span className={styles.optionLabel}>{label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
+                          <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
             </section>
+
+            {/* ===== Coluna direita — fora do PDF ===== */}
             <ActionsPanel
               onEnviar={enviarRespostas}
               onExportar={exportarPDF}

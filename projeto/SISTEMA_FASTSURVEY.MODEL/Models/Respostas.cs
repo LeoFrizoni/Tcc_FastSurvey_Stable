@@ -20,8 +20,4 @@ public partial class respostas
     public virtual ICollection<anexos> anexo { get; set; } = new List<anexos>();
 
     public virtual ICollection<opcoespergunta> opcao { get; set; } = new List<opcoespergunta>();
-
-    public virtual ICollection<respostas_anexos> respostas_anexos { get; set; } = new List<respostas_anexos>();
-
-    public virtual ICollection<respostas_opcoes> respostas_opcoes { get; set; } = new List<respostas_opcoes>();
 }

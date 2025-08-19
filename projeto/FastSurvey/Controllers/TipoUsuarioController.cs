@@ -1,102 +1,134 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FASTSURVEY.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")] // /api/tipousuario
+    [Produces("application/json")]
     public class TipoUsuarioController : ControllerBase
     {
         private readonly FastSurveyContext _context;
-        private readonly RepositoryTipoUsuario _repository;
+        private readonly RepositoryTipoUsuario _repo;
 
-        public TipoUsuarioController(FastSurveyContext context)
+        public TipoUsuarioController(FastSurveyContext context, RepositoryTipoUsuario repo)
         {
             _context = context;
-            _repository = new RepositoryTipoUsuario(_context);
+            _repo = repo;
         }
 
-        [HttpPost("Cadastrar")]
-        public IActionResult Post([FromBody] tipousuario tipo)
+        // POST: /api/tipousuario
+        [HttpPost]
+        public async Task<IActionResult> Post([FromBody] tipousuario body, CancellationToken ct)
         {
-            if (tipo == null || string.IsNullOrWhiteSpace(tipo.tipousuario1))
-            {
+            if (body == null || string.IsNullOrWhiteSpace(body.tipousuario1))
                 return BadRequest("O nome do tipo de usuário é obrigatório.");
-            }
 
-            _repository.Incluir(tipo);
-            return Ok(new
-            {
-                mensagem = "Tipo de usuário cadastrado com sucesso.",
-                tipo = tipo
-            });
+            var nome = body.tipousuario1.Trim();
+
+            var existe = await _context.tipousuario
+                .AsNoTracking()
+                .AnyAsync(t => EF.Functions.ILike(t.tipousuario1, nome), ct);
+            if (existe)
+                return Conflict("Já existe um tipo de usuário com este nome.");
+
+            body.tipousuario1 = nome;
+
+            var criado = await _repo.IncluirAsync(body);
+
+            return CreatedAtAction(
+                nameof(GetPorId),
+                new { id = criado.usuarioid },
+                new { criado.usuarioid, tipousuario = criado.tipousuario1 }
+            );
         }
 
-        [HttpGet("Listar")]
-        public IActionResult Get()
+        // GET: /api/tipousuario   (retorna { id, nome })
+        [HttpGet]
+        public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var tipos = _repository.SelecionarTodos();
-            if (tipos == null || !tipos.Any())
-            {
-                return NotFound("Nenhum tipo de usuário encontrado.");
-            }
+            var lista = await _context.tipousuario
+                .AsNoTracking()
+                .OrderBy(t => t.usuarioid)
+                .Select(t => new
+                {
+                    id = t.usuarioid,
+                    nome = t.tipousuario1
+                })
+                .ToListAsync(ct);
 
-            return Ok(tipos);
+            return Ok(lista);
         }
 
-        [HttpGet("Selecionar/{id}")]
-        public IActionResult Get(int id)
+
+        // GET: /api/tipousuario/{id}   (retorna { id, nome })
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetPorId(int id, CancellationToken ct)
         {
-            if (id <= 0)
-            {
-                return BadRequest("ID inválido.");
-            }
+            if (id <= 0) return BadRequest("ID inválido.");
 
-            var tipo = _repository.SelecionarChave(id);
-            if (tipo == null)
-            {
-                return NotFound("Tipo de usuário não encontrado.");
-            }
+            var tipo = await _context.tipousuario
+                .AsNoTracking()
+                .Where(t => t.usuarioid == id)
+                .Select(t => new
+                {
+                    id = t.usuarioid,
+                    nome = t.tipousuario1
+                })
+                .FirstOrDefaultAsync(ct);
 
-            return Ok(tipo);
+            return tipo is null ? NotFound("Tipo de usuário não encontrado.") : Ok(tipo);
         }
 
-        [HttpPut("Alterar/{id}")]
-        public IActionResult Put(int id, [FromBody] tipousuario tipo)
+        // PUT: /api/tipousuario/{id}
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Put(int id, [FromBody] tipousuario body, CancellationToken ct)
         {
-            if (id <= 0 || tipo == null || string.IsNullOrWhiteSpace(tipo.tipousuario1))
-            {
+            if (id <= 0 || body == null)
                 return BadRequest("Dados inválidos para alteração.");
-            }
 
-            var tipoExistente = _repository.SelecionarChave(id);
-            if (tipoExistente == null)
-            {
+            // se o body trouxer a PK, garanta que bate com a rota
+            if (body.usuarioid != 0 && body.usuarioid != id)
+                return BadRequest("ID do corpo não confere com a rota.");
+
+            var nome = body.tipousuario1?.Trim();
+            if (string.IsNullOrWhiteSpace(nome))
+                return BadRequest("O nome do tipo de usuário é obrigatório.");
+
+            var existente = await _context.tipousuario.FirstOrDefaultAsync(t => t.usuarioid == id, ct);
+            if (existente == null)
                 return NotFound("Tipo de usuário não encontrado.");
-            }
 
-            tipo.usuarioid = id;
-            _repository.Alterar(tipo);
-            return Ok("Tipo de usuário alterado com sucesso.");
+            var existeOutro = await _context.tipousuario
+                .AsNoTracking()
+                .AnyAsync(t => t.usuarioid != id && EF.Functions.ILike(t.tipousuario1, nome), ct);
+            if (existeOutro)
+                return Conflict("Já existe outro tipo de usuário com este nome.");
+
+            existente.tipousuario1 = nome;
+
+            await _context.SaveChangesAsync(ct);
+            return NoContent();
         }
 
-        [HttpDelete("Excluir/{id}")]
-        public IActionResult Delete(int id)
+        // DELETE: /api/tipousuario/{id}
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
-            if (id <= 0)
-            {
-                return BadRequest("ID inválido.");
-            }
+            if (id <= 0) return BadRequest("ID inválido.");
 
-            var tipo = _repository.SelecionarChave(id);
-            if (tipo == null)
-            {
+            var existente = await _context.tipousuario.FirstOrDefaultAsync(t => t.usuarioid == id, ct);
+            if (existente == null)
                 return NotFound("Tipo de usuário não encontrado.");
-            }
 
-            _repository.Excluir(tipo);
-            return Ok("Tipo de usuário excluído com sucesso.");
+            _context.tipousuario.Remove(existente);
+            await _context.SaveChangesAsync(ct);
+            return NoContent();
         }
     }
 }

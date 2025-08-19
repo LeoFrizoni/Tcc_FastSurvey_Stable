@@ -1,237 +1,139 @@
-﻿using FASTSURVEY.Models;
+﻿// FASTSURVEY/Controllers/PesquisasController.cs
+using FASTSURVEY.Models;
+using FASTSURVEY.Models.DTO;
 using FASTSURVEY.Services;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SISTEMA_FASTSURVEY.MODEL.Models;
+using SISTEMA_FASTSURVEY.MODEL.Models;   // <- para o tipo 'pesquisas'
 using System;
+using System.Collections.Generic;        // <- para List<>
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FASTSURVEY.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] // => /api/pesquisas
     [ApiController]
     [Produces("application/json")]
     public class PesquisasController : ControllerBase
     {
-        private readonly FastSurveyContext _context;
-        private readonly ServicePesquisas _servicePesquisa;
+    // ...existing code...
 
-        public PesquisasController(FastSurveyContext context)
+        /// <summary>
+        /// Move uma pesquisa para outra pasta.
+        /// </summary>
+        // PATCH: api/pesquisas/{id}/mover-pasta
+        [HttpPatch("{id:int}/mover-pasta")]
+        public async Task<IActionResult> MoverPasta(int id, [FromBody] int novaPastaId, CancellationToken ct)
         {
-            _context = context;
-            _servicePesquisa = new ServicePesquisas(context);
+            if (id <= 0 || novaPastaId <= 0)
+                return BadRequest("ID da pesquisa e da pasta devem ser válidos.");
+
+            var sucesso = await _svcPesquisas.MoverPesquisaParaPastaAsync(id, novaPastaId, ct);
+            if (!sucesso)
+                return NotFound("Pesquisa ou pasta não encontrada.");
+
+            return NoContent();
+        }
+        private readonly ServicePesquisas _svcPesquisas;
+
+        public PesquisasController(ServicePesquisas svcPesquisas)
+        {
+            _svcPesquisas = svcPesquisas;
         }
 
         // GET: api/Pesquisas
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            try
-            {
-                var pesquisas = await _servicePesquisa.ListarTodasPesquisasAsync();
-                if (pesquisas == null || pesquisas.Count == 0)
-                    return NotFound("Nenhuma pesquisa encontrada.");
-
-                return Ok(pesquisas);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao listar pesquisas: {ex.Message}");
-            }
+            var list = await _svcPesquisas.ListarTodasPesquisasAsync(ct);
+            if (list == null || list.Count == 0) return NotFound("Nenhuma pesquisa encontrada.");
+            return Ok(list);
         }
 
-        // GET: api/Pesquisas/{id}
-        [HttpGet("{id}")]
-        public async Task<IActionResult> Get(int id)
+        // GET: api/Pesquisas/5
+        [HttpGet("{id:int}")]
+        public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
-            try
-            {
-                var pesquisa = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
-                if (pesquisa == null) return NotFound("Pesquisa não encontrada.");
-                return Ok(pesquisa);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao buscar pesquisa: {ex.Message}");
-            }
+            var result = await _svcPesquisas.BuscarPesquisaPorIdAsync(id, ct);
+            if (result is { } && result.GetType().GetProperty("mensagem") != null) return NotFound(result);
+            return Ok(result);
         }
 
-        // ✅ usado pelo front (createPesquisa.jsx) para mapear perguntas por ordem
-        // GET: api/Pesquisas/BuscarPesquisaPorId/{id}
-        [HttpGet("BuscarPesquisaPorId/{id}")]
-        public async Task<IActionResult> BuscarPesquisaPorId(int id)
+        // GET: api/pesquisas/usuario/16
+        // Retorna [] quando não houver pesquisas (evita erro no front)
+        [HttpGet("usuario/{id:int}")]
+        public async Task<IActionResult> ListarPorUsuario(int id, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
+            if (id <= 0) return BadRequest("ID de usuário inválido.");
             try
             {
-                var pesquisa = await _context.pesquisas
-                    .AsNoTracking()
-                    .Include(p => p.perguntas)
-                        .ThenInclude(pg => pg.opcoespergunta)
-                    .FirstOrDefaultAsync(p => p.pesquisaid == id);
-
-                if (pesquisa == null) return NotFound("Pesquisa não encontrada.");
-
-                var perguntas = pesquisa.perguntas
-                    .OrderBy(pg => pg.perguntaid) // ajuste se tiver coluna de ordem
-                    .Select(pg => new
-                    {
-                        perguntaid = pg.perguntaid,
-                        tipoperguntaid = pg.tipoperguntaid,
-                        texto = pg.texto,
-                        temgabarito = pg.temgabarito,
-                        permitemultiplaselecao = pg.permitemultiplaselecao,
-                        opcoes = pg.opcoespergunta
-                            .OrderBy(o => o.opcaoid)
-                            .Select(o => new
-                            {
-                                opcaoid = o.opcaoid,
-                                texto = o.texto,
-                                correta = o.correta
-                            }).ToList()
-                    })
-                    .ToList();
-
-                return Ok(new
-                {
-                    pesquisaid = pesquisa.pesquisaid,
-                    titulo = pesquisa.titulo,
-                    descricao = pesquisa.descricao,
-                    perguntas
-                });
+                var list = await _svcPesquisas.ListarPorUsuarioAsync(id, ct);
+                return Ok(list ?? new List<pesquisas>());
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao buscar pesquisa: {ex.Message}");
-            }
-        }
-
-        // GET: api/Pesquisas/usuario/{loginId}
-        [HttpGet("usuario/{loginId}")]
-        public IActionResult GetPesquisasPorUsuario(int loginId)
-        {
-            try
-            {
-                var pesquisas = _context.pesquisas
-                    .AsNoTracking()
-                    .Where(p => p.loginid == loginId)
-                    .Select(p => new
-                    {
-                        pesquisaid = p.pesquisaid,
-                        titulo = p.titulo,
-                        descricao = p.descricao,
-                        tipoPesquisa = new
-                        {
-                            // no seu mapeamento a propriedade é tipopesquisa1
-                            descricao = p.tipopesquisa != null ? p.tipopesquisa.tipopesquisa1 : ""
-                        },
-                        perguntas = p.perguntas.Select(pergunta => new
-                        {
-                            perguntaid = pergunta.perguntaid,
-                            titulo = pergunta.texto,
-                            // 1: discursiva, 2: objetiva, 3: multipla
-                            tipo = pergunta.tipoperguntaid == 1
-                                ? "discursiva"
-                                : (pergunta.tipoperguntaid == 2 ? "objetiva" : "multipla"),
-                            opcoes = pergunta.opcoespergunta
-                                .OrderBy(o => o.opcaoid)
-                                .Select(o => new
-                                {
-                                    opcaoid = o.opcaoid,
-                                    texto = o.texto,
-                                    correta = o.correta
-                                }).ToList()
-                        }).ToList()
-                    })
-                    .ToList();
-
-                return Ok(pesquisas);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao buscar pesquisas do usuário: {ex.Message}");
+                // Log detalhado (pode ser substituído por um logger real)
+                Console.WriteLine($"Erro ao buscar pesquisas do usuário {id}: {ex.Message}\n{ex.StackTrace}");
+                return Problem($"Erro interno ao buscar pesquisas do usuário: {ex.Message}");
             }
         }
 
         // POST: api/Pesquisas
+        // Body: PesquisaVM (com perguntas dentro)
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] PesquisaVM pesquisaVM)
+        public async Task<IActionResult> Create([FromBody] PesquisaVM vm, CancellationToken ct)
         {
-            if (pesquisaVM == null || string.IsNullOrWhiteSpace(pesquisaVM.Titulo))
-                return BadRequest("Dados da pesquisa são inválidos.");
-
             try
             {
-                var novaPesquisa = await _servicePesquisa.CadastrarPesquisaAsync(pesquisaVM);
-                return Ok(new
-                {
-                    pesquisaid = novaPesquisa.pesquisaid,
-                    titulo = novaPesquisa.titulo,
-                    descricao = novaPesquisa.descricao,
-                    tipopesquisaid = novaPesquisa.tipopesquisaid,
-                    loginid = novaPesquisa.loginid,
-                    templateJson = novaPesquisa.TemplateJson
-                });
+                var created = await _svcPesquisas.CadastrarPesquisaAsync(vm, ct);
+                return CreatedAtAction(nameof(GetById), new { id = created.pesquisaid }, created);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao criar pesquisa: {ex.Message}");
+                return Problem($"Erro ao cadastrar pesquisa: {ex.Message}");
             }
         }
 
-        // PUT: api/Pesquisas/{id}
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] PesquisaVM pesquisaVM)
+        // PUT: api/Pesquisas/5
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(int id, [FromBody] PesquisaVM vm, CancellationToken ct)
         {
-            if (id <= 0 || pesquisaVM == null || id != pesquisaVM.CodigoPesquisa)
-                return BadRequest("Dados inválidos.");
-
             try
             {
-                var pesquisaExistente = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
-                if (pesquisaExistente == null)
-                    return NotFound("Pesquisa não encontrada.");
-
-                var pesquisaAtualizada = await _servicePesquisa.AtualizarPesquisaAsync(pesquisaVM);
-                return Ok(new
-                {
-                    pesquisaid = pesquisaAtualizada.pesquisaid,
-                    titulo = pesquisaAtualizada.titulo,
-                    descricao = pesquisaAtualizada.descricao,
-                    tipopesquisaid = pesquisaAtualizada.tipopesquisaid,
-                    loginid = pesquisaAtualizada.loginid,
-                    templateJson = pesquisaAtualizada.TemplateJson
-                });
+                vm.CodigoPesquisa = id;
+                var updated = await _svcPesquisas.AtualizarPesquisaAsync(vm, ct);
+                return Ok(updated);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao atualizar pesquisa: {ex.Message}");
+                return Problem($"Erro ao atualizar: {ex.Message}");
             }
         }
 
-        // DELETE: api/Pesquisas/{id}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        // DELETE: api/Pesquisas/5
+        [HttpDelete("{id:int}")]
+        public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
             try
             {
-                var pesquisa = await _servicePesquisa.BuscarPesquisaPorIdAsync(id);
-                if (pesquisa == null)
-                    return NotFound("Pesquisa não encontrada.");
-
-                await _servicePesquisa.ExcluirPesquisaAsync(id);
+                await _svcPesquisas.ExcluirPesquisaAsync(id, ct);
                 return NoContent();
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Erro ao excluir pesquisa: {ex.Message}");
+                return Problem($"Erro ao excluir: {ex.Message}");
             }
         }
+
+        /// <summary>
     }
 }

@@ -36,6 +36,9 @@ const CriarPesquisa = () => {
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
 
+  // área com scroll (fix do “salto”)
+  const scrollRef = useRef(null);
+
   // input oculto para anexos "da pesquisa" (bloco Anexo)
   const inputFileRef = useRef();
 
@@ -54,7 +57,7 @@ const CriarPesquisa = () => {
     const loginId = localStorage.getItem("userId");
     if (loginId) {
       axios
-        .get(`${API_BASE}/api/login/SelecionarLoginPorId/${loginId}`)
+        .get(`${API_BASE}/api/login/${loginId}`)
         .then((res) => setAutorNome(res.data.usuario || "Usuário"))
         .catch(() => setAutorNome("Usuário"));
     }
@@ -79,32 +82,19 @@ const CriarPesquisa = () => {
       estilo: { corFundo: "", corTexto: "", fonte: "" },
     };
 
-    /** complementos por tipo */
     if (tipo === "discursiva") {
-      setBlocos((prev) => [
-        ...prev,
-        { ...base, opcoes: [], respostaExemplo: "" },
-      ]);
+      setBlocos((prev) => [...prev, { ...base, opcoes: [], respostaExemplo: "" }]);
       return;
     }
     if (tipo === "multipla") {
       setBlocos((prev) => [
         ...prev,
-        {
-          ...base,
-          opcoes: [""],
-          temGabarito: false,
-          permitirMultiplaSelecao: true,
-          corretas: [],
-        },
+        { ...base, opcoes: [""], temGabarito: false, permitirMultiplaSelecao: true, corretas: [] },
       ]);
       return;
     }
     if (tipo === "objetiva") {
-      setBlocos((prev) => [
-        ...prev,
-        { ...base, opcoes: [""], temGabarito: false, corretaIndex: null },
-      ]);
+      setBlocos((prev) => [...prev, { ...base, opcoes: [""], temGabarito: false, corretaIndex: null }]);
       return;
     }
     if (tipo === "anexo") {
@@ -250,14 +240,12 @@ const CriarPesquisa = () => {
     return { ok, fail };
   };
 
-  // pega perguntas da pesquisa
   const fetchPerguntasDaPesquisa = async (pesquisaId) => {
     const resp = await axios.get(`${API_BASE}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`);
     // Espera-se algo como { perguntas: [...] }
     return resp.data?.perguntas ?? [];
   };
 
-  // pega opções da pergunta (para mapear índices → ids)
   const fetchOpcoesDaPergunta = async (perguntaId) => {
     try {
       const resp = await axios.get(`${API_BASE}/api/OpcoesPergunta/Pergunta/${perguntaId}`);
@@ -309,9 +297,9 @@ const CriarPesquisa = () => {
 
   // ---------- montar VM + template ----------
   const montarPesquisaVM = () => {
-    const loginId = parseInt(localStorage.getItem("userId"));
-    const autor = autorNome;
-    const dataCriacao = new Date().toLocaleDateString("pt-BR");
+  const loginId = parseInt(localStorage.getItem("userId"));
+  const autor = autorNome;
+  const dataCriacao = new Date();
 
     const limparOpcoes = (ops = []) =>
       ops
@@ -409,17 +397,17 @@ const CriarPesquisa = () => {
       });
 
     return {
-      titulo: dadosPesquisa.titulo,
-      descricao: dadosPesquisa.descricao,
-      tipoPesquisaId: parseInt(dadosPesquisa.tipo),
-      codigoPesquisa: 0,
-      loginId,
-      autor,
-      dataCriacao,
-      perguntasDiscursivas,
-      perguntasObjetivas,
-      PerguntasMultiplaEscolha: perguntasMultiplaEscolha,
-      templateJson: JSON.stringify(blocosTemplate)
+  titulo: dadosPesquisa.titulo,
+  descricao: dadosPesquisa.descricao,
+  tipoPesquisaId: parseInt(dadosPesquisa.tipo),
+  codigoPesquisa: 0,
+  loginId,
+  autor,
+  dataCriacao,
+  perguntasDiscursivas,
+  perguntasObjetivas,
+  PerguntasMultiplaEscolha: perguntasMultiplaEscolha,
+  templateJson: JSON.stringify(blocosTemplate)
     };
   };
 
@@ -472,6 +460,7 @@ const CriarPesquisa = () => {
     }
   };
 
+  // ---------- salvar ----------
   const salvarPesquisaComPerguntas = async () => {
     try {
       const pesquisaVM = montarPesquisaVM();
@@ -528,7 +517,13 @@ const CriarPesquisa = () => {
     }
   };
 
+  // ---------- mover com scroll estável ----------
   const moverBloco = (id, direcao) => {
+    // mede posição visual do card ANTES da troca
+    const cardEl = document.getElementById(`bloco-${id}`);
+    const container = scrollRef.current; // <main> com overflow
+    const beforeTop = cardEl ? cardEl.getBoundingClientRect().top : null;
+
     setBlocos((prev) => {
       const idx = prev.findIndex((b) => b.id === id);
       if (idx === -1) return prev;
@@ -539,47 +534,50 @@ const CriarPesquisa = () => {
       if (novoIdx < 0 || novoIdx >= novo.length) return prev;
       if (!["discursiva", "multipla", "objetiva"].includes(novo[novoIdx].tipo)) return prev;
       [novo[idx], novo[novoIdx]] = [novo[novoIdx], novo[idx]];
+
+      // compensa o scroll no próximo frame
+      if (beforeTop !== null && container) {
+        requestAnimationFrame(() => {
+          const afterEl = document.getElementById(`bloco-${id}`);
+          if (!afterEl) return;
+          const afterTop = afterEl.getBoundingClientRect().top;
+          const delta = afterTop - beforeTop;
+          container.scrollTop += delta;
+        });
+      }
+
       return novo;
     });
   };
 
-  // header de cada pergunta com botões clip (anexo) + imagem + lixeira
+  // header de cada pergunta com botões (anexo + imagem + lixeira)
   const renderHeaderPergunta = (titulo, bloco) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-      <h4 style={{ margin: 0 }}>{titulo}</h4>
-      <div style={{ display: "flex", gap: 8 }}>
+    <div className={styles["card-header"]}>
+      <h4 className={styles["card-title"]}>{titulo}</h4>
+      <div className={styles["toolbarRight"]} onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
-          className={styles["btn-remover"]}
+          className={styles["iconBtn"]}
           title="Adicionar anexo à pergunta"
-          onClick={(e) => {
-            e.stopPropagation();
-            abrirFilePickerPergunta(bloco.id);
-          }}
+          onClick={() => abrirFilePickerPergunta(bloco.id)}
         >
-          <Paperclip size={18} />
+          <Paperclip size={26} />
         </button>
         <button
           type="button"
-          className={styles["btn-remover"]}
+          className={styles["iconBtn"]}
           title="Adicionar imagem à pergunta"
-          onClick={(e) => {
-            e.stopPropagation();
-            abrirImagemPickerPergunta(bloco.id);
-          }}
+          onClick={() => abrirImagemPickerPergunta(bloco.id)}
         >
-          <ImageIcon size={18} />
+          <ImageIcon size={26} />
         </button>
         <button
           type="button"
-          className={styles["btn-remover"]}
-          onClick={(e) => {
-            e.stopPropagation();
-            removerBloco(bloco.id);
-          }}
+          className={`${styles["iconBtn"]} ${styles["danger"]}`}
           title="Remover pergunta"
+          onClick={() => removerBloco(bloco.id)}
         >
-          <Trash2 size={18} />
+          <Trash2 size={26} />
         </button>
       </div>
     </div>
@@ -596,6 +594,51 @@ const CriarPesquisa = () => {
         ))}
       </ul>
     );
+
+  // régua de ordenação dentro do card
+  const renderOrderRail = (bloco) => {
+    const idx = blocos.findIndex((b) => b.id === bloco.id);
+    const isFirst = idx === 0;
+    const isLast = idx === blocos.length - 1;
+
+    return (
+      <div className={styles["order-rail"]} onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          className={styles["order-btn"]}
+          title="Mover para cima"
+          onClick={() => moverBloco(bloco.id, "up")}
+          disabled={isFirst}
+        >
+          <ChevronUp size={18} />
+        </button>
+        <button
+          type="button"
+          className={styles["order-btn"]}
+          title="Mover para baixo"
+          onClick={() => moverBloco(bloco.id, "down")}
+          disabled={isLast}
+        >
+          <ChevronDown size={18} />
+        </button>
+      </div>
+    );
+  };
+
+  // helper para reduzir repetição
+  const CardWrapper = ({ bloco, children, titulo, estilo }) => (
+    <div
+      id={`bloco-${bloco.id}`}
+      className={`${styles["bloco-pergunta"]} ${bloco.id === selectedBlockId ? styles["selecionado"] : ""}`}
+      style={estilo}
+      onClick={() => setSelectedBlockId(bloco.id)}
+    >
+      {renderHeaderPergunta(titulo, bloco)}
+      {renderOrderRail(bloco)}
+      {children}
+      {renderPreviewAnexosPergunta(bloco)}
+    </div>
+  );
 
   const renderizarBloco = (bloco) => {
     const estilo = {
@@ -614,108 +657,58 @@ const CriarPesquisa = () => {
       style: estilo
     };
 
-    const moveButtons = ["discursiva", "multipla", "objetiva"].includes(bloco.tipo) ? (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.5rem", marginLeft: "auto" }}>
-        <button
-          className={styles["btn-mover"]}
-          title="Mover para cima"
-          onClick={(e) => {
-            e.stopPropagation();
-            moverBloco(bloco.id, "up");
-          }}
-          disabled={blocos.findIndex((b) => b.id === bloco.id) === 0}
-        >
-          ↑
-        </button>
-        <button
-          className={styles["btn-mover"]}
-          title="Mover para baixo"
-          onClick={(e) => {
-            e.stopPropagation();
-            moverBloco(bloco.id, "down");
-          }}
-          disabled={blocos.findIndex((b) => b.id === bloco.id) === blocos.length - 1}
-        >
-          ↓
-        </button>
-      </div>
-    ) : null;
-
     switch (bloco.tipo) {
       case "discursiva":
         return (
-          <div key={bloco.id} onClick={() => setSelectedBlockId(bloco.id)}>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                {renderHeaderPergunta("Pergunta Discursiva", bloco)}
-                <Discursiva
-                  {...propsComuns}
-                  onChangeRespostaExemplo={(id, v) => atualizarBloco(id, { respostaExemplo: v })}
-                  style={estilo}
-                />
-                {renderPreviewAnexosPergunta(bloco)}
-              </div>
-              {moveButtons}
-            </div>
-          </div>
+          <CardWrapper key={bloco.id} bloco={bloco} titulo="Pergunta Discursiva" estilo={estilo}>
+            <Discursiva
+              {...propsComuns}
+              onChangeRespostaExemplo={(id, v) => atualizarBloco(id, { respostaExemplo: v })}
+            />
+          </CardWrapper>
         );
       case "multipla":
         return (
-          <div key={bloco.id} onClick={() => setSelectedBlockId(bloco.id)}>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                {renderHeaderPergunta("Pergunta Múltipla Escolha", bloco)}
-                <MultiplaEscolha
-                  {...propsComuns}
-                  onToggleGabarito={toggleGabarito}
-                  onTogglePermiteMultipla={togglePermiteMultipla}
-                  onToggleCorreta={toggleCorretaMultipla}
-                  style={estilo}
-                />
-                {renderPreviewAnexosPergunta(bloco)}
-              </div>
-              {moveButtons}
-            </div>
-          </div>
+          <CardWrapper key={bloco.id} bloco={bloco} titulo="Pergunta Múltipla Escolha" estilo={estilo}>
+            <MultiplaEscolha
+              {...propsComuns}
+              onToggleGabarito={toggleGabarito}
+              onTogglePermiteMultipla={togglePermiteMultipla}
+              onToggleCorreta={toggleCorretaMultipla}
+            />
+          </CardWrapper>
         );
       case "objetiva":
         return (
-          <div key={bloco.id} onClick={() => setSelectedBlockId(bloco.id)}>
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-              <div style={{ flex: 1 }}>
-                {renderHeaderPergunta("Pergunta Objetiva (única)", bloco)}
-                <Objetiva
-                  {...propsComuns}
-                  onToggleGabarito={toggleGabarito}
-                  onSetCorretaIndex={setCorretaIndex}
-                  style={estilo}
-                />
-                {renderPreviewAnexosPergunta(bloco)}
-              </div>
-              {moveButtons}
-            </div>
-          </div>
+          <CardWrapper key={bloco.id} bloco={bloco} titulo="Pergunta Objetiva (única)" estilo={estilo}>
+            <Objetiva
+              {...propsComuns}
+              onToggleGabarito={toggleGabarito}
+              onSetCorretaIndex={setCorretaIndex}
+            />
+          </CardWrapper>
         );
       case "anexo":
         return (
           <div
             key={bloco.id}
+            id={`bloco-${bloco.id}`}
             className={`${styles["bloco-pergunta"]} ${bloco.selecionado ? styles["selecionado"] : ""}`}
-            style={{
-              ...estilo,
-              padding: "1rem",
-              border: "1px solid #eee",
-              borderRadius: "10px",
-              backgroundColor: "#fff",
-              marginBottom: "1rem"
-            }}
+            style={{ ...estilo, padding: "1rem", border: "1px solid #eee", borderRadius: "10px", backgroundColor: "#fff" }}
             onClick={() => setSelectedBlockId(bloco.id)}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h4 style={{ margin: 0 }}>Arquivo Anexo</h4>
-              <button className={styles["btn-remover"]} onClick={() => removerBloco(bloco.id)} title="Remover anexo">
-                <Trash2 size={18} />
-              </button>
+            <div className={styles["card-header"]}>
+              <h4 className={styles["card-title"]}>Arquivo Anexo</h4>
+              <div className={styles["toolbarRight"]}>
+                <button
+                  type="button"
+                  className={`${styles["iconBtn"]} ${styles["danger"]}`}
+                  onClick={() => removerBloco(bloco.id)}
+                  title="Remover anexo"
+                >
+                  <Trash2 size={26} />
+                </button>
+              </div>
             </div>
             <p>
               <strong>Arquivo:</strong> {bloco.arquivo?.name || "Nenhum arquivo selecionado"}
@@ -795,14 +788,10 @@ const CriarPesquisa = () => {
           </div>
         </aside>
 
-        <main className={styles["area-construcao"]}>
+        <main ref={scrollRef} className={styles["area-construcao"]}>
           <CabecalhoPesquisa
             autor={autorNome}
-            data={(() => {
-              if (dadosPesquisa && dadosPesquisa.dataCriacao) return dadosPesquisa.dataCriacao;
-              const hoje = new Date();
-              return hoje.toLocaleDateString("pt-BR");
-            })()}
+            data={dadosPesquisa.dataCriacao || new Date()}
             selecionado={false}
             style={{
               background: "linear-gradient(90deg, #f8f9fd 0%, #eef2fa 100%)",
@@ -844,63 +833,25 @@ const CriarPesquisa = () => {
             <Type size={18} /> Fonte
             <select onChange={(e) => atualizarEstilo("fonte", e.target.value)} disabled={!selectedBlockId}>
               <option value="">Padrão</option>
-              <option style={{ fontFamily: "Arial" }} value="Arial">
-                Arial
-              </option>
-              <option style={{ fontFamily: "Helvetica" }} value="Helvetica">
-                Helvetica
-              </option>
-              <option style={{ fontFamily: "Verdana" }} value="Verdana">
-                Verdana
-              </option>
-              <option style={{ fontFamily: "Tahoma" }} value="Tahoma">
-                Tahoma
-              </option>
-              <option style={{ fontFamily: "Trebuchet MS" }} value="Trebuchet MS">
-                Trebuchet MS
-              </option>
-              <option style={{ fontFamily: "Georgia" }} value="Georgia">
-                Georgia
-              </option>
-              <option style={{ fontFamily: "Times New Roman" }} value="Times New Roman">
-                Times New Roman
-              </option>
-              <option style={{ fontFamily: "Courier New" }} value="Courier New">
-                Courier New
-              </option>
-              <option style={{ fontFamily: "Lucida Console" }} value="Lucida Console">
-                Lucida Console
-              </option>
-              <option style={{ fontFamily: "Impact" }} value="Impact">
-                Impact
-              </option>
-              <option style={{ fontFamily: "Palatino Linotype" }} value="Palatino Linotype">
-                Palatino Linotype
-              </option>
-              <option style={{ fontFamily: "Segoe UI" }} value="Segoe UI">
-                Segoe UI
-              </option>
-              <option style={{ fontFamily: "Cambria" }} value="Cambria">
-                Cambria
-              </option>
-              <option style={{ fontFamily: "Garamond" }} value="Garamond">
-                Garamond
-              </option>
-              <option style={{ fontFamily: "Franklin Gothic Medium" }} value="Franklin Gothic Medium">
-                Franklin Gothic Medium
-              </option>
-              <option style={{ fontFamily: "Brush Script MT" }} value="Brush Script MT">
-                Brush Script MT
-              </option>
-              <option style={{ fontFamily: "Comic Sans MS" }} value="Comic Sans MS">
-                Comic Sans MS
-              </option>
-              <option style={{ fontFamily: "Copperplate" }} value="Copperplate">
-                Copperplate
-              </option>
-              <option style={{ fontFamily: "Fira Sans" }} value="Fira Sans">
-                Fira Sans
-              </option>
+              <option style={{ fontFamily: "Arial" }} value="Arial">Arial</option>
+              <option style={{ fontFamily: "Helvetica" }} value="Helvetica">Helvetica</option>
+              <option style={{ fontFamily: "Verdana" }} value="Verdana">Verdana</option>
+              <option style={{ fontFamily: "Tahoma" }} value="Tahoma">Tahoma</option>
+              <option style={{ fontFamily: "Trebuchet MS" }} value="Trebuchet MS">Trebuchet MS</option>
+              <option style={{ fontFamily: "Georgia" }} value="Georgia">Georgia</option>
+              <option style={{ fontFamily: "Times New Roman" }} value="Times New Roman">Times New Roman</option>
+              <option style={{ fontFamily: "Courier New" }} value="Courier New">Courier New</option>
+              <option style={{ fontFamily: "Lucida Console" }} value="Lucida Console">Lucida Console</option>
+              <option style={{ fontFamily: "Impact" }} value="Impact">Impact</option>
+              <option style={{ fontFamily: "Palatino Linotype" }} value="Palatino Linotype">Palatino Linotype</option>
+              <option style={{ fontFamily: "Segoe UI" }} value="Segoe UI">Segoe UI</option>
+              <option style={{ fontFamily: "Cambria" }} value="Cambria">Cambria</option>
+              <option style={{ fontFamily: "Garamond" }} value="Garamond">Garamond</option>
+              <option style={{ fontFamily: "Franklin Gothic Medium" }} value="Franklin Gothic Medium">Franklin Gothic Medium</option>
+              <option style={{ fontFamily: "Brush Script MT" }} value="Brush Script MT">Brush Script MT</option>
+              <option style={{ fontFamily: "Comic Sans MS" }} value="Comic Sans MS">Comic Sans MS</option>
+              <option style={{ fontFamily: "Copperplate" }} value="Copperplate">Copperplate</option>
+              <option style={{ fontFamily: "Fira Sans" }} value="Fira Sans">Fira Sans</option>
             </select>
           </label>
         </aside>

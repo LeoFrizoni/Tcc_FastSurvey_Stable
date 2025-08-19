@@ -1,22 +1,65 @@
-﻿namespace FASTSURVEY.Models.DTO
+﻿// FASTSURVEY/Models/DTO/RespostasLoteVM.cs
+using System.ComponentModel.DataAnnotations;
+
+namespace FASTSURVEY.Models.DTO
 {
-    public class RespostaVM
+    /// <summary>
+    /// Representa um lote de respostas submetido por um usuário para uma pesquisa.
+    /// </summary>
+    public class RespostasLoteVM
     {
+        /// <summary>
+        /// Pesquisa à qual pertencem as respostas.
+        /// </summary>
+        [Required]
         public int PesquisaId { get; set; }
 
-        // Lista de respostas que o usuário deu
-        public List<ItemRespostaVM> Respostas { get; set; } = new List<ItemRespostaVM>();
+        /// <summary>
+        /// Identificador do usuário (login) que respondeu.
+        /// </summary>
+        [Required]
+        public int LoginId { get; set; }
+
+        /// <summary>
+        /// Lista das respostas individuais enviadas.
+        /// </summary>
+        [MinLength(1, ErrorMessage = "É necessário enviar ao menos uma resposta.")]
+        public List<ItemRespostaLoteVM> Itens { get; set; } = new();
     }
 
-    public class ItemRespostaVM
+    /// <summary>
+    /// Representa uma única resposta de uma pergunta dentro de um lote.
+    /// </summary>
+    public class ItemRespostaLoteVM
     {
-        // Id da pergunta (front pode mandar como string e converteremos para int no controller)
-        public string Pergunta { get; set; }
+        /// <summary>
+        /// Identificador da pergunta respondida.
+        /// </summary>
+        [Required]
+        public int PerguntaId { get; set; }
 
-        // Resposta do usuário:
-        // - Discursiva: texto livre
-        // - Objetiva: id da opção escolhida
-        // - Múltipla: ids separados por vírgula ou array no front
-        public string Resposta { get; set; }
+        /// <summary>
+        /// Tipo da pergunta: "discursiva" | "objetiva" | "multipla".
+        /// </summary>
+        [Required, RegularExpression("^(discursiva|objetiva|multipla)$",
+            ErrorMessage = "Tipo inválido. Use 'discursiva', 'objetiva' ou 'multipla'.")]
+        public string Tipo { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Usado quando Tipo = "discursiva".
+        /// Texto livre da resposta.
+        /// </summary>
+        public string? Texto { get; set; }
+
+        /// <summary>
+        /// Usado quando Tipo = "objetiva" ou "multipla".
+        /// IDs das opções escolhidas.
+        /// </summary>
+        public List<int>? Opcoes { get; set; }
+
+        /// <summary>
+        /// Opcional: anexos previamente enviados que se relacionam a essa resposta.
+        /// </summary>
+        public List<int>? AnexosIds { get; set; }
     }
 }

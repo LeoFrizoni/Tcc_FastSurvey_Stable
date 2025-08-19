@@ -1,25 +1,15 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plus,
-  User,
-  LogOut,
-  Info,
-  Search,
-  Filter,
-  ChevronRight,
-  Tag,
-  FolderPlus,
-  Folder,
-  FolderOpen,
-  X
+  Plus, User, LogOut, Info, Search, Filter, ChevronRight, Tag,
+  FolderPlus, Folder, FolderOpen, X
 } from 'lucide-react';
 import axios from 'axios';
 import styles from './home.module.css';
 
 const API_BASE = 'http://localhost:5062';
 
-/* ===================== Helpers fora do componente ===================== */
+/* ===================== Helpers ===================== */
 const readLocalMap = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -28,18 +18,17 @@ const readLocalMap = (key) => {
     return { pastas: [], vinculos: {} };
   }
 };
-
 const writeLocalMap = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
-/* ===================================================================== */
+/* =================================================== */
 
 const HomePage = () => {
   const navigate = useNavigate();
 
   // Dados
   const [pesquisas, setPesquisas] = useState([]);
-  const [pastas, setPastas] = useState([]); // {pastaId, nome}
+  const [pastas, setPastas] = useState([]); // [{ pastaId, nome }]
   const [loading, setLoading] = useState(true);
 
   // UI
@@ -52,8 +41,8 @@ const HomePage = () => {
 
   // Drag state
   const [draggingId, setDraggingId] = useState(null);
-  const [pastaHover, setPastaHover] = useState(null); // pasta atualmente “hover”
-  const [pastaPulse, setPastaPulse] = useState(null); // pasta que acabou de receber drop (efeito pulse)
+  const [pastaHover, setPastaHover] = useState(null);
+  const [pastaPulse, setPastaPulse] = useState(null);
 
   const dragOverPastaRef = useRef(null);
 
@@ -70,21 +59,15 @@ const HomePage = () => {
     [loginId]
   );
 
-  /* === Garante mapa local consistente com backend quando houver === */
-  const ensureLocalMapSync = useCallback(
-    (remotePastas) => {
-      const map = readLocalMap(MAP_STORAGE_KEY);
-      if (Array.isArray(remotePastas) && remotePastas.length) {
-        writeLocalMap(MAP_STORAGE_KEY, {
-          pastas: remotePastas,
-          vinculos: map.vinculos || {},
-        });
-      } else if (!map.pastas) {
-        writeLocalMap(MAP_STORAGE_KEY, { pastas: [], vinculos: {} });
-      }
-    },
-    [MAP_STORAGE_KEY]
-  );
+  const ensureLocalMapSync = useCallback((remotePastas) => {
+    const map = readLocalMap(MAP_STORAGE_KEY);
+    if (Array.isArray(remotePastas)) {
+      writeLocalMap(MAP_STORAGE_KEY, {
+        pastas: remotePastas,
+        vinculos: map.vinculos || {},
+      });
+    }
+  }, [MAP_STORAGE_KEY]);
 
   /* === Carregamento inicial === */
   useEffect(() => {
@@ -94,63 +77,81 @@ const HomePage = () => {
         return;
       }
       try {
-        const { data } = await axios.get(`${API_BASE}/api/pesquisas/usuario/${loginId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setPesquisas(Array.isArray(data) ? data : []);
+        // Pesquisas do usuário
+        const { data: pesquisasData } = await axios.get(
+          `${API_BASE}/api/pesquisas/usuario/${loginId}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setPesquisas(Array.isArray(pesquisasData) ? pesquisasData : []);
       } catch (err) {
         console.error('Erro ao buscar pesquisas:', err);
         setPesquisas([]);
       }
 
-  // Usar apenas o fallback localStorage para pastas (recurso visual)
-  const map = readLocalMap(MAP_STORAGE_KEY);
-  setPastas(map.pastas || []);
-  setLoading(false);
+      try {
+        // Pastas do usuário (API oficial)
+        const { data: pastasData } = await axios.get(
+          `${API_BASE}/api/pastas`,
+          { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
+        );
+        // API já devolve [{ pastaId, nome }]
+        setPastas(Array.isArray(pastasData) ? pastasData : []);
+        ensureLocalMapSync(Array.isArray(pastasData) ? pastasData : []);
+      } catch (err) {
+        console.warn('Falha ao carregar pastas do backend. Usando cache local.', err);
+        const map = readLocalMap(MAP_STORAGE_KEY);
+        setPastas(map.pastas || []);
+      } finally {
+        setLoading(false);
+      }
     };
     bootstrap();
   }, [loginId, token, navigate, ensureLocalMapSync, MAP_STORAGE_KEY]);
 
-  /* === Funções do Modal Nova Pasta === */
+  /* === Modal Nova Pasta === */
   const abrirModalPasta = () => {
     setNovoNomePasta('');
     setIsNovaPastaOpen(true);
   };
-
   useEffect(() => {
-    if (isNovaPastaOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isNovaPastaOpen && inputRef.current) inputRef.current.focus();
   }, [isNovaPastaOpen]);
 
-  // criarPastaConfirm agora é estável (useCallback)
   const criarPastaConfirm = useCallback(async () => {
     const nome = (novoNomePasta || '').trim();
     if (!nome) return;
 
     try {
+      // OBS: backend espera { nome, loginid }
       const { data } = await axios.post(
         `${API_BASE}/api/pastas`,
-        { usuarioId: loginId, nome },
+        { nome, loginid: loginId },
         { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const nova = data && data.pastaId ? data : { pastaId: crypto.randomUUID(), nome };
+      ); // retorna { pastaId, nome }
+
+      const nova = data;
       setPastas((prev) => [...prev, nova]);
 
       const map = readLocalMap(MAP_STORAGE_KEY);
-      writeLocalMap(MAP_STORAGE_KEY, { pastas: [...(map.pastas || []), nova], vinculos: map.vinculos || {} });
+      writeLocalMap(MAP_STORAGE_KEY, {
+        pastas: [...(map.pastas || []), nova],
+        vinculos: map.vinculos || {},
+      });
     } catch (err) {
-      const nova = { pastaId: crypto.randomUUID(), nome };
+      console.error('Falha ao criar pasta no backend. Caindo para cache local.', err);
+      const nova = { pastaId: crypto.randomUUID(), nome }; // fallback local
       setPastas((prev) => [...prev, nova]);
-
       const map = readLocalMap(MAP_STORAGE_KEY);
-      writeLocalMap(MAP_STORAGE_KEY, { pastas: [...(map.pastas || []), nova], vinculos: map.vinculos || {} });
+      writeLocalMap(MAP_STORAGE_KEY, {
+        pastas: [...(map.pastas || []), nova],
+        vinculos: map.vinculos || {},
+      });
     } finally {
       setIsNovaPastaOpen(false);
     }
   }, [novoNomePasta, loginId, token, MAP_STORAGE_KEY]);
 
-  // Atalhos: Enter cria, Esc fecha — depende de criarPastaConfirm
+  // Atalhos teclado no modal
   useEffect(() => {
     const onKey = (e) => {
       if (!isNovaPastaOpen) return;
@@ -161,7 +162,7 @@ const HomePage = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [isNovaPastaOpen, criarPastaConfirm]);
 
-  /* === Mover pesquisa para uma pasta === */
+  /* === Mover pesquisa para pasta === */
   const movePesquisaToPasta = async (pesquisaId, pastaIdOrSem) => {
     const destinoId = pastaIdOrSem === 'sem' ? null : pastaIdOrSem;
 
@@ -178,28 +179,25 @@ const HomePage = () => {
 
       const map = readLocalMap(MAP_STORAGE_KEY);
       const vinc = { ...(map.vinculos || {}) };
-      if (destinoId) vinc[pesquisaId] = destinoId;
-      else delete vinc[pesquisaId];
+      if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
       writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
     } catch (err) {
-      // Fallback local
+      // fallback local
       const map = readLocalMap(MAP_STORAGE_KEY);
       const vinc = { ...(map.vinculos || {}) };
-      if (destinoId) vinc[pesquisaId] = destinoId;
-      else delete vinc[pesquisaId];
+      if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
       writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
 
       setPesquisas((prev) =>
         prev.map((p) => (p.pesquisaid === pesquisaId ? { ...p, pastaId: destinoId } : p))
       );
     } finally {
-      // feedback visual no chip
       setPastaPulse(pastaIdOrSem);
       setTimeout(() => setPastaPulse(null), 900);
     }
   };
 
-  /* === Aplica vínculo de pasta (fallback quando API não traz pastaId) === */
+  /* === Aplica vínculo local quando API não traz pastaId === */
   const pesquisasComPastaVinculada = useMemo(() => {
     const map = readLocalMap(MAP_STORAGE_KEY);
     const vinc = map.vinculos || {};
@@ -209,7 +207,7 @@ const HomePage = () => {
     });
   }, [pesquisas, MAP_STORAGE_KEY]);
 
-  /* === Tipos disponíveis para filtro === */
+  /* === Filtros === */
   const tiposDisponiveis = useMemo(() => {
     const set = new Set(
       pesquisasComPastaVinculada
@@ -219,7 +217,6 @@ const HomePage = () => {
     return ['todos', ...Array.from(set)];
   }, [pesquisasComPastaVinculada]);
 
-  /* === Lista final filtrada / ordenada / por pasta === */
   const listaFiltrada = useMemo(() => {
     let base = [...pesquisasComPastaVinculada];
 
@@ -238,11 +235,9 @@ const HomePage = () => {
     }
 
     if (pastaSelecionada !== 'todas') {
-      if (pastaSelecionada === 'sem') {
-        base = base.filter((p) => !p.pastaId);
-      } else {
-        base = base.filter((p) => p.pastaId === pastaSelecionada);
-      }
+      base = pastaSelecionada === 'sem'
+        ? base.filter((p) => !p.pastaId)
+        : base.filter((p) => p.pastaId === pastaSelecionada);
     }
 
     if (ordenarPor === 'a-z') {
@@ -260,14 +255,13 @@ const HomePage = () => {
     return base;
   }, [pesquisasComPastaVinculada, query, filtroTipo, ordenarPor, pastaSelecionada]);
 
-  /* === Drag & Drop handlers === */
+  /* === Drag & Drop === */
   const onDragStart = (e, pesquisaId) => {
     e.dataTransfer.setData('text/plain', String(pesquisaId));
     setDraggingId(pesquisaId);
     e.currentTarget.classList.add(styles.cardDragging);
     document.body.classList.add(styles.draggingBody);
   };
-
   const onDragEnd = (e) => {
     setDraggingId(null);
     e.currentTarget.classList.remove(styles.cardDragging);
@@ -275,45 +269,18 @@ const HomePage = () => {
     setPastaHover(null);
     document.body.classList.remove(styles.draggingBody);
   };
+  const allowDrop = (e) => e.preventDefault();
+  const onPastaDragEnter = (key) => { dragOverPastaRef.current = key; setPastaHover(key); };
+  const onPastaDragLeave = (key) => { if (dragOverPastaRef.current === key) dragOverPastaRef.current = null; setPastaHover((prev) => (prev === key ? null : prev)); };
+  const onPastaDrop = (e, key) => { e.preventDefault(); const id = parseInt(e.dataTransfer.getData('text/plain')); if (!id) return; movePesquisaToPasta(id, key); dragOverPastaRef.current = null; setPastaHover(null); };
 
-  const allowDrop = (e) => {
-    e.preventDefault();
-  };
+  const labelPasta = useCallback((pastaId) => {
+    if (!pastaId) return 'Sem pasta';
+    const p = pastas.find((x) => x.pastaId === pastaId);
+    return p ? p.nome : 'Pasta';
+  }, [pastas]);
 
-  const onPastaDragEnter = (pastaKey) => {
-    dragOverPastaRef.current = pastaKey;
-    setPastaHover(pastaKey);
-  };
-
-  const onPastaDragLeave = (pastaKey) => {
-    if (dragOverPastaRef.current === pastaKey) {
-      dragOverPastaRef.current = null;
-    }
-    setPastaHover((prev) => (prev === pastaKey ? null : prev));
-  };
-
-  const onPastaDrop = (e, pastaKey) => {
-    e.preventDefault();
-    const pesquisaId = parseInt(e.dataTransfer.getData('text/plain'));
-    if (!pesquisaId) return;
-    movePesquisaToPasta(pesquisaId, pastaKey);
-    dragOverPastaRef.current = null;
-    setPastaHover(null);
-  };
-
-  const labelPasta = useCallback(
-    (pastaId) => {
-      if (!pastaId) return 'Sem pasta';
-      const p = pastas.find((x) => x.pastaId === pastaId);
-      return p ? p.nome : 'Pasta';
-    },
-    [pastas]
-  );
-
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
-  };
+  const handleLogout = () => { localStorage.clear(); navigate('/login'); };
 
   /* ============================== RENDER ============================== */
   return (
@@ -322,34 +289,17 @@ const HomePage = () => {
       <aside className={styles.sidebar}>
         <div className={styles.brand}>FastSurvey</div>
         <nav className={styles.nav}>
-          <button
-            type="button"
-            className={`${styles.navItem} ${styles.navWhite}`}
-            onClick={() => navigate('/perfil')}
-          >
+          <button type="button" className={`${styles.navItem} ${styles.navWhite}`} onClick={() => navigate('/perfil')}>
             <User size={18} /> <span>Perfil</span>
           </button>
-
-          <button
-            type="button"
-            className={`${styles.navItem} ${styles.navWhite}`}
-            onClick={() => navigate('/sobre-nos')}
-          >
+          <button type="button" className={`${styles.navItem} ${styles.navWhite}`} onClick={() => navigate('/sobre-nos')}>
             <Info size={18} /> <span>Sobre Nós</span>
           </button>
-
           <div className={styles.navSpacer} />
-
-          <button
-            type="button"
-            className={`${styles.navItem} ${styles.navWhite} ${styles.navDanger}`}
-            onClick={handleLogout}
-            aria-label="Sair"
-          >
+          <button type="button" className={`${styles.navItem} ${styles.navWhite} ${styles.navDanger}`} onClick={handleLogout} aria-label="Sair">
             <LogOut size={18} /> <span>Sair</span>
           </button>
         </nav>
-
         <footer className={styles.copy}>© {new Date().getFullYear()} FastSurvey</footer>
       </aside>
 
@@ -465,12 +415,8 @@ const HomePage = () => {
           ))}
         </section>
 
-        {/* Dica de arraste (aparece apenas quando arrastando) */}
-        {draggingId && (
-          <div className={styles.dragHint}>
-            Arraste e solte em uma pasta para organizar
-          </div>
-        )}
+        {/* Dica de arraste */}
+        {draggingId && <div className={styles.dragHint}>Arraste e solte em uma pasta para organizar</div>}
 
         {/* Grid */}
         <section className={styles.gridArea}>
@@ -500,8 +446,8 @@ const HomePage = () => {
                   draggable
                   onDragStart={(e) => onDragStart(e, p.pesquisaid)}
                   onDragEnd={onDragEnd}
-                  onClick={(e) => {
-                    if (draggingId) return; // Evita clique durante arraste
+                  onClick={() => {
+                    if (draggingId) return;
                     navigate(`/minhas-pesquisas/resultado/${p.pesquisaid}`);
                   }}
                 >
@@ -545,11 +491,7 @@ const HomePage = () => {
           >
             <div className={styles.modalHeader}>
               <h3 id="nova-pasta-title">Nova pasta</h3>
-              <button
-                aria-label="Fechar"
-                className={styles.iconBtn}
-                onClick={() => setIsNovaPastaOpen(false)}
-              >
+              <button aria-label="Fechar" className={styles.iconBtn} onClick={() => setIsNovaPastaOpen(false)}>
                 <X size={18} />
               </button>
             </div>

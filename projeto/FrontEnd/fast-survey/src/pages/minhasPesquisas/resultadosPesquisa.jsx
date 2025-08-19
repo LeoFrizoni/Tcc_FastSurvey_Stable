@@ -1,10 +1,5 @@
 import CabecalhoPesquisa from '../../components/layouts/CabecalhoPesquisa';
 import InformacoesPesquisa from '../../components/layouts/InformacoesPesquisa';
-// src/pages/resultados/resultadosPesquisa.jsx
-// Resultados (alinhado ao Criar/Preview)
-// Respeita estilo salvo no TemplateJson: { corFundo, corTexto, fonte, padding, largura, alinhamento, borda, sombra, bordaRadius }
-// e opcoes { opcaoid, texto }. Exibe imagens como miniaturas (se tiver previewUrl) ou chips com nome.
-// Inclui cabeçalho com Autor e Data.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -79,15 +74,15 @@ function buildBlocoInlineStyle(estilo) {
 
 function ActionsAside({ onResponder, onQrCode, onExportarPDF }) {
   return (
-    <aside className={styles.actionsPanel} aria-label="Ações">
+    <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       <h3 className={styles.actionsTitle}>Ações</h3>
-      <button className={styles.primaryBtn} type="button" onClick={onResponder} aria-label="Abrir modo Responder">
+      <button className={styles.primaryBtn} type="button" onClick={onResponder}>
         Responder pesquisa
       </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onQrCode} aria-label="Mostrar QR Code">
+      <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
         Mostrar QR Code
       </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF} aria-label="Exportar PDF">
+      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>
         Exportar PDF
       </button>
       <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
@@ -152,35 +147,51 @@ const ResultadosPesquisa = () => {
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
 
   async function exportarPDF() {
-    if (!pdfRef.current) return;
+    const node = pdfRef.current;
+    if (!node) return;
+
+    document.body.classList.add('pdf-export-mode');
     try {
-      const canvas = await html2canvas(pdfRef.current, {
-        scale: 2, backgroundColor: '#ffffff', useCORS: true, windowWidth: document.documentElement.scrollWidth
+      window.scrollTo(0, 0);
+
+      const canvas = await html2canvas(node, {
+        scale: 2,
+        backgroundColor: '#ffffff',
+        useCORS: true,
+        scrollY: -window.scrollY,
+        windowWidth: document.documentElement.scrollWidth
       });
+
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
       const pageW = pdf.internal.pageSize.getWidth();
       const pageH = pdf.internal.pageSize.getHeight();
       const margin = 10;
       const imgW = pageW - margin * 2;
       const imgH = (canvas.height * imgW) / canvas.width;
+
       let heightLeft = imgH;
       let position = margin;
 
       pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
       heightLeft -= pageH;
 
-      while (heightLeft > -pageH) {
+      while (heightLeft > 0) {
+        position = margin - (imgH - heightLeft);
         pdf.addPage();
-        position = heightLeft + margin;
         pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH);
         heightLeft -= pageH;
       }
 
-      const safeTitle = (pesquisa?.titulo || 'resultado-pesquisa').replace(/[\\/:*?"<>|]+/g, '').slice(0, 60);
+      const safeTitle = (pesquisa?.titulo || 'resultado-pesquisa')
+        .replace(/[\\/:*?"<>|]+/g, '')
+        .slice(0, 60);
       pdf.save(`${safeTitle}.pdf`);
     } catch {
       alert('Erro ao exportar PDF.');
+    } finally {
+      document.body.classList.remove('pdf-export-mode');
     }
   }
 
@@ -221,7 +232,6 @@ const ResultadosPesquisa = () => {
     );
   }
 
-  // ==== Autor & Data (com fallbacks)
   const autor =
     pesquisa?.login?.usuario ??
     pesquisa?.autor?.nome ??
@@ -242,64 +252,70 @@ const ResultadosPesquisa = () => {
     <>
       <TopNavbar />
       <main className={styles.page}>
-        <section ref={pdfRef} className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-          <CabecalhoPesquisa autor={autor} data={dataStr} />
-          <InformacoesPesquisa
-            titulo={pesquisa.titulo}
-            descricao={pesquisa.descricao}
-            tipoPesquisa={pesquisa.tipoPesquisa?.descricao || 'Indefinido'}
-          />
-        </section>
+        {/* GRID: coluna esquerda (conteúdo/PDF) + coluna direita (painel) */}
         <div className={styles.grid}>
-          <section className={styles.formArea} aria-label="Estrutura da pesquisa">
-            {blocos.length === 0 && (
-              <div className={styles.emptyBox}>
-                Nenhum bloco cadastrado nesta pesquisa.
-              </div>
-            )}
-            {blocos.map((bloco, index) => {
-              const { style: blocoInline } = buildBlocoInlineStyle(bloco?.estilo);
-              const tipo = normalizeTipo(bloco.tipo);
-              const key = bloco.perguntaid ?? bloco.id ?? index;
-              return (
-                <div key={key} className={styles.blockWrapper}>
-                  <article className={styles.block} style={blocoInline}>
-                    <div className={styles.blockHeader}>
-                      <span className={styles.qIndex} aria-hidden> {index + 1}. </span>
-                      <h4 className={styles.qText}>{bloco.texto}</h4>
-                    </div>
-                    <GaleriaResultados imagens={bloco.imagens} />
-                    {tipo === 'discursiva' && (
-                      <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
-                        Resposta do usuário...
+          {/* ===== Coluna esquerda — entra no PDF ===== */}
+          <section ref={pdfRef} className={styles.exportArea}>
+            <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
+              <CabecalhoPesquisa autor={autor} data={dataStr} />
+              <InformacoesPesquisa
+                titulo={pesquisa.titulo}
+                descricao={pesquisa.descricao}
+                tipoPesquisa={pesquisa.tipoPesquisa?.descricao || 'Indefinido'}
+              />
+            </section>
+
+            <section className={styles.formArea} aria-label="Estrutura da pesquisa">
+              {blocos.length === 0 && (
+                <div className={styles.emptyBox}>Nenhum bloco cadastrado nesta pesquisa.</div>
+              )}
+              {blocos.map((bloco, index) => {
+                const { style: blocoInline } = buildBlocoInlineStyle(bloco?.estilo);
+                const tipo = normalizeTipo(bloco.tipo);
+                const key = bloco.perguntaid ?? bloco.id ?? index;
+                return (
+                  <div key={key} className={`${styles.blockWrapper} ${styles.avoidBreak}`}>
+                    <article className={styles.block} style={blocoInline}>
+                      <div className={styles.blockHeader}>
+                        <span className={styles.qIndex} aria-hidden> {index + 1}. </span>
+                        <h4 className={styles.qText}>{bloco.texto}</h4>
                       </div>
-                    )}
-                    {(tipo === 'objetiva' || tipo === 'multipla') && Array.isArray(bloco.opcoes) && (
-                      <ul className={styles.optionsList}>
-                        {bloco.opcoes.map((op, i) => {
-                          const label = (op && typeof op === 'object') ? (op.texto ?? String(i + 1)) : String(op);
-                          return (
-                            <li key={op?.opcaoid ?? i} className={styles.optionChip}>
-                              {label}
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    )}
-                    {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
-                      <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
-                    )}
-                  </article>
-                </div>
-              );
-            })}
+                      <GaleriaResultados imagens={bloco.imagens} />
+                      {tipo === 'discursiva' && (
+                        <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
+                          Resposta do usuário...
+                        </div>
+                      )}
+                      {(tipo === 'objetiva' || tipo === 'multipla') && Array.isArray(bloco.opcoes) && (
+                        <ul className={styles.optionsList}>
+                          {bloco.opcoes.map((op, i) => {
+                            const label = (op && typeof op === 'object') ? (op.texto ?? String(i + 1)) : String(op);
+                            return (
+                              <li key={op?.opcaoid ?? i} className={styles.optionChip}>
+                                {label}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
+                        <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
+                      )}
+                    </article>
+                  </div>
+                );
+              })}
+            </section>
           </section>
+
+          {/* ===== Coluna direita — fora do PDF ===== */}
           <ActionsAside
             onResponder={() => navigate(`/responder/${id}`)}
             onQrCode={() => setMostrarModalQr(true)}
             onExportarPDF={exportarPDF}
           />
         </div>
+
         <ModalQRCode
           isOpen={mostrarModalQr}
           onClose={() => setMostrarModalQr(false)}

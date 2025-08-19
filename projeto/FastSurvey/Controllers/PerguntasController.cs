@@ -1,260 +1,174 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿// FASTSURVEY/Controllers/PerguntasController.cs
+using FASTSURVEY.Models;
+using FASTSURVEY.Models.DTO;
+using FASTSURVEY.Services;
+using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Collections.Generic;
-
-using SISTEMA_FASTSURVEY.MODEL.Models;        // entidades (perguntas, opcoespergunta)
-using SISTEMA_FASTSURVEY.MODEL.Repositories;  // repositórios EF (RepositoryPerguntas, RepositoryOpcoesPergunta)
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace FASTSURVEY.Controllers
 {
-    // DTO inline (pode mover para FASTSURVEY.Models/DTOs/DefinirGabaritoDto.cs se preferir)
-    public class DefinirGabaritoDto
-    {
-        public bool TemGabarito { get; set; }
-        public bool PermiteMultiplaSelecao { get; set; }
-        public int[] OpcoesCorretas { get; set; } = Array.Empty<int>(); // lista de opcaoid
-    }
-
-    [Route("api/[controller]")]
+    [Route("api")]
     [ApiController]
+    [Produces("application/json")]
     public class PerguntasController : ControllerBase
     {
-        private readonly FastSurveyContext _context;
-        private readonly RepositoryPerguntas _repoPerguntas;
-        private readonly RepositoryOpcoesPergunta _repoOpcoes;
+        private readonly ServicePerguntas _svcPerguntas;
 
-        public PerguntasController(FastSurveyContext context)
+        public PerguntasController(ServicePerguntas svcPerguntas)
         {
-            _context = context;
-            _repoPerguntas = new RepositoryPerguntas(_context, true);
-            _repoOpcoes = new RepositoryOpcoesPergunta(_context, true);
+            _svcPerguntas = svcPerguntas;
         }
 
-        // --------------------------------------------------------------------
-        // CRUD BÁSICO
-        // --------------------------------------------------------------------
-
-        /// <summary>Cadastra uma pergunta.</summary>
-        [HttpPost]
-        public async Task<IActionResult> Post([FromBody] perguntas body)
+        // GET: api/pesquisas/{pesquisaId}/perguntas
+        [HttpGet("pesquisas/{pesquisaId:int}/perguntas")]
+        public async Task<IActionResult> ListarPorPesquisa(int pesquisaId, CancellationToken ct)
         {
-            if (body == null ||
-                body.pesquisaid <= 0 ||
-                body.tipoperguntaid <= 0 ||
-                string.IsNullOrWhiteSpace(body.texto))
-            {
-                return BadRequest("Dados inválidos para pergunta.");
-            }
-
-            try
-            {
-                // Defaults defensivos (banco já tem default, mas garantimos)
-                body.temgabarito = body.temgabarito;
-                body.permitemultiplaselecao = body.permitemultiplaselecao;
-
-                var criado = await _repoPerguntas.IncluirAsync(body);
-                return CreatedAtAction(nameof(GetPorId), new { id = criado.perguntaid }, criado);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao salvar pergunta: {ex.Message}");
-            }
+            var list = await _svcPerguntas.ListarPorPesquisaAsync(pesquisaId, ct);
+            if (list == null || list.Count == 0) return NotFound("Nenhuma pergunta encontrada para a pesquisa.");
+            return Ok(list);
         }
 
-        /// <summary>Lista perguntas de uma pesquisa.</summary>
-        [HttpGet("Pesquisa/{pesquisaId}")]
-        public async Task<IActionResult> GetPorPesquisa(int pesquisaId)
+        // GET: api/perguntas/{id}
+        [HttpGet("perguntas/{id:int}")]
+        public async Task<IActionResult> BuscarPorId(int id, CancellationToken ct)
         {
-            if (pesquisaId <= 0) return BadRequest("ID de pesquisa inválido.");
-
-            try
-            {
-                var lista = (await _repoPerguntas.SelecionarTodosAsync())
-                    .Where(p => p.pesquisaid == pesquisaId)
-                    .ToList();
-
-                return Ok(lista);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao listar perguntas: {ex.Message}");
-            }
+            var p = await _svcPerguntas.BuscarPerguntaPorIdAsync(id, ct);
+            if (p == null) return NotFound("Pergunta não encontrada.");
+            return Ok(p);
         }
 
-        /// <summary>Obtém uma pergunta pelo ID.</summary>
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetPorId(int id)
+        // POST: api/pesquisas/{pesquisaId}/perguntas/discursiva
+        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/discursiva")]
+        public async Task<IActionResult> CriarDiscursiva(int pesquisaId, [FromBody] PerguntaDiscursivaDto dto, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
             try
             {
-                var pergunta = await _repoPerguntas.SelecionarChaveAsync(id);
-                if (pergunta == null) return NotFound("Pergunta não encontrada.");
-
-                return Ok(pergunta);
+                var p = await _svcPerguntas.CadastrarDiscursivaAsync(pesquisaId, dto, ct);
+                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao buscar pergunta: {ex.Message}");
-            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
         }
 
-        /// <summary>Atualiza campos da pergunta (texto, tipo, flags).</summary>
-        [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, [FromBody] perguntas body)
+        // POST: api/pesquisas/{pesquisaId}/perguntas/objetiva
+        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/objetiva")]
+        public async Task<IActionResult> CriarObjetiva(int pesquisaId, [FromBody] PerguntaObjetivaDto dto, CancellationToken ct)
         {
-            if (id <= 0 || body == null || id != body.perguntaid)
-                return BadRequest("Dados inválidos para atualização.");
-
             try
             {
-                var existente = await _repoPerguntas.SelecionarChaveAsync(id);
-                if (existente == null) return NotFound("Pergunta não encontrada.");
+                var p = await _svcPerguntas.CadastrarObjetivaAsync(pesquisaId, dto, ct);
+                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
+            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
+        }
 
-                // Atualiza campos principais
-                if (body.tipoperguntaid > 0) existente.tipoperguntaid = body.tipoperguntaid;
-                if (!string.IsNullOrWhiteSpace(body.texto)) existente.texto = body.texto;
+        // POST: api/pesquisas/{pesquisaId}/perguntas/multipla
+        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/multipla")]
+        public async Task<IActionResult> CriarMultipla(int pesquisaId, [FromBody] PerguntaMultiplaEscolhaDto dto, CancellationToken ct)
+        {
+            try
+            {
+                var p = await _svcPerguntas.CadastrarMultiplaAsync(pesquisaId, dto, ct);
+                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
+            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
+        }
 
-                // Flags de gabarito
-                existente.temgabarito = body.temgabarito;
-                existente.permitemultiplaselecao = body.permitemultiplaselecao;
+        // PUT: api/perguntas/{id}
+        // (atualiza campos simples da pergunta — texto, flags; use endpoints de gabarito/opções para o resto)
+        [HttpPut("perguntas/{id:int}")]
+        public async Task<IActionResult> AtualizarPergunta(int id, [FromBody] PerguntaRecriarDto dto, CancellationToken ct)
+        {
+            try
+            {
+                var atual = await _svcPerguntas.BuscarPerguntaPorIdAsync(id, ct);
+                if (atual == null) return NotFound("Pergunta não encontrada.");
 
-                await _repoPerguntas.AlterarAsync(existente);
+                if (!string.IsNullOrWhiteSpace(dto.Titulo)) atual.texto = dto.Titulo.Trim();
+                if (dto.TemGabarito.HasValue) atual.temgabarito = dto.TemGabarito.Value;
+                if (dto.PermitirMultiplaSelecao.HasValue) atual.permitemultiplaselecao = dto.PermitirMultiplaSelecao.Value;
 
-                // Observação: definição das opções corretas é feita no endpoint específico (gabarito)
+                var updated = await _svcPerguntas.AtualizarPerguntaAsync(atual, ct);
+                return Ok(updated);
+            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
+        }
+
+        // PUT: api/perguntas/{id}/opcoes
+        // Body: array de { texto, correta } — substitui todas as opções
+        [HttpPut("perguntas/{id:int}/opcoes")]
+        public async Task<IActionResult> RecriarOpcoes(int id, [FromBody] List<OpcaoRecriarDto> novas, CancellationToken ct)
+        {
+            try
+            {
+                var tuples = (novas ?? new List<OpcaoRecriarDto>())
+                    .Select(x => (x.Texto, x.Correta));
+                await _svcPerguntas.RecriarOpcoesAsync(id, tuples, ct);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao atualizar pergunta: {ex.Message}");
-            }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
         }
 
-        /// <summary>Exclui uma pergunta.</summary>
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        // PUT: api/perguntas/{id}/gabarito/objetiva?corretaIndex=0
+        [HttpPut("perguntas/{id:int}/gabarito/objetiva")]
+        public async Task<IActionResult> DefinirGabaritoObjetiva(int id, [FromQuery] int? corretaIndex, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
             try
             {
-                var pergunta = await _repoPerguntas.SelecionarChaveAsync(id);
-                if (pergunta == null) return NotFound("Pergunta não encontrada.");
-
-                await _repoPerguntas.ExcluirAsync(pergunta);
+                await _svcPerguntas.AtualizarGabaritoObjetivaAsync(id, corretaIndex, ct);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao excluir pergunta: {ex.Message}");
-            }
+            catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
         }
 
-        // --------------------------------------------------------------------
-        // ENDPOINTS COMPLEMENTARES (detalhe, gabarito)
-        // --------------------------------------------------------------------
-
-        /// <summary>
-        /// Retorna a pergunta com as opções (inclui flag 'correta' de cada opção).
-        /// Útil para Preview/Responder.
-        /// </summary>
-        [HttpGet("{id}/detalhe")]
-        public async Task<IActionResult> GetDetalhe(int id)
+        // PUT: api/perguntas/{id}/gabarito/multipla
+        // Body: array de índices corretos (int[])
+        [HttpPut("perguntas/{id:int}/gabarito/multipla")]
+        public async Task<IActionResult> DefinirGabaritoMultipla(int id, [FromBody] int[] corretasIdx, CancellationToken ct)
         {
-            if (id <= 0) return BadRequest("ID inválido.");
-
             try
             {
-                var p = await _repoPerguntas.SelecionarChaveAsync(id);
-                if (p == null) return NotFound("Pergunta não encontrada.");
-
-                var opcoes = (await _repoOpcoes.SelecionarTodosAsync())
-                    .Where(o => o.perguntaid == id)
-                    .Select(o => new
-                    {
-                        o.opcaoid,
-                        o.texto,
-                        o.correta
-                    })
-                    .ToList();
-
-                return Ok(new
-                {
-                    p.perguntaid,
-                    p.pesquisaid,
-                    p.tipoperguntaid,
-                    p.texto,
-                    p.temgabarito,
-                    p.permitemultiplaselecao,
-                    opcoes
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao montar detalhe: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Define/atualiza o gabarito de uma pergunta (em lote) e mantém consistência:
-        /// - Se TemGabarito = false → zera todas as corretas.
-        /// - Se !PermiteMultiplaSelecao → exige exatamente 1 correta.
-        /// - Se PermiteMultiplaSelecao → permite 0..N corretas.
-        /// </summary>
-        [HttpPut("{perguntaId}/gabarito")]
-        public async Task<IActionResult> DefinirGabarito(int perguntaId, [FromBody] DefinirGabaritoDto dto)
-        {
-            if (perguntaId <= 0) return BadRequest("ID de pergunta inválido.");
-            if (dto == null) return BadRequest("Payload inválido.");
-
-            try
-            {
-                var pergunta = await _repoPerguntas.SelecionarChaveAsync(perguntaId);
-                if (pergunta == null) return NotFound("Pergunta não encontrada.");
-
-                // Atualiza flags da pergunta
-                pergunta.temgabarito = dto.TemGabarito;
-                pergunta.permitemultiplaselecao = dto.PermiteMultiplaSelecao;
-                await _repoPerguntas.AlterarAsync(pergunta);
-
-                // Carrega opções da pergunta
-                var opcoes = (await _repoOpcoes.SelecionarTodosAsync())
-                    .Where(o => o.perguntaid == perguntaId)
-                    .ToList();
-
-                if (!dto.TemGabarito)
-                {
-                    // Não há gabarito → zera todas as corretas
-                    foreach (var o in opcoes) o.correta = false;
-                    foreach (var o in opcoes) await _repoOpcoes.AlterarAsync(o);
-                    return NoContent();
-                }
-
-                // Com gabarito → validação
-                var setCorretas = dto.OpcoesCorretas?.ToHashSet() ?? new HashSet<int>();
-
-                if (!dto.PermiteMultiplaSelecao)
-                {
-                    if (setCorretas.Count != 1)
-                        return BadRequest("Para esta pergunta, deve haver exatamente 1 opção correta.");
-                }
-
-                // Aplica flags
-                foreach (var o in opcoes)
-                {
-                    o.correta = setCorretas.Contains(o.opcaoid);
-                    await _repoOpcoes.AlterarAsync(o);
-                }
-
+                await _svcPerguntas.AtualizarGabaritoMultiplaAsync(id, corretasIdx ?? Array.Empty<int>(), ct);
                 return NoContent();
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao definir gabarito: {ex.Message}");
-            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+            catch (Exception ex) { return Problem(ex.Message); }
         }
+
+        // DELETE: api/perguntas/{id}
+        [HttpDelete("perguntas/{id:int}")]
+        public async Task<IActionResult> Excluir(int id, CancellationToken ct)
+        {
+            try
+            {
+                await _svcPerguntas.ExcluirPerguntaAsync(id, ct);
+                return NoContent();
+            }
+            catch (Exception ex) { return Problem(ex.Message); }
+        }
+    }
+
+    // DTOs auxiliares do controller
+    public class PerguntaRecriarDto
+    {
+        public string? Titulo { get; set; }
+        public bool? TemGabarito { get; set; }
+        public bool? PermitirMultiplaSelecao { get; set; }
+    }
+
+    public class OpcaoRecriarDto
+    {
+        public string Texto { get; set; } = "";
+        public bool Correta { get; set; }
     }
 }

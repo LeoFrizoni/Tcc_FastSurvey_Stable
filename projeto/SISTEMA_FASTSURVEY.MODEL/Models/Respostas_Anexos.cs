@@ -1,5 +1,6 @@
 ﻿namespace SISTEMA_FASTSURVEY.MODEL.Models
 {
+    using System.ComponentModel.DataAnnotations.Schema;
     public partial class respostas_anexos
     {
         public int respostaid { get; set; }

@@ -2,14 +2,26 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { formatDate } from '../../helpers/formatDate';
 
-const SurveyCard = ({ survey }) => {
+const SurveyCard = ({ survey = {} }) => {
+  const id = survey.id ?? survey.pesquisaId ?? survey.PesquisaId;
+  const titulo = survey.titulo || "Sem título";
+  const data = survey.dataCriacao || survey.criadoEm || survey.createdAt || null;
+
   return (
-    <div style={cardStyle}>
-      <h3>{survey.titulo}</h3>
-      <p>Criada em: {formatDate(survey.dataCriacao)}</p>
+    <div style={cardStyle} aria-label={`Card da pesquisa ${titulo}`}>
+      <h3 style={{ marginTop: 0 }}>{titulo}</h3>
+      <p>Criada em: {data ? formatDate(data) : "—"}</p>
+
       <div style={{ marginTop: '10px' }}>
-        <Link to={`/minhas-pesquisas/${survey.id}`} style={linkStyle}>Ver Resultados</Link> |{' '}
-        <Link to={`/minhas-pesquisas/${survey.id}/editar`} style={linkStyle}>Editar</Link>
+        {id != null ? (
+          <>
+            <Link to={`/minhas-pesquisas/${id}`} style={linkStyle}>Ver Resultados</Link>
+            {' '}|{' '}
+            <Link to={`/minhas-pesquisas/${id}/editar`} style={linkStyle}>Editar</Link>
+          </>
+        ) : (
+          <span style={{ color: '#999' }}>ID não disponível</span>
+        )}
       </div>
     </div>
   );

@@ -30,6 +30,4 @@ public partial class anexos
     public virtual pesquisas pesquisa { get; set; }
 
     public virtual ICollection<respostas> resposta { get; set; } = new List<respostas>();
-
-    public virtual ICollection<respostas_anexos> respostas_anexos { get; set; } = new List<respostas_anexos>();
 }

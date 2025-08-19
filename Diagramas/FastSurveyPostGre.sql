@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS public.opcoespergunta
     CONSTRAINT opcoespergunta_pkey PRIMARY KEY (opcaoid)
 );
 
+CREATE TABLE IF NOT EXISTS public.pastas
+(
+    pastaid serial NOT NULL,
+    nome character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    loginid integer,
+    CONSTRAINT pastas_pkey PRIMARY KEY (pastaid)
+);
+
 CREATE TABLE IF NOT EXISTS public.perguntas
 (
     perguntaid serial NOT NULL,
@@ -57,6 +65,9 @@ CREATE TABLE IF NOT EXISTS public.pesquisas
     titulo character varying(100) COLLATE pg_catalog."default" NOT NULL,
     descricao character varying(500) COLLATE pg_catalog."default" NOT NULL,
     "TemplateJson" text COLLATE pg_catalog."default",
+    pastaid integer,
+    datacriacao timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dataatualizacao timestamp without time zone,
     CONSTRAINT pesquisas_pkey PRIMARY KEY (pesquisaid)
 );
 
@@ -145,6 +156,13 @@ CREATE INDEX IF NOT EXISTS idx_opcoespergunta_perguntaid
     ON public.opcoespergunta(perguntaid);
 
 
+ALTER TABLE IF EXISTS public.pastas
+    ADD CONSTRAINT fk_pastas_loginid FOREIGN KEY (loginid)
+    REFERENCES public.login (loginid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+
+
 ALTER TABLE IF EXISTS public.perguntas
     ADD CONSTRAINT perguntas_pesquisaid_fkey FOREIGN KEY (pesquisaid)
     REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
@@ -164,6 +182,13 @@ ALTER TABLE IF EXISTS public.pesquisas
     REFERENCES public.login (loginid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+
+
+ALTER TABLE IF EXISTS public.pesquisas
+    ADD CONSTRAINT pesquisas_pastaid_fkey FOREIGN KEY (pastaid)
+    REFERENCES public.pastas (pastaid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE SET NULL;
 
 
 ALTER TABLE IF EXISTS public.pesquisas

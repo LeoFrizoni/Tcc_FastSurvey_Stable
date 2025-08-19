@@ -27,6 +27,10 @@
          "ObjectType": 0
       },
       {
+         "Name": "public.pastas",
+         "ObjectType": 0
+      },
+      {
          "Name": "public.perguntas",
          "ObjectType": 0
       },

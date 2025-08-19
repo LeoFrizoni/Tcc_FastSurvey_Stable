@@ -33,6 +33,39 @@ html, body { height: 100%; }
   padding: 20px clamp(14px, 3vw, 28px) 40px;
 }
 
+/* ===================== */
+/* ÁREA CAPTURADA NO PDF */
+/* ===================== */
+.exportArea{
+  background: #fff;
+  padding: 12mm;                 /* “sangria” simpática no PDF */
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+}
+
+/* evita que um card quebre entre páginas */
+.avoidBreak{
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* elementos marcados como fora do PDF */
+.noPrint{}
+
+/* durante a exportação escondemos o que não deve ir pro PDF
+   e também removemos sombras/efeitos que “sujam” a captura */
+.pdf-export-mode .noPrint,
+.pdf-export-mode .btn-pdf-hide,
+.pdf-export-mode .hide-pdf{
+  display: none !important;
+}
+.pdf-export-mode *{
+  box-shadow: none !important;
+  filter: none !important;
+  transition: none !important;
+  animation: none !important;
+}
+
 .header{ margin: 8px 0 12px; }
 .headerCard{
   background: linear-gradient(180deg, #f5f7ff 0%, #eef2ff 100%);
@@ -218,4 +251,16 @@ html, body { height: 100%; }
   border-radius: 8px;
   font-size: 12px;
   background: #fafafa;
+}
+
+.metaInfo{
+  margin-top: 6px;
+  font-size: .9rem;
+  color: var(--muted);
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.metaInfo span{
+  display: inline-block;
 }

@@ -1,10 +1,34 @@
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import "../perguntas/pergunta.css";
 
-const CabecalhoPesquisa = ({ autor, data, selecionado, style, onClick }) => {
+function formatarDataBR(data) {
+  if (!data) return "—";
+  try {
+    const d = typeof data === "string" || typeof data === "number" ? new Date(data) : data;
+    if (Number.isNaN(d?.getTime?.())) return "—";
+    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(d);
+  } catch {
+    return "—";
+  }
+}
+
+const CabecalhoPesquisa = ({ autor, data, selecionado, style, onClick, "data-testid": testid }) => {
+  const dataFmt = useMemo(() => formatarDataBR(data), [data]);
+
+  const handleKeyDown = useCallback((e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick?.();
+    }
+  }, [onClick]);
+
   return (
     <div
       className={`bloco-pergunta${selecionado ? " selecionado" : ""}`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={!!selecionado}
+      data-testid={testid}
       style={{
         background: "linear-gradient(90deg, #f8f9fd 0%, #eef2fa 100%)",
         border: "1.5px solid #e0e7ef",
@@ -13,24 +37,32 @@ const CabecalhoPesquisa = ({ autor, data, selecionado, style, onClick }) => {
         marginBottom: "2rem",
         padding: "1.8rem 2.2rem",
         fontFamily: "'Segoe UI', 'Inter', Arial, sans-serif",
+        outline: "none",
         ...style
       }}
-      onClick={e => {
+      onClick={(e) => {
         e.stopPropagation();
-        if (onClick) onClick();
+        onClick?.();
       }}
+      onKeyDown={handleKeyDown}
     >
-      <div className="cabecalho-pergunta" style={{display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.1rem"}}>
-        <h4 style={{ margin: 0, fontWeight: 700, color: "#2d3875", fontSize: "1.25rem", letterSpacing: "0.5px" }}>Cabeçalho da Pesquisa</h4>
+      <div
+        className="cabecalho-pergunta"
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.1rem" }}
+      >
+        <h4 style={{ margin: 0, fontWeight: 700, color: "#2d3875", fontSize: "1.25rem", letterSpacing: "0.5px" }}>
+          Cabeçalho da Pesquisa
+        </h4>
       </div>
+
       <div style={{ display: "flex", gap: "3rem", flexWrap: "wrap" }}>
         <div style={{ minWidth: 180 }}>
           <span style={{ fontWeight: 600, color: "#3a3a3a", marginRight: 8, fontSize: "1.05rem" }}>Autor:</span>
-          <span style={{ color: "#6c63ff", fontWeight: 500, fontSize: "1.05rem" }}>{autor}</span>
+          <span style={{ color: "#6c63ff", fontWeight: 500, fontSize: "1.05rem" }}>{autor || "—"}</span>
         </div>
         <div style={{ minWidth: 180 }}>
           <span style={{ fontWeight: 600, color: "#3a3a3a", marginRight: 8, fontSize: "1.05rem" }}>Data de criação:</span>
-          <span style={{ color: "#6c63ff", fontWeight: 500, fontSize: "1.05rem" }}>{data}</span>
+          <span style={{ color: "#6c63ff", fontWeight: 500, fontSize: "1.05rem" }}>{dataFmt}</span>
         </div>
       </div>
     </div>

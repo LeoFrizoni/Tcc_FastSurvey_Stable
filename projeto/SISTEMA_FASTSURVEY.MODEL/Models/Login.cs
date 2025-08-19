@@ -21,6 +21,8 @@ public partial class login
 
     public string tipousuariotexto { get; set; }
 
+    public virtual ICollection<pastas> pastas { get; set; } = new List<pastas>();
+
     public virtual ICollection<pesquisas> pesquisas { get; set; } = new List<pesquisas>();
 
     public virtual tipousuario tipousuario { get; set; }

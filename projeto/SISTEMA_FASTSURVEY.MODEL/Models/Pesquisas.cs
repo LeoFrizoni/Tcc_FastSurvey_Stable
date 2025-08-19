@@ -19,9 +19,17 @@ public partial class pesquisas
 
     public string TemplateJson { get; set; }
 
+    public int? pastaid { get; set; }
+
+    public DateTime datacriacao { get; set; }
+
+    public DateTime? dataatualizacao { get; set; }
+
     public virtual ICollection<anexos> anexos { get; set; } = new List<anexos>();
 
     public virtual login login { get; set; }
+
+    public virtual pastas pasta { get; set; }
 
     public virtual ICollection<perguntas> perguntas { get; set; } = new List<perguntas>();
 

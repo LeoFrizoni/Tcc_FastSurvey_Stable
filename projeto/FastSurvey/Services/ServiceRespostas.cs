@@ -1,11 +1,12 @@
-﻿using FASTSURVEY.Models.DTO;
+﻿// FASTSURVEY/Services/ServiceRespostas.cs
+using FASTSURVEY.Models.DTO;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FASTSURVEY.Services
@@ -15,7 +16,7 @@ namespace FASTSURVEY.Services
         private readonly FastSurveyContext _context;
         private readonly RepositoryRespostas _repoRespostas;
 
-        // IDs canônicos de tipo de pergunta (ajuste se a sua base for diferente)
+        // IDs canônicos (ajuste se necessário)
         private const int TipoDiscursiva = 1;
         private const int TipoObjetiva = 2;
         private const int TipoMultipla = 3;
@@ -26,198 +27,214 @@ namespace FASTSURVEY.Services
             _repoRespostas = repositoryRespostas;
         }
 
-        // ===== CRUD “básico” (mantidos) =====
-        public async Task<List<respostas>> ListarTodasRespostasAsync()
-            => await _repoRespostas.SelecionarTodosAsync();
+        // ===== CRUD básico =====
+        public async Task<List<respostas>> ListarTodasRespostasAsync(CancellationToken ct = default)
+            => await _context.respostas.AsNoTracking().OrderBy(r => r.respostaid).ToListAsync(ct);
 
-        public async Task<respostas> ObterRespostaPorIdAsync(int id)
-            => await _repoRespostas.SelecionarChaveAsync(id);
+        public async Task<respostas?> ObterRespostaPorIdAsync(int id, CancellationToken ct = default)
+            => await _context.respostas.AsNoTracking().FirstOrDefaultAsync(r => r.respostaid == id, ct);
 
-        public async Task<respostas> CadastrarRespostaAsync(respostas resposta)
+        public async Task<respostas> CadastrarRespostaAsync(respostas resposta, CancellationToken ct = default)
         {
-            if (resposta == null)
-                throw new ArgumentNullException(nameof(resposta), "Resposta não pode ser nula.");
-
-            return await _repoRespostas.IncluirAsync(resposta);
+            if (resposta == null) throw new ArgumentNullException(nameof(resposta), "Resposta não pode ser nula.");
+            _context.respostas.Add(resposta);
+            await _context.SaveChangesAsync(ct);
+            return resposta;
         }
 
-        public async Task<respostas> AtualizarRespostaAsync(respostas resposta)
+        public async Task<respostas> AtualizarRespostaAsync(respostas resposta, CancellationToken ct = default)
         {
-            if (resposta == null)
-                throw new ArgumentNullException(nameof(resposta), "Resposta não pode ser nula.");
-
-            var existente = await _repoRespostas.SelecionarChaveAsync(resposta.respostaid);
-            if (existente == null)
-                throw new KeyNotFoundException($"Resposta com ID {resposta.respostaid} não encontrada.");
-
-            return await _repoRespostas.AlterarAsync(resposta);
+            if (resposta == null) throw new ArgumentNullException(nameof(resposta), "Resposta não pode ser nula.");
+            var existente = await _context.respostas.FindAsync(new object[] { resposta.respostaid }, ct);
+            if (existente == null) throw new KeyNotFoundException($"Resposta {resposta.respostaid} não encontrada.");
+            _context.Entry(existente).CurrentValues.SetValues(resposta);
+            await _context.SaveChangesAsync(ct);
+            return resposta;
         }
 
-        public async Task<bool> ExcluirRespostaAsync(int id)
+        public async Task<bool> ExcluirRespostaAsync(int id, CancellationToken ct = default)
         {
-            var resposta = await _repoRespostas.SelecionarChaveAsync(id);
-            if (resposta == null)
-                throw new KeyNotFoundException($"Resposta com ID {id} não encontrada.");
+            var resposta = await _context.respostas.FindAsync(new object[] { id }, ct);
+            if (resposta == null) throw new KeyNotFoundException($"Resposta {id} não encontrada.");
 
-            await _repoRespostas.ExcluirAsync(resposta);
+            // Limpa vínculos primeiro (se não houver cascade)
+            var vincs = await _context.respostas_opcoes.Where(v => v.respostaid == id).ToListAsync(ct);
+            if (vincs.Count > 0) _context.respostas_opcoes.RemoveRange(vincs);
+
+            _context.respostas.Remove(resposta);
+            await _context.SaveChangesAsync(ct);
             return true;
         }
 
-        // ======= NOVO: gravação em lote a partir do RespostaVM =======
+        // ===== Gravação em LOTE (RespostasLoteVM) =====
 
         /// <summary>
-        /// Recebe um RespostaVM com as respostas do usuário para uma pesquisa
-        /// e grava tudo de forma consistente (respostas + vínculos com opções).
+        /// Grava todas as respostas de uma pesquisa (discursivas/objetivas/múltiplas) de forma transacional.
+        /// Valida: pergunta pertence à pesquisa, opções pertencem à pergunta e cardinalidade por tipo.
         /// </summary>
-        public async Task GravarLoteAsync(RespostaVM vm)
+        public async Task<GravarLoteResultado> GravarLoteAsync(RespostasLoteVM vm, CancellationToken ct = default)
         {
             if (vm == null) throw new ArgumentNullException(nameof(vm));
             if (vm.PesquisaId <= 0) throw new ArgumentException("PesquisaId inválido.");
-            if (vm.Respostas == null || vm.Respostas.Count == 0) return;
+            if (vm.Itens == null || vm.Itens.Count == 0)
+                return new GravarLoteResultado { Inseridas = 0, VinculosCriados = 0 };
 
-            using var tx = await _context.Database.BeginTransactionAsync();
+            // Carrega perguntas e metadados necessários da pesquisa
+            var perguntasMeta = await _context.perguntas
+                .AsNoTracking()
+                .Where(p => p.pesquisaid == vm.PesquisaId)
+                .Select(p => new
+                {
+                    p.perguntaid,
+                    p.tipoperguntaid,
+                    p.permitemultiplaselecao
+                })
+                .ToDictionaryAsync(p => p.perguntaid, p => (tipo: p.tipoperguntaid, multipla: p.permitemultiplaselecao), ct);
+
+            if (perguntasMeta.Count == 0)
+                throw new InvalidOperationException($"Pesquisa {vm.PesquisaId} não possui perguntas.");
+
+            // Pré-carrega opções por pergunta para validar pertencimento
+            var opcoesPorPergunta = await _context.opcoespergunta
+                .AsNoTracking()
+                .Where(o => perguntasMeta.Keys.Contains(o.perguntaid))
+                .GroupBy(o => o.perguntaid)
+                .Select(g => new
+                {
+                    PerguntaId = g.Key,
+                    Opcoes = g.Select(o => o.opcaoid).ToHashSet()
+                })
+                .ToDictionaryAsync(x => x.PerguntaId, x => x.Opcoes, ct);
+
+            using var tx = await _context.Database.BeginTransactionAsync(ct);
 
             try
             {
-                // Carrega perguntas da pesquisa (id + tipo)
-                var perguntas = await _context.perguntas
-                    .AsNoTracking()
-                    .Where(p => p.pesquisaid == vm.PesquisaId)
-                    .Select(p => new { p.perguntaid, p.tipoperguntaid })
-                    .ToDictionaryAsync(p => p.perguntaid, p => p.tipoperguntaid);
+                var novasRespostas = new List<respostas>();
+                var pendentesVinculo = new List<(respostas Resp, List<int> OpcaoIds)>(); // para objetiva/múltipla
 
-                foreach (var item in vm.Respostas)
+                foreach (var item in vm.Itens)
                 {
-                    if (string.IsNullOrWhiteSpace(item.Pergunta))
-                        continue;
+                    var perguntaId = item.PerguntaId;
 
-                    if (!int.TryParse(item.Pergunta, out var perguntaId))
-                        throw new ArgumentException($"Pergunta '{item.Pergunta}' não é um ID válido.");
-
-                    if (!perguntas.TryGetValue(perguntaId, out var tipo))
+                    if (!perguntasMeta.TryGetValue(perguntaId, out var meta))
                         throw new KeyNotFoundException($"Pergunta {perguntaId} não pertence à pesquisa {vm.PesquisaId}.");
 
-                    switch (tipo)
+                    // (Opcional) validar coerência do item.Tipo com o tipo no banco
+                    var tipoEsperado = meta.tipo switch { 1 => "discursiva", 2 => "objetiva", 3 => "multipla", _ => "desconhecido" };
+                    var tipoEnviado = (item.Tipo ?? "").Trim().ToLowerInvariant();
+                    if (tipoEsperado != "desconhecido" && tipoEnviado != tipoEsperado)
+                        throw new ArgumentException($"Tipo enviado '{item.Tipo}' não corresponde ao tipo da pergunta {perguntaId} ({tipoEsperado}).");
+
+                    switch (meta.tipo)
                     {
                         case TipoDiscursiva:
-                            await GravarDiscursivaAsync(perguntaId, item.Resposta ?? string.Empty);
-                            break;
+                            {
+                                var resp = new respostas
+                                {
+                                    perguntaid = perguntaId,
+                                    texto = item.Texto ?? string.Empty,
+                                    // Se existir coluna loginid em 'respostas', descomente:
+                                    // loginid = vm.LoginId
+                                };
+                                novasRespostas.Add(resp);
+                                break;
+                            }
 
                         case TipoObjetiva:
-                            // Espera 1 única opção (ex.: "5" ou "[5]")
-                            var unica = ParseOpcoes(item.Resposta).FirstOrDefault();
-                            if (unica == 0)
-                                throw new ArgumentException($"Resposta inválida para pergunta objetiva {perguntaId}.");
-                            await GravarObjetivaAsync(perguntaId, unica);
-                            break;
+                            {
+                                var selecionadas = (item.Opcoes ?? new List<int>()).Distinct().ToList();
+                                if (selecionadas.Count != 1)
+                                    throw new ArgumentException($"Pergunta objetiva {perguntaId} requer exatamente 1 opção.");
+
+                                var opc = selecionadas[0];
+                                if (!opcoesPorPergunta.TryGetValue(perguntaId, out var set) || !set.Contains(opc))
+                                    throw new ArgumentException($"Opção {opc} não pertence à pergunta {perguntaId}.");
+
+                                var resp = new respostas
+                                {
+                                    perguntaid = perguntaId,
+                                    texto = string.Empty,
+                                    // loginid = vm.LoginId
+                                };
+                                novasRespostas.Add(resp);
+                                pendentesVinculo.Add((resp, new List<int> { opc }));
+                                break;
+                            }
 
                         case TipoMultipla:
-                            // Pode vir "1,2,3" ou "[1,2,3]"
-                            var selecionadas = ParseOpcoes(item.Resposta).ToList();
-                            await GravarMultiplaAsync(perguntaId, selecionadas);
-                            break;
+                            {
+                                var selecionadas = (item.Opcoes ?? new List<int>()).Distinct().ToList();
+
+                                // Se a pergunta NÃO permite múltiplas, reduz para no máximo 1
+                                if (!meta.multipla && selecionadas.Count > 1)
+                                    selecionadas = new List<int> { selecionadas[0] };
+
+                                if (selecionadas.Count > 0)
+                                {
+                                    if (!opcoesPorPergunta.TryGetValue(perguntaId, out var set))
+                                        throw new ArgumentException($"A pergunta {perguntaId} não possui opções cadastradas.");
+                                    foreach (var opc in selecionadas)
+                                        if (!set.Contains(opc))
+                                            throw new ArgumentException($"Opção {opc} não pertence à pergunta {perguntaId}.");
+                                }
+
+                                var resp = new respostas
+                                {
+                                    perguntaid = perguntaId,
+                                    texto = string.Empty,
+                                    // loginid = vm.LoginId
+                                };
+                                novasRespostas.Add(resp);
+                                if (selecionadas.Count > 0)
+                                    pendentesVinculo.Add((resp, selecionadas));
+                                break;
+                            }
 
                         default:
-                            throw new InvalidOperationException($"Tipo de pergunta desconhecido: {tipo}");
+                            throw new InvalidOperationException($"Tipo de pergunta desconhecido: {meta.tipo}");
                     }
                 }
 
-                await tx.CommitAsync();
+                // ===== fase 1: insere respostas =====
+                if (novasRespostas.Count > 0)
+                {
+                    await _context.respostas.AddRangeAsync(novasRespostas, ct);
+                    await _context.SaveChangesAsync(ct); // gera respostaid
+                }
+
+                // ===== fase 2: vínculos respostas_opcoes =====
+                var vinculos = new List<respostas_opcoes>();
+                foreach (var (resp, opcoes) in pendentesVinculo)
+                    foreach (var opc in opcoes)
+                        vinculos.Add(new respostas_opcoes { respostaid = resp.respostaid, opcaoid = opc });
+
+                if (vinculos.Count > 0)
+                {
+                    await _context.respostas_opcoes.AddRangeAsync(vinculos, ct);
+                    await _context.SaveChangesAsync(ct);
+                }
+
+                await tx.CommitAsync(ct);
+
+                return new GravarLoteResultado
+                {
+                    Inseridas = novasRespostas.Count,
+                    VinculosCriados = vinculos.Count
+                };
             }
             catch
             {
-                await tx.RollbackAsync();
+                await tx.RollbackAsync(ct);
                 throw;
             }
         }
+    }
 
-        // ----------------- helpers internos -----------------
-
-        private async Task GravarDiscursivaAsync(int perguntaId, string texto)
-        {
-            // respostas.texto é NOT NULL → se vier null, enviamos string vazia
-            var r = new respostas
-            {
-                perguntaid = perguntaId,
-                texto = texto ?? string.Empty
-            };
-            await _repoRespostas.IncluirAsync(r);
-        }
-
-        private async Task GravarObjetivaAsync(int perguntaId, int opcaoId)
-        {
-            // Cria a resposta “vazia” (texto obrigatório, mas não usamos para objetiva)
-            var r = new respostas
-            {
-                perguntaid = perguntaId,
-                texto = string.Empty
-            };
-            await _repoRespostas.IncluirAsync(r);
-
-            // Vincula a opção escolhida em respostas_opcoes
-            var vinc = new respostas_opcoes
-            {
-                respostaid = r.respostaid,
-                opcaoid = opcaoId
-            };
-            _context.respostas_opcoes.Add(vinc);
-            await _context.SaveChangesAsync();
-        }
-
-        private async Task GravarMultiplaAsync(int perguntaId, IEnumerable<int> opcoesIds)
-        {
-            // Cria a resposta “vazia”
-            var r = new respostas
-            {
-                perguntaid = perguntaId,
-                texto = string.Empty
-            };
-            await _repoRespostas.IncluirAsync(r);
-
-            // Vários vínculos
-            var lista = (opcoesIds ?? Enumerable.Empty<int>())
-                .Distinct()
-                .Select(id => new respostas_opcoes
-                {
-                    respostaid = r.respostaid,
-                    opcaoid = id
-                })
-                .ToList();
-
-            if (lista.Count > 0)
-                _context.respostas_opcoes.AddRange(lista);
-
-            await _context.SaveChangesAsync();
-        }
-
-        /// <summary>
-        /// Converte “1,2,3” ou “[1,2,3]” ou “1” em IEnumerable&lt;int&gt;.
-        /// </summary>
-        private static IEnumerable<int> ParseOpcoes(string raw)
-        {
-            if (string.IsNullOrWhiteSpace(raw))
-                return Enumerable.Empty<int>();
-
-            raw = raw.Trim();
-
-            // JSON array?
-            if (raw.StartsWith("[") && raw.EndsWith("]"))
-            {
-                try
-                {
-                    var arr = JsonSerializer.Deserialize<List<int>>(raw);
-                    return arr ?? Enumerable.Empty<int>();
-                }
-                catch { /* cai para parse CSV abaixo */ }
-            }
-
-            // CSV/único
-            var parts = raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var nums = new List<int>();
-            foreach (var p in parts)
-                if (int.TryParse(p, out var n)) nums.Add(n);
-
-            return nums;
-        }
+    // DTO de retorno opcional para telemetria/UX
+    public class GravarLoteResultado
+    {
+        public int Inseridas { get; set; }
+        public int VinculosCriados { get; set; }
     }
 }
