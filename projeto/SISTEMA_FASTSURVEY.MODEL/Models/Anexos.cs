@@ -5,29 +5,29 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class anexos
+public partial class Anexos
 {
-    public int anexoid { get; set; }
+    public int Anexoid { get; set; }
 
-    public int pesquisaid { get; set; }
+    public int Pesquisaid { get; set; }
 
-    public string nome { get; set; }
+    public string Nome { get; set; }
 
-    public string extensao { get; set; }
+    public string Extensao { get; set; }
 
-    public int? perguntaid { get; set; }
+    public int? Perguntaid { get; set; }
 
-    public string nomeoriginal { get; set; }
+    public string Nomeoriginal { get; set; }
 
-    public string contenttype { get; set; }
+    public string Contenttype { get; set; }
 
-    public long? tamanhobytes { get; set; }
+    public long? Tamanhobytes { get; set; }
 
-    public string base64data { get; set; }
+    public string Base64data { get; set; }
 
-    public virtual perguntas pergunta { get; set; }
+    public virtual Perguntas Pergunta { get; set; }
 
-    public virtual pesquisas pesquisa { get; set; }
+    public virtual Pesquisas Pesquisa { get; set; }
 
-    public virtual ICollection<respostas> resposta { get; set; } = new List<respostas>();
+    public virtual ICollection<Respostas> Resposta { get; set; } = new List<Respostas>();
 }

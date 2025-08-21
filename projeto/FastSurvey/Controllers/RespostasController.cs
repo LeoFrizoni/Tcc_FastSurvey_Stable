@@ -1,70 +1,83 @@
-﻿// FASTSURVEY/Controllers/RespostasController.cs
-using FASTSURVEY.Models.DTO;
-using FASTSURVEY.Services;
+﻿using FASTSURVEY.Dtos.Respostas;
+using FASTSURVEY.Services.Resposta;
 using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace FASTSURVEY.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
-    [Produces("application/json")]
+    [Route("api/[controller]")]
     public class RespostasController : ControllerBase
     {
-        private readonly ServiceRespostas _svcRespostas;
+        private readonly IRespostaService _svc;
 
-        public RespostasController(ServiceRespostas svcRespostas)
-        {
-            _svcRespostas = svcRespostas;
-        }
+        public RespostasController(IRespostaService svc) => _svc = svc;
 
-        // GET: api/Respostas
-        [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken ct)
+        [HttpPost("discursiva")]
+        public async Task<IActionResult> CriarDiscursiva([FromBody] CriarRespostaDiscursivaRequest req, CancellationToken ct)
         {
-            var list = await _svcRespostas.ListarTodasRespostasAsync(ct);
-            if (list == null || list.Count == 0) return NotFound("Nenhuma resposta encontrada.");
-            return Ok(list);
-        }
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
-        // GET: api/Respostas/5
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, CancellationToken ct)
-        {
-            var r = await _svcRespostas.ObterRespostaPorIdAsync(id, ct);
-            if (r == null) return NotFound("Resposta não encontrada.");
-            return Ok(r);
-        }
-
-        // POST: api/Respostas/lote
-        // Body: RespostasLoteVM
-        [HttpPost("lote")]
-        public async Task<IActionResult> GravarLote([FromBody] RespostasLoteVM vm, CancellationToken ct)
-        {
             try
             {
-                var resultado = await _svcRespostas.GravarLoteAsync(vm, ct);
-                return Ok(resultado);
+                var entity = await _svc.CriarDiscursivaAsync(req, ct);
+
+                var dto = new RespostaDto
+                {
+                    RespostaId = entity.Respostaid,
+                    PerguntaId = entity.Perguntaid,
+                    Texto = entity.Texto,
+                    DataResposta = entity.Dataresposta,
+                    Opcoes = new()
+                };
+
+                return Ok(dto);
             }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem($"Erro ao gravar respostas: {ex.Message}"); }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (DbUpdateException)
+            {
+                return StatusCode(500, new { error = "Erro ao salvar resposta no banco." });
+            }
+            catch
+            {
+                return StatusCode(500, new { error = "Erro inesperado ao criar resposta." });
+            }
         }
 
-        // DELETE: api/Respostas/5
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        [HttpPost("opcoes")]
+        public async Task<IActionResult> CriarOpcoes([FromBody] CriarRespostaOpcoesRequest req, CancellationToken ct)
         {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
             try
             {
-                await _svcRespostas.ExcluirRespostaAsync(id, ct);
-                return NoContent();
+                var entity = await _svc.CriarOpcoesAsync(req, ct);
+
+                var dto = new RespostaDto
+                {
+                    RespostaId = entity.Respostaid,
+                    PerguntaId = entity.Perguntaid,
+                    Texto = entity.Texto,
+                    DataResposta = entity.Dataresposta,
+                    Opcoes = entity.Opcao.Select(o => o.Opcaoid).ToList()
+                };
+
+                return Ok(dto);
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                return Problem($"Erro ao excluir: {ex.Message}");
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (DbUpdateException)
+            {
+                return StatusCode(500, new { error = "Erro ao salvar resposta no banco." });
+            }
+            catch
+            {
+                return StatusCode(500, new { error = "Erro inesperado ao criar resposta." });
             }
         }
     }

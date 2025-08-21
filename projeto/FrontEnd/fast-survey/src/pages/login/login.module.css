@@ -1,18 +1,14 @@
-/* Reset suave apenas para o escopo do login */
-* {
-  box-sizing: border-box;
-  font-family: "Poppins", sans-serif;
-}
+/* ===== Reset / base ===== */
+* { box-sizing: border-box; font-family: "Poppins", sans-serif; }
 
-/* Paleta usada nos botões do painel */
 :root{
-  --brand:#7A3CED;          /* roxo principal */
-  --brand-2:#6f3de3;        /* roxo secundário (hover) */
-  --left-blue:#6DC7FF;      /* azul do painel esquerdo */
+  --brand:#7A3CED;
+  --brand-2:#6f3de3;
+  --left-blue:#6DC7FF;
 }
 
-/* === WRAPPER que ocupa a viewport inteira e centraliza o container === */
-.viewport {
+/* === WRAPPER === */
+.viewport{
   min-height: 100dvh;
   width: 100%;
   display: flex;
@@ -23,388 +19,215 @@
 }
 
 /* === CARD PRINCIPAL === */
-.container {
-  background-color: #ffffff;
-  border-radius: 30px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.10);
-  position: relative;
-  overflow: hidden;
-  width: 768px;
-  max-width: 100%;
-  min-height: 480px;
-  transition: all 0.5s ease;
+.container{
+  background:#fff;
+  border-radius:30px;
+  box-shadow:0 10px 28px rgba(0,0,0,.1);
+  position:relative;
+  overflow:hidden;
+  width:768px;
+  max-width:100%;
+  min-height:480px;
+  transition:all .5s ease;
 }
 
 /* --- formulário --- */
-.container form {
-  background-color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: 0 40px;
-  height: 100%;
-  text-align: center;
+.container form{
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  padding:0 40px;
+  height:100%;
+  text-align:center;
 }
 
+/* Inputs */
 .container input[type="text"],
 .container input[type="email"],
-.container input[type="password"] {
-  background-color: #e6d9ff;
-  border: none;
-  margin: 8px 0;
-  padding: 12px 15px;
-  font-size: 14px;
-  border-radius: 8px;
-  width: 100%;
-  outline: none;
-  transition: all 0.25s ease;
+.container input[type="password"]{
+  background:#e6d9ff;
+  border:none;
+  margin:8px 0;
+  padding:12px 15px;
+  font-size:14px;
+  border-radius:8px;
+  width:100%;
+  outline:none;
+  transition:all .25s ease;
 }
-
 .container input[type="text"]:hover,
 .container input[type="email"]:hover,
-.container input[type="password"]:hover {
-  background-color: #dac7ff;
-}
-
+.container input[type="password"]:hover{ background:#dac7ff; }
 .container input[type="text"]:focus,
 .container input[type="email"]:focus,
-.container input[type="password"]:focus {
-  background-color: #f4ebff;
-  box-shadow: 0 0 0 3px rgba(122, 60, 237, 0.3);
-  transform: scale(1.01);
+.container input[type="password"]:focus{
+  background:#f4ebff;
+  box-shadow:0 0 0 3px rgba(122,60,237,.3);
+  transform:scale(1.01);
 }
 
-.container button {
-  background: linear-gradient(90deg, #7A3CED 60%, #6f3de3 100%);
-  color: #fff;
-  font-size: 14px;
-  padding: 12px 45px;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-top: 20px;
-  cursor: pointer;
-  transition: background 0.3s ease;
+/* ========== AQUI o segredo: apenas botões de ação do form ========== */
+.container form > button{
+  background:linear-gradient(90deg,#7A3CED 60%,#6f3de3 100%);
+  color:#fff;
+  font-size:14px;
+  padding:12px 45px;
+  border:none;
+  border-radius:8px;
+  font-weight:600;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  margin-top:20px;
+  cursor:pointer;
+  transition:background .3s ease;
+}
+.container form > button:hover{
+  background:linear-gradient(90deg,#6f3de3 60%,#7A3CED 100%);
 }
 
-.container button:hover {
-  background: linear-gradient(90deg, #6f3de3 60%, #7A3CED 100%);
-}
+.container p{ font-size:14px; color:#444; margin-top:10px; }
 
-.container p {
-  font-size: 14px;
-  color: #444;
-  margin-top: 10px;
+/* ===== Input com ícone de olho ===== */
+.inputRow{
+  position:relative;
+  width:100%;
+  margin:8px 0;
 }
+.inputWithEye{ padding-right:44px; margin:0; width:100%; }
+.inputRow input{ width:100%; margin:0; }
+
+/* Botão do olho — mantemos como <button> por acessibilidade */
+.eyeBtn{
+  all: unset;                       /* reseta heranças de .container form > button */
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  height:24px; width:24px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  color:#7A3CED;
+  opacity:.9;
+  z-index:2;
+  transition:color .2s, opacity .2s;
+}
+.eyeBtn:hover{ color:#6f3de3; opacity:1; }
 
 /* --- organização dos painéis --- */
-.form-container {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  transition: all 0.6s ease-in-out;
-}
+.form-container{ position:absolute; top:0; height:100%; transition:all .6s ease-in-out; }
+.sign-in{ left:0; width:50%; z-index:2; }
+.container.active .sign-in{ transform:translateX(100%); }
+.sign-up{ left:0; width:50%; opacity:0; z-index:1; }
+.container.active .sign-up{ transform:translateX(100%); opacity:1; z-index:5; animation:move .6s; }
 
-.sign-in {
-  left: 0;
-  width: 50%;
-  z-index: 2;
-}
-
-.container.active .sign-in {
-  transform: translateX(100%);
-}
-
-.sign-up {
-  left: 0;
-  width: 50%;
-  opacity: 0;
-  z-index: 1;
-}
-
-.container.active .sign-up {
-  transform: translateX(100%);
-  opacity: 1;
-  z-index: 5;
-  animation: move 0.6s;
-}
-
-@keyframes move {
-  0%, 49.99% { opacity: 0; z-index: 1; }
-  50%, 100%  { opacity: 1; z-index: 5; }
+@keyframes move{
+  0%,49.99%{ opacity:0; z-index:1; }
+  50%,100% { opacity:1; z-index:5; }
 }
 
 /* --- painel roxo (lado direito) + painel azul (lado esquerdo) --- */
-.toggle-container {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  width: 50%;
-  height: 100%;
-  overflow: hidden;
-  transition: all 0.6s ease-in-out;
-  border-radius: 150px 0 0 100px;
-  z-index: 1000;
+.toggle-container{
+  position:absolute; top:0; left:50%;
+  width:50%; height:100%; overflow:hidden;
+  transition:all .6s ease-in-out;
+  border-radius:150px 0 0 100px;
+  z-index:1000;
 }
+.container.active .toggle-container{ transform:translateX(-100%); border-radius:0 150px 100px 0; }
 
-.container.active .toggle-container {
-  transform: translateX(-100%);
-  border-radius: 0 150px 100px 0;
+.toggle{
+  background:linear-gradient(to right, var(--left-blue), var(--brand));
+  height:100%; color:#fff; position:relative; left:-100%;
+  width:200%; transform:translateX(0);
+  transition:all .6s ease-in-out;
 }
+.container.active .toggle{ transform:translateX(50%); }
 
-.toggle {
-  background: linear-gradient(to right, var(--left-blue), var(--brand));
-  height: 100%;
-  color: #fff;
-  position: relative;
-  left: -100%;
-  width: 200%;
-  transform: translateX(0);
-  transition: all 0.6s ease-in-out;
+.toggle-panel{
+  position:absolute; width:50%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; padding:0 30px; text-align:center; top:0;
+  transform:translateX(0); transition:all .6s ease-in-out;
 }
+.toggle-left{ transform:translateX(-200%); }
+.container.active .toggle-left{ transform:translateX(0); }
+.toggle-right{ right:0; transform:translateX(0); }
+.container.active .toggle-right{ transform:translateX(200%); }
 
-.container.active .toggle {
-  transform: translateX(50%);
-}
+.toggle-panel h1{ color:#fff; font-size:24px; margin-bottom:10px; }
+.toggle-panel p{ color:#f0f0f0; font-size:14px; line-height:20px; margin:20px 0; }
 
-.toggle-panel {
-  position: absolute;
-  width: 50%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  padding: 0 30px;
-  text-align: center;
-  top: 0;
-  transform: translateX(0);
-  transition: all 0.6s ease-in-out;
-}
-
-.toggle-left { transform: translateX(-200%); }
-.container.active .toggle-left { transform: translateX(0); }
-
-.toggle-right { right: 0; transform: translateX(0); }
-.container.active .toggle-right { transform: translateX(200%); }
-
-.toggle-panel h1 {
-  color: #fff;
-  font-size: 24px;
-  margin-bottom: 10px;
-}
-
-.toggle-panel p {
-  color: #f0f0f0;
-  font-size: 14px;
-  line-height: 20px;
-  margin: 20px 0;
-}
-
-/* === Botões dos painéis (inverter cores) === */
-/* Base: transparente, texto/branca (fallback) */
+/* === Botões dos painéis === */
 .toggleBtn{
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: 700;
-  border: 1px solid rgba(255,255,255,.75);
-  background: transparent;
-  color: #fff;
-  cursor: pointer;
-  transition: transform .06s ease, box-shadow .2s ease, color .2s ease, background .2s ease, border-color .2s ease;
+  padding:10px 16px; border-radius:8px; font-weight:700;
+  border:1px solid rgba(255,255,255,.75);
+  background:transparent; color:#fff; cursor:pointer;
+  transition:transform .06s, box-shadow .2s, color .2s, background .2s, border-color .2s;
 }
-
-/* Botão "Registrar-se" (painel direito roxo): fundo branco + texto roxo */
 .toggle-panel.toggle-right .toggleBtn{
-  background: #fff;
-  color: var(--brand);
-  border-color: var(--brand);
-  box-shadow: 0 10px 26px rgba(124,58,237,.28);
+  background:#fff; color:var(--brand); border-color:var(--brand);
+  box-shadow:0 10px 26px rgba(124,58,237,.28);
 }
 .toggle-panel.toggle-right .toggleBtn:hover{
-  color: var(--brand-2);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(124,58,237,.36);
+  color:var(--brand-2); transform:translateY(-1px);
+  box-shadow:0 12px 30px rgba(124,58,237,.36);
 }
-
-/* Botão "Já tenho conta" (painel esquerdo azul): fundo branco + texto azul */
 .toggle-panel.toggle-left .toggleBtn{
-  background: #fff;
-  color: #2E97EE;
-  border-color: var(--left-blue);
-  box-shadow: 0 10px 26px rgba(109,199,255,.28);
+  background:#fff; color:#2E97EE; border-color:var(--left-blue);
+  box-shadow:0 10px 26px rgba(109,199,255,.28);
 }
 .toggle-panel.toggle-left .toggleBtn:hover{
-  color: #2487DD; /* um azul um pouco mais escuro no hover */
-  transform: translateY(-1px);
-  box-shadow: 0 12px 30px rgba(109,199,255,.36);
+  color:#2487DD; transform:translateY(-1px);
+  box-shadow:0 12px 30px rgba(109,199,255,.36);
 }
 
 /* --- mensagens e validação --- */
-.mensagem-status {
-  font-size: 13px;
-  margin-top: 10px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  max-width: 90%;
-  word-break: break-word;
-}
-
-.mensagem-status.login {
-  background-color: rgba(255, 0, 0, 0.05);
-  color: #d11a2a;
-}
-
-.mensagem-status.cadastro {
-  background-color: rgba(0, 128, 0, 0.06);
-  color: #1d7e3e;
-}
-
-.validacao-senha {
-  margin: 8px 0 12px 0;
-  width: 100%;
-  text-align: left;
-  font-size: 12px;
-}
+.mensagem-status{ font-size:13px; margin-top:10px; padding:6px 12px; border-radius:6px; max-width:90%; word-break:break-word; }
+.mensagem-status.login{ background:rgba(255,0,0,.05); color:#d11a2a; }
+.mensagem-status.cadastro{ background:rgba(0,128,0,.06); color:#1d7e3e; }
+.validacao-senha{ margin:8px 0 12px; width:100%; text-align:left; font-size:12px; }
 
 /* --- responsividade --- */
-@media (max-width: 768px) {
-  .container {
-    width: 90%;
-    border-radius: 15px;
-    box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
-    flex-direction: column;
-    padding: 20px 0;
-  }
-
-  .toggle-container { display: none; }
-
-  .form-container {
-    position: static;
-    width: 100% !important;
-    height: auto;
-    opacity: 1 !important;
-    transform: none !important;
-    animation: none !important;
-  }
-
-  .sign-in,
-  .sign-up {
-    width: 100%;
-    position: relative;
-  }
-
-  .container.active .sign-in,
-  .container.active .sign-up {
-    transform: none;
-  }
+@media (max-width:768px){
+  .container{ width:90%; border-radius:15px; box-shadow:0 5px 10px rgba(0,0,0,.1); flex-direction:column; padding:20px 0; }
+  .toggle-container{ display:none; }
+  .form-container{ position:static; width:100%!important; height:auto; opacity:1!important; transform:none!important; animation:none!important; }
+  .sign-in, .sign-up{ width:100%; position:relative; }
+  .container.active .sign-in, .container.active .sign-up{ transform:none; }
 }
 
 /* ===== Modal LGPD ===== */
-.modalOverlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9990;
-  backdrop-filter: blur(2px);
+.modalOverlay{ position:fixed; inset:0; background:rgba(15,23,42,.55); display:flex; align-items:center; justify-content:center; z-index:9990; backdrop-filter:blur(2px); }
+.modalContent{ width:min(720px, 92vw); max-height:84vh; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,.25); display:flex; flex-direction:column; }
+.modalHeader{ display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid #e5e7eb; background:#f9fafb; }
+.modalHeader h2{ margin:0; font-size:1.1rem; }
+.modalClose{ border:none; background:transparent; font-size:24px; line-height:1; cursor:pointer; }
+.modalBody{ padding:16px 20px; overflow:auto; line-height:1.5; }
+.modalBody h3{ margin:14px 0 6px; font-size:1rem; }
+.modalFooter{ border-top:1px solid #e5e7eb; padding:12px 20px 16px; background:#fafafa; }
+.checkboxRow{ display:flex; gap:10px; align-items:center; font-size:.95rem; margin-bottom:12px; }
+.modalActions{ display:flex; gap:10px; justify-content:end; }
+.btnPrimary{ background:#0ea5e9; color:#fff; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
+.btnPrimary:disabled{ opacity:.6; cursor:not-allowed; }
+.btnSecondary{ background:#e5e7eb; color:#111827; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
+.btnSecondary:disabled{ opacity:.6; cursor:not-allowed; }
+
+/* Esconde o ícone nativo de revelar senha no Edge/IE */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
-.modalContent {
-  width: min(720px, 92vw);
-  max-height: 84vh;
-  background: #fff;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 20px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
-}
-
-.modalHeader h2 {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-.modalClose {
-  border: none;
-  background: transparent;
-  font-size: 24px;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.modalBody {
-  padding: 16px 20px;
-  overflow: auto;
-  line-height: 1.5;
-}
-
-.modalBody h3 {
-  margin: 14px 0 6px;
-  font-size: 1rem;
-}
-
-.modalFooter {
-  border-top: 1px solid #e5e7eb;
-  padding: 12px 20px 16px;
-  background: #fafafa;
-}
-
-.checkboxRow {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  font-size: 0.95rem;
-  margin-bottom: 12px;
-}
-
-.modalActions {
-  display: flex;
-  gap: 10px;
-  justify-content: end;
-}
-
-.btnPrimary {
-  background: #0ea5e9;
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btnPrimary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btnSecondary {
-  background: #e5e7eb;
-  color: #111827;
-  border: none;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btnSecondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+/* Tentativa amigável para engines WebKit/Chromium que exibam botões nativos */
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-textfield-decoration-container {
+  display: none;
+  visibility: hidden;
+  pointer-events: none;
 }

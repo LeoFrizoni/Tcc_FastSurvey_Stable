@@ -85,7 +85,6 @@ html, body {
   box-sizing: border-box;
   color: #333;
 }
-
 *, *::before, *::after { font-family: inherit; }
 
 /* Container principal abaixo da navbar */
@@ -109,6 +108,12 @@ html, body {
   height: 100%;
   box-sizing: border-box;
   box-shadow: inset -1px 0 0 #e0e0e0;
+}
+
+/* scroll interno opcional */
+.sidebar-scroll {
+  overflow-y: auto;
+  max-height: 100%;
 }
 
 .sidebar-esquerda h3 {
@@ -193,6 +198,9 @@ html, body {
   box-sizing: border-box;
   border-left: 1px solid #f0f0f0;
   border-right: 1px solid #f0f0f0;
+
+  /* evita “pulo” ao trocar foco/render */
+  overflow-anchor: none;
 }
 
 .area-construcao h2 { font-size: 1.6rem; font-weight: 600; margin-bottom: 0.5rem; color: #2e2e2e; }
@@ -240,7 +248,6 @@ html, body {
   padding: 0.8rem;
   border-radius: 10px;
   margin-bottom: 1rem;
-  font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
   font-weight: 500;
   font-size: 0.95rem;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
@@ -262,51 +269,7 @@ html, body {
 .sidebar-direita label svg { margin-bottom: 0.4rem; color: #7f5af0; }
 .sidebar-direita select { padding: 6px 10px; font-size: 0.9rem; }
 
-/*RESPONSIVIDADE — dashboard (mantida se usada em outras telas)*/
-@media (max-width: 1024px) {
-  .dashboard-container { flex-direction: column; }
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1rem 2rem;
-    border-radius: 0;
-    box-shadow: none;
-  }
-  .sidebar nav ul { display: flex; flex-direction: row; gap: 1.5rem; }
-  .sidebar nav ul li { margin-bottom: 0; }
-  .sidebar footer { display: none; }
-  .main-content { padding: 1.5rem; }
-  .titulo-header { flex-direction: column; align-items: stretch; gap: 0.8rem; }
-  .botao-criar { width: 100%; justify-content: center; font-size: 1.05rem; padding: 1rem; }
-  .cards-wrapper { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-}
-
-@media (max-width: 600px) {
-  .main-content h2 { font-size: 1.5rem; }
-  .botao-criar { font-size: 1rem; padding: 0.9rem 1.1rem; width: 100%; }
-  .sidebar { flex-direction: column; align-items: flex-start; padding: 1rem; }
-  .sidebar nav ul { flex-direction: column; width: 100%; }
-  .sidebar nav ul li { width: 100%; padding: 0.8rem; }
-  .cards-wrapper { grid-template-columns: 1fr; }
-  .card-pesquisa { padding: 1.2rem; }
-  .card-pesquisa h3 { font-size: 1rem; }
-  .card-pesquisa p { font-size: 0.85rem; }
-  .card-pesquisa .tag { font-size: 0.75rem; }
-  .titulo-header { align-items: stretch; }
-  .dashboard-container { flex-direction: column; }
-}
-
-@media (max-width: 375px) {
-  .main-content { padding: 1rem; }
-  .botao-criar { font-size: 0.95rem; padding: 0.8rem 1rem; }
-  .card-pesquisa { padding: 1rem; }
-  .card-pesquisa h3, .card-pesquisa p { font-size: 0.85rem; }
-  .sidebar .logo { font-size: 1.3rem; }
-  .main-content h2 { font-size: 1.3rem; }
-}
-
+/* preview vazio escondido quando há blocos */
 .area-preview.invisivel {
   opacity: 0;
   pointer-events: none;
@@ -337,6 +300,7 @@ html, body {
 
 /* Header com divisória sutil */
 .card-header {
+  position: relative;             /* reserva espaço p/ a toolbar absoluta */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -344,6 +308,7 @@ html, body {
   padding-bottom: 8px;
   margin-bottom: 12px;
   border-bottom: 1px dashed #ececf8;
+  padding-right: 132px;           /* espaço pros ícones */
 }
 
 /* Título como “pill” */
@@ -360,32 +325,71 @@ html, body {
   max-width: max-content;
 }
 
-/* Toolbar (anexo, imagem, lixeira) com ícones maiores */
+/* ==================================================================== */
+/*                TOOLBAR DO CARD (ANEXO / IMAGEM / LIXEIRA)            */
+/* ==================================================================== */
+
 .toolbarRight {
-  display: inline-grid;
-  grid-template-columns: repeat(3, 40px);
-  grid-auto-rows: 40px;
+  position: absolute;
+  right: 12px;
+  top: -9px;            /* <— antes era ~8px; valor negativo sobe os ícones */
+  display: flex;
   gap: 8px;
+  z-index: 3;            /* garante que fiquem acima de tudo no header */
 }
+
+/* Mantém o “respiro” do header para a toolbar não sobrepor o conteúdo */
+.card-header {
+  padding-right: 140px;  /* espaço pros 3 botões */
+}
+
+/* Em telas menores, desce um tico pra não encostar na borda superior */
+@media (max-width: 720px) {
+  .toolbarRight { top: -6px; }
+}
+
+/* estilo fixo roxo (igual aos outros botões do app) */
 .iconBtn {
-  width: 40px;
-  height: 40px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  border: 1px solid #e7e7ef;
-  background: #fff;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #7c3aed;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.35);
   cursor: pointer;
-  transition: background .2s ease, border-color .2s ease, transform .06s ease, opacity .2s;
+  outline: none;
+  transition: transform .12s ease, filter .12s ease, opacity .2s;
 }
-.iconBtn:hover { background: #f5f3ff; border-color: #d6d0ff; }
-.iconBtn:active { transform: scale(.98); }
-.iconBtn:disabled { opacity: .45; cursor: not-allowed; }
-.danger:hover { background: #fff5f6; border-color: #ffd6db; }
+.iconBtn:hover  { transform: translateY(-1px); filter: brightness(1.03); }
+.iconBtn:active { transform: translateY(0);     filter: brightness(.96); }
+.iconBtn:disabled { opacity: .45; cursor: not-allowed; filter: saturate(.85); }
+.iconBtn svg { width: 20px; height: 20px; pointer-events: none; }
+
+/* variante de perigo (lixeira) */
+.danger {
+  background: #e11d48;
+  box-shadow: 0 10px 24px rgba(225, 29, 72, 0.35);
+}
+.danger:hover  { filter: brightness(1.03); }
+.danger:active { filter: brightness(.96); }
+
+/* foco visível */
+.iconBtn:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(124, 58, 237, .25),
+    0 10px 24px rgba(124, 58, 237, .35);
+}
+.danger:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(225, 29, 72, .25),
+    0 10px 24px rgba(225, 29, 72, .35);
+}
 
 /* ==================================================================== */
-/*                  RÉGUA DE ORDENAÇÃO (↑ ↓) DENTRO DO CARD             */
+/*                  RÉGUA DE ORDENAÇÃO (↑ ↓)                            */
 /* ==================================================================== */
 
 .order-rail {
@@ -396,7 +400,11 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 1;              /* acima do conteúdo do próprio card */
+  z-index: 1;
+  pointer-events: none;    /* a régua não intercepta cliques */
+}
+.order-rail .order-btn {
+  pointer-events: auto;    /* só os botões recebem o clique */
 }
 
 .order-btn {
@@ -418,7 +426,7 @@ html, body {
 
 /* Em telas pequenas, traz a régua para o fluxo do layout */
 @media (max-width: 720px) {
-  .bloco-pergunta { padding-right: 18px; } /* remove o espaço extra */
+  .bloco-pergunta { padding-right: 18px; }
   .order-rail {
     position: static;
     transform: none;
@@ -429,5 +437,53 @@ html, body {
     justify-content: flex-end;
     gap: 8px;
     margin-bottom: 8px;
+    pointer-events: auto;  /* no fluxo normal pode receber cliques */
+  }
+}
+
+/* ==================================================================== */
+/*                    FIX DO SELECT / COLOR DA SIDEBAR                  */
+/* ==================================================================== */
+
+.sidebar-direita label {           /* garante que nada “sangre” */
+  overflow: hidden;
+}
+
+/* empurra o controle para a direita */
+.sidebar-direita label > :last-child {
+  margin-left: auto;
+}
+
+/* largura previsível para o select (Fonte) */
+.sidebar-direita label > select {
+  box-sizing: border-box;
+  flex: 0 0 170px;
+  width: 170px;
+  max-width: 45%;
+  min-width: 0;
+}
+
+/* tamanho compacto do color picker */
+.sidebar-direita label > input[type="color"] {
+  box-sizing: border-box;
+  flex: 0 0 56px;
+  width: 56px;
+  height: 32px;
+  padding: 0;
+}
+
+/* quando a tela for estreita, permita quebra de linha e 100% de largura */
+@media (max-width: 720px) {
+  .sidebar-direita label {
+    flex-wrap: wrap;
+  }
+  .sidebar-direita label > select {
+    flex: 1 1 100%;
+    max-width: 100%;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .sidebar-direita label > input[type="color"] {
+    margin-top: 6px;
   }
 }

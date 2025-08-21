@@ -5,33 +5,35 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class pesquisas
+public partial class Pesquisas
 {
-    public int pesquisaid { get; set; }
+    public int Pesquisaid { get; set; }
 
-    public int loginid { get; set; }
+    public int Loginid { get; set; }
 
-    public int tipopesquisaid { get; set; }
+    public int Tipopesquisaid { get; set; }
 
-    public string titulo { get; set; }
+    public string Titulo { get; set; }
 
-    public string descricao { get; set; }
+    public string Descricao { get; set; }
 
-    public string TemplateJson { get; set; }
+    public string Templatejson { get; set; }
 
-    public int? pastaid { get; set; }
+    public int? Pastaid { get; set; }
 
-    public DateTime datacriacao { get; set; }
+    public DateTime Datacriacao { get; set; }
 
-    public DateTime? dataatualizacao { get; set; }
+    public DateTime? Dataatualizacao { get; set; }
 
-    public virtual ICollection<anexos> anexos { get; set; } = new List<anexos>();
+    public string Qrcodeurl { get; set; }
 
-    public virtual login login { get; set; }
+    public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
-    public virtual pastas pasta { get; set; }
+    public virtual Login Login { get; set; }
 
-    public virtual ICollection<perguntas> perguntas { get; set; } = new List<perguntas>();
+    public virtual Pastas Pasta { get; set; }
 
-    public virtual tipopesquisa tipopesquisa { get; set; }
+    public virtual ICollection<Perguntas> Perguntas { get; set; } = new List<Perguntas>();
+
+    public virtual Tipopesquisa Tipopesquisa { get; set; }
 }

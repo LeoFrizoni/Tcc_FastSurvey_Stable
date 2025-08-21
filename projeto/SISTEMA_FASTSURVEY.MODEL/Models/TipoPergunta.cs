@@ -5,13 +5,13 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class tipopergunta
+public partial class Tipopergunta
 {
-    public int tipoperguntaid { get; set; }
+    public int Tipoperguntaid { get; set; }
 
-    public string tipopergunta1 { get; set; }
+    public string Tipopergunta1 { get; set; }
 
-    public bool desabilitado { get; set; }
+    public bool Desabilitado { get; set; }
 
-    public virtual ICollection<perguntas> perguntas { get; set; } = new List<perguntas>();
+    public virtual ICollection<Perguntas> Perguntas { get; set; } = new List<Perguntas>();
 }

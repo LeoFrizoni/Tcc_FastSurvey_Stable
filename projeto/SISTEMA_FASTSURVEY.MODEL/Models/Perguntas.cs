@@ -5,27 +5,29 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class perguntas
+public partial class Perguntas
 {
-    public int perguntaid { get; set; }
+    public int Perguntaid { get; set; }
 
-    public int tipoperguntaid { get; set; }
+    public int Tipoperguntaid { get; set; }
 
-    public int pesquisaid { get; set; }
+    public int Pesquisaid { get; set; }
 
-    public string texto { get; set; }
+    public string Texto { get; set; }
 
-    public bool temgabarito { get; set; }
+    public bool Temgabarito { get; set; }
 
-    public bool permitemultiplaselecao { get; set; }
+    public bool Permitemultiplaselecao { get; set; }
 
-    public virtual ICollection<anexos> anexos { get; set; } = new List<anexos>();
+    public int Ordem { get; set; }
 
-    public virtual ICollection<opcoespergunta> opcoespergunta { get; set; } = new List<opcoespergunta>();
+    public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
-    public virtual pesquisas pesquisa { get; set; }
+    public virtual ICollection<Opcoespergunta> Opcoespergunta { get; set; } = new List<Opcoespergunta>();
 
-    public virtual ICollection<respostas> respostas { get; set; } = new List<respostas>();
+    public virtual Pesquisas Pesquisa { get; set; }
 
-    public virtual tipopergunta tipopergunta { get; set; }
+    public virtual ICollection<Respostas> Respostas { get; set; } = new List<Respostas>();
+
+    public virtual Tipopergunta Tipopergunta { get; set; }
 }

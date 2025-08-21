@@ -5,19 +5,19 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class respostas
+public partial class Respostas
 {
-    public int respostaid { get; set; }
+    public int Respostaid { get; set; }
 
-    public int perguntaid { get; set; }
+    public int Perguntaid { get; set; }
 
-    public string texto { get; set; }
+    public string Texto { get; set; }
 
-    public DateTime dataresposta { get; set; }
+    public DateTime Dataresposta { get; set; }
 
-    public virtual perguntas pergunta { get; set; }
+    public virtual Perguntas Pergunta { get; set; }
 
-    public virtual ICollection<anexos> anexo { get; set; } = new List<anexos>();
+    public virtual ICollection<Anexos> Anexo { get; set; } = new List<Anexos>();
 
-    public virtual ICollection<opcoespergunta> opcao { get; set; } = new List<opcoespergunta>();
+    public virtual ICollection<Opcoespergunta> Opcao { get; set; } = new List<Opcoespergunta>();
 }

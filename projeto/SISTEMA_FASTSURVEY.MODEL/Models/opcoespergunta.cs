@@ -5,17 +5,21 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class opcoespergunta
+public partial class Opcoespergunta
 {
-    public int opcaoid { get; set; }
+    public int Opcaoid { get; set; }
 
-    public int perguntaid { get; set; }
+    public int Perguntaid { get; set; }
 
-    public string texto { get; set; }
+    public string Texto { get; set; }
 
-    public bool correta { get; set; }
+    public bool Correta { get; set; }
 
-    public virtual perguntas pergunta { get; set; }
+    public int Ordem { get; set; }
 
-    public virtual ICollection<respostas> resposta { get; set; } = new List<respostas>();
+    public bool Ativa { get; set; }
+
+    public virtual Perguntas Pergunta { get; set; }
+
+    public virtual ICollection<Respostas> Resposta { get; set; } = new List<Respostas>();
 }

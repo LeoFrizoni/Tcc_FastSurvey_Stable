@@ -5,15 +5,15 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class pastas
+public partial class Pastas
 {
-    public int pastaid { get; set; }
+    public int Pastaid { get; set; }
 
-    public string nome { get; set; }
+    public string Nome { get; set; }
 
-    public int? loginid { get; set; }
+    public int? Loginid { get; set; }
 
-    public virtual login login { get; set; }
+    public virtual Login Login { get; set; }
 
-    public virtual ICollection<pesquisas> pesquisas { get; set; } = new List<pesquisas>();
+    public virtual ICollection<Pesquisas> Pesquisas { get; set; } = new List<Pesquisas>();
 }

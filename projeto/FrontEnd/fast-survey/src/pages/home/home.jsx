@@ -1,10 +1,13 @@
+// src/pages/home/Home.jsx
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus, User, LogOut, Info, Search, Filter, ChevronRight, Tag,
-  FolderPlus, Folder, FolderOpen, X
+  FolderPlus, Folder, FolderOpen, X, Pencil, Trash2
 } from 'lucide-react';
 import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import styles from './home.module.css';
 
 const API_BASE = 'http://localhost:5062';
@@ -21,6 +24,56 @@ const readLocalMap = (key) => {
 const writeLocalMap = (key, data) => {
   localStorage.setItem(key, JSON.stringify(data));
 };
+
+// id seguro independente do casing que veio do back
+const getPid = (p) => p?.pesquisaid ?? p?.pesquisaId ?? p?.PesquisaId ?? null;
+
+// tenta ler o TipoPesquisaId em diferentes formatos
+const getTipoId = (p) =>
+  p?.tipoPesquisaId ??
+  p?.TipoPesquisaId ??
+  p?.tipopesquisaid ??
+  p?.TipopesquisaId ??
+  p?.TipoPesquisaID ??
+  p?.TipoPesquisaid ??
+  p?.TipoPesquisa ??
+  p?.tipopesquisa ??
+  null;
+
+// normaliza PASTA vinda do back/cache para { pastaId, nome }
+const normalizePasta = (it) => ({
+  pastaId: it?.pastaId ?? it?.PastaId ?? it?.pastaid ?? it?.Pastaid,
+  nome: it?.nome ?? it?.Nome ?? it?.nomePasta ?? ''
+});
+
+// normaliza PESQUISA para o shape que o UI espera
+const normalizePesquisa = (it) => {
+  const tipoDesc =
+    it?.tipoPesquisa?.descricao ??
+    it?.TipoPesquisaDescricao ??
+    it?.tipopesquisa?.descricao ??
+    it?.Tipopesquisa?.Descricao ??
+    null;
+
+  return {
+    pesquisaid: it.pesquisaid ?? it.pesquisaId ?? it.PesquisaId,
+    titulo: it.titulo ?? it.Titulo ?? '',
+    descricao: it.descricao ?? it.Descricao ?? '',
+    pastaId: it.pastaId ?? it.PastaId ?? null,
+    dataCriacao: it.dataCriacao ?? it.criadoEm ?? it.Datacriacao ?? it.data_criacao,
+    tipoPesquisa: tipoDesc ? { descricao: tipoDesc } : it.tipoPesquisa,
+    ...it,
+  };
+};
+
+// normaliza string para comparação case/acentos-insensitive
+const keyOf = (s) =>
+  (s ?? '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+
 /* =================================================== */
 
 const HomePage = () => {
@@ -29,6 +82,7 @@ const HomePage = () => {
   // Dados
   const [pesquisas, setPesquisas] = useState([]);
   const [pastas, setPastas] = useState([]); // [{ pastaId, nome }]
+  const [tipoLookup, setTipoLookup] = useState(new Map()); // id -> descricao
   const [loading, setLoading] = useState(true);
 
   // UI
@@ -51,7 +105,20 @@ const HomePage = () => {
   const [novoNomePasta, setNovoNomePasta] = useState('');
   const inputRef = useRef(null);
 
-  const loginId = useMemo(() => parseInt(localStorage.getItem('userId')), []);
+  // Modal: Renomear pasta
+  const [isRenomearOpen, setIsRenomearOpen] = useState(false);
+  const [pastaAlvo, setPastaAlvo] = useState(null); // { pastaId, nome }
+  const [novoNomeEdicao, setNovoNomeEdicao] = useState('');
+
+  // Modal: Excluir pasta
+  const [isExcluirOpen, setIsExcluirOpen] = useState(false);
+
+  // loginId seguro (aceita 'loginId' ou 'userId')
+  const loginId = useMemo(() => {
+    const v = localStorage.getItem('loginId') ?? localStorage.getItem('userId');
+    const n = v ? parseInt(v, 10) : NaN;
+    return Number.isFinite(n) ? n : null;
+  }, []);
   const token = useMemo(() => localStorage.getItem('token'), []);
 
   const MAP_STORAGE_KEY = useMemo(
@@ -62,12 +129,35 @@ const HomePage = () => {
   const ensureLocalMapSync = useCallback((remotePastas) => {
     const map = readLocalMap(MAP_STORAGE_KEY);
     if (Array.isArray(remotePastas)) {
+      const norm = remotePastas.map(normalizePasta);
       writeLocalMap(MAP_STORAGE_KEY, {
-        pastas: remotePastas,
+        pastas: norm,
         vinculos: map.vinculos || {},
       });
     }
   }, [MAP_STORAGE_KEY]);
+
+  // Aplica descricao do tipo a cada pesquisa usando lookup
+  const attachTipoDescricao = useCallback(
+    (arr) => {
+      if (!arr || !arr.length) return arr || [];
+      if (!tipoLookup || tipoLookup.size === 0) return arr;
+
+      return arr.map((p) => {
+        const hasDesc = p?.tipoPesquisa?.descricao;
+        if (hasDesc) return p;
+
+        const tid = getTipoId(p);
+        if (!tid) return p;
+
+        const desc = tipoLookup.get(Number(tid));
+        if (!desc) return p;
+
+        return { ...p, tipoPesquisa: { descricao: desc } };
+      });
+    },
+    [tipoLookup]
+  );
 
   /* === Carregamento inicial === */
   useEffect(() => {
@@ -76,37 +166,63 @@ const HomePage = () => {
         navigate('/login');
         return;
       }
-      try {
-        // Pesquisas do usuário
-        const { data: pesquisasData } = await axios.get(
-          `${API_BASE}/api/pesquisas/usuario/${loginId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setPesquisas(Array.isArray(pesquisasData) ? pesquisasData : []);
-      } catch (err) {
-        console.error('Erro ao buscar pesquisas:', err);
-        setPesquisas([]);
-      }
 
       try {
-        // Pastas do usuário (API oficial)
-        const { data: pastasData } = await axios.get(
-          `${API_BASE}/api/pastas`,
-          { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
-        );
-        // API já devolve [{ pastaId, nome }]
-        setPastas(Array.isArray(pastasData) ? pastasData : []);
-        ensureLocalMapSync(Array.isArray(pastasData) ? pastasData : []);
+        // Buscar tipos + pesquisas + pastas em paralelo
+        const [tiposRes, pesqRes, pastasRes] = await Promise.allSettled([
+          axios.get(`${API_BASE}/api/tipos/pesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_BASE}/api/pesquisas/usuario/${loginId}`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_BASE}/api/pastas`, { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } })
+        ]);
+
+        // Tipos
+        if (tiposRes.status === 'fulfilled' && Array.isArray(tiposRes.value.data)) {
+          const map = new Map();
+          for (const t of tiposRes.value.data) {
+            const id = t?.tipoPesquisaId ?? t?.TipoPesquisaId ?? t?.tipopesquisaid ?? t?.id;
+            const desc = t?.descricao ?? t?.Descricao ?? t?.nome ?? '';
+            if (id) map.set(Number(id), String(desc || '').trim());
+          }
+          setTipoLookup(map);
+        } else {
+          setTipoLookup(new Map());
+        }
+
+        // Pesquisas
+        if (pesqRes.status === 'fulfilled') {
+          const arr = Array.isArray(pesqRes.value.data) ? pesqRes.value.data.map(normalizePesquisa) : [];
+          setPesquisas(arr);
+        } else {
+          setPesquisas([]);
+          toast.error('Falha ao carregar pesquisas.');
+        }
+
+        // Pastas
+        if (pastasRes.status === 'fulfilled') {
+          const norm = Array.isArray(pastasRes.value.data) ? pastasRes.value.data.map(normalizePasta) : [];
+          setPastas(norm);
+          ensureLocalMapSync(norm);
+        } else {
+          const map = readLocalMap(MAP_STORAGE_KEY);
+          const norm = Array.isArray(map.pastas) ? map.pastas.map(normalizePasta) : [];
+          setPastas(norm);
+          toast.warn('Não consegui carregar as pastas do servidor. Usei o cache local.');
+        }
       } catch (err) {
-        console.warn('Falha ao carregar pastas do backend. Usando cache local.', err);
-        const map = readLocalMap(MAP_STORAGE_KEY);
-        setPastas(map.pastas || []);
+        console.error(err);
+        toast.error('Falha ao carregar dados.');
       } finally {
         setLoading(false);
       }
     };
     bootstrap();
   }, [loginId, token, navigate, ensureLocalMapSync, MAP_STORAGE_KEY]);
+
+  // Reaplica descricao quando o lookup chegar depois das pesquisas
+  const pesquisasEnriquecidas = useMemo(
+    () => attachTipoDescricao(pesquisas),
+    [pesquisas, attachTipoDescricao]
+  );
 
   /* === Modal Nova Pasta === */
   const abrirModalPasta = () => {
@@ -122,14 +238,12 @@ const HomePage = () => {
     if (!nome) return;
 
     try {
-      // OBS: backend espera { nome, loginid }
       const { data } = await axios.post(
         `${API_BASE}/api/pastas`,
         { nome, loginid: loginId },
         { headers: { Authorization: `Bearer ${token}` } }
-      ); // retorna { pastaId, nome }
-
-      const nova = data;
+      );
+      const nova = normalizePasta(data);
       setPastas((prev) => [...prev, nova]);
 
       const map = readLocalMap(MAP_STORAGE_KEY);
@@ -137,15 +251,18 @@ const HomePage = () => {
         pastas: [...(map.pastas || []), nova],
         vinculos: map.vinculos || {},
       });
+
+      toast.success(`Pasta "${nome}" criada!`);
     } catch (err) {
       console.error('Falha ao criar pasta no backend. Caindo para cache local.', err);
-      const nova = { pastaId: crypto.randomUUID(), nome }; // fallback local
+      const nova = { pastaId: (crypto?.randomUUID?.() ?? `local-${Date.now()}`), nome }; // fallback local
       setPastas((prev) => [...prev, nova]);
       const map = readLocalMap(MAP_STORAGE_KEY);
       writeLocalMap(MAP_STORAGE_KEY, {
         pastas: [...(map.pastas || []), nova],
         vinculos: map.vinculos || {},
       });
+      toast.info(`Pasta "${nome}" criada localmente (offline).`);
     } finally {
       setIsNovaPastaOpen(false);
     }
@@ -174,7 +291,7 @@ const HomePage = () => {
       );
 
       setPesquisas((prev) =>
-        prev.map((p) => (p.pesquisaid === pesquisaId ? { ...p, pastaId: destinoId } : p))
+        prev.map((p) => (getPid(p) === pesquisaId ? { ...p, pastaId: destinoId } : p))
       );
 
       const map = readLocalMap(MAP_STORAGE_KEY);
@@ -182,15 +299,15 @@ const HomePage = () => {
       if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
       writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
     } catch (err) {
-      // fallback local
       const map = readLocalMap(MAP_STORAGE_KEY);
       const vinc = { ...(map.vinculos || {}) };
       if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
       writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
 
       setPesquisas((prev) =>
-        prev.map((p) => (p.pesquisaid === pesquisaId ? { ...p, pastaId: destinoId } : p))
+        prev.map((p) => (getPid(p) === pesquisaId ? { ...p, pastaId: destinoId } : p))
       );
+      toast.warn('Não consegui atualizar no servidor. Alteração aplicada localmente.');
     } finally {
       setPastaPulse(pastaIdOrSem);
       setTimeout(() => setPastaPulse(null), 900);
@@ -201,37 +318,51 @@ const HomePage = () => {
   const pesquisasComPastaVinculada = useMemo(() => {
     const map = readLocalMap(MAP_STORAGE_KEY);
     const vinc = map.vinculos || {};
-    return (pesquisas || []).map((p) => {
-      const pastaId = typeof p.pastaId !== 'undefined' ? p.pastaId : vinc[p.pesquisaid] || null;
+    return (pesquisasEnriquecidas || []).map((p) => {
+      const pid = getPid(p);
+      const pastaId =
+        typeof p.pastaId !== 'undefined'
+          ? p.pastaId
+          : (pid ? vinc[pid] : null);
       return { ...p, pastaId };
     });
-  }, [pesquisas, MAP_STORAGE_KEY]);
+  }, [pesquisasEnriquecidas, MAP_STORAGE_KEY]);
 
   /* === Filtros === */
   const tiposDisponiveis = useMemo(() => {
+    // nomes vindos do p.tipoPesquisa.descricao (já enriquecido) ou do lookup usando TipoPesquisaId
     const set = new Set(
       pesquisasComPastaVinculada
-        .map((p) => p?.tipoPesquisa?.descricao)
+        .map((p) => {
+          const desc = p?.tipoPesquisa?.descricao;
+          if (desc) return desc;
+          const tid = getTipoId(p);
+          return tid && tipoLookup.get(Number(tid));
+        })
         .filter((t) => t && typeof t === 'string')
     );
     return ['todos', ...Array.from(set)];
-  }, [pesquisasComPastaVinculada]);
+  }, [pesquisasComPastaVinculada, tipoLookup]);
 
   const listaFiltrada = useMemo(() => {
     let base = [...pesquisasComPastaVinculada];
 
     if (query.trim()) {
-      const q = query.trim().toLowerCase();
+      const q = keyOf(query);
       base = base.filter(
         (p) =>
-          p?.titulo?.toLowerCase().includes(q) ||
-          p?.descricao?.toLowerCase().includes(q) ||
-          p?.tipoPesquisa?.descricao?.toLowerCase().includes(q)
+          keyOf(p?.titulo).includes(q) ||
+          keyOf(p?.descricao).includes(q) ||
+          keyOf(p?.tipoPesquisa?.descricao ?? (tipoLookup.get(Number(getTipoId(p))) || '')).includes(q)
       );
     }
 
     if (filtroTipo !== 'todos') {
-      base = base.filter((p) => p?.tipoPesquisa?.descricao === filtroTipo);
+      const k = keyOf(filtroTipo);
+      base = base.filter((p) => {
+        const desc = p?.tipoPesquisa?.descricao ?? (tipoLookup.get(Number(getTipoId(p))) || '');
+        return keyOf(desc) === k;
+      });
     }
 
     if (pastaSelecionada !== 'todas') {
@@ -245,15 +376,12 @@ const HomePage = () => {
     } else if (ordenarPor === 'z-a') {
       base.sort((a, b) => (b.titulo || '').localeCompare(a.titulo || ''));
     } else {
-      base.sort(
-        (a, b) =>
-          new Date(b.dataCriacao || b.criadoEm || 0) -
-          new Date(a.dataCriacao || a.criadoEm || 0)
-      );
+      const getDate = (x) => x?.dataCriacao || x?.criadoEm || x?.datacriacao || 0;
+      base.sort((a, b) => new Date(getDate(b)) - new Date(getDate(a)));
     }
 
     return base;
-  }, [pesquisasComPastaVinculada, query, filtroTipo, ordenarPor, pastaSelecionada]);
+  }, [pesquisasComPastaVinculada, query, filtroTipo, ordenarPor, pastaSelecionada, tipoLookup]);
 
   /* === Drag & Drop === */
   const onDragStart = (e, pesquisaId) => {
@@ -271,16 +399,98 @@ const HomePage = () => {
   };
   const allowDrop = (e) => e.preventDefault();
   const onPastaDragEnter = (key) => { dragOverPastaRef.current = key; setPastaHover(key); };
-  const onPastaDragLeave = (key) => { if (dragOverPastaRef.current === key) dragOverPastaRef.current = null; setPastaHover((prev) => (prev === key ? null : prev)); };
-  const onPastaDrop = (e, key) => { e.preventDefault(); const id = parseInt(e.dataTransfer.getData('text/plain')); if (!id) return; movePesquisaToPasta(id, key); dragOverPastaRef.current = null; setPastaHover(null); };
+  const onPastaDragLeave = (key) => {
+    if (dragOverPastaRef.current === key) dragOverPastaRef.current = null;
+    setPastaHover((prev) => (prev === key ? null : prev));
+  };
+  const onPastaDrop = (e, key) => {
+    e.preventDefault();
+    const id = parseInt(e.dataTransfer.getData('text/plain'));
+    if (!id) return;
+    movePesquisaToPasta(id, key);
+    dragOverPastaRef.current = null;
+    setPastaHover(null);
+  };
 
   const labelPasta = useCallback((pastaId) => {
     if (!pastaId) return 'Sem pasta';
     const p = pastas.find((x) => x.pastaId === pastaId);
-    return p ? p.nome : 'Pasta';
+    return p ? (p.nome || 'Pasta') : 'Pasta';
   }, [pastas]);
 
   const handleLogout = () => { localStorage.clear(); navigate('/login'); };
+
+  /* ===================== AÇÕES: Renomear / Excluir ===================== */
+  const abrirRenomear = (p) => {
+    setPastaAlvo(p);
+    setNovoNomeEdicao(p?.nome || '');
+    setIsRenomearOpen(true);
+  };
+
+  const confirmarRenomear = async () => {
+    const novoNome = (novoNomeEdicao || '').trim();
+    if (!pastaAlvo || !novoNome) return;
+
+    try {
+      await axios.put(
+        `${API_BASE}/api/pastas/${pastaAlvo.pastaId}/nome`,
+        { novoNome },
+        { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setPastas((prev) =>
+        prev.map((x) => (x.pastaId === pastaAlvo.pastaId ? { ...x, nome: novoNome } : x))
+      );
+      const map = readLocalMap(MAP_STORAGE_KEY);
+      writeLocalMap(MAP_STORAGE_KEY, {
+        pastas: (map.pastas || []).map((x) => (x.pastaId === pastaAlvo.pastaId ? { ...x, nome: novoNome } : x)),
+        vinculos: map.vinculos || {},
+      });
+
+      toast.success('Pasta renomeada!');
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 409) toast.warn('Já existe uma pasta com esse nome.');
+      else toast.error('Falha ao renomear a pasta.');
+      console.error('Falha ao renomear pasta:', err);
+    } finally {
+      setIsRenomearOpen(false);
+      setPastaAlvo(null);
+      setNovoNomeEdicao('');
+    }
+  };
+
+  const abrirExcluir = (p) => {
+    setPastaAlvo(p);
+    setIsExcluirOpen(true);
+  };
+
+  const confirmarExcluir = async () => {
+    if (!pastaAlvo) return;
+    try {
+      await axios.delete(
+        `${API_BASE}/api/pastas/${pastaAlvo.pastaId}`,
+        { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
+      );
+      setPastas((prev) => prev.filter((x) => x.pastaId !== pastaAlvo.pastaId));
+      const map = readLocalMap(MAP_STORAGE_KEY);
+      writeLocalMap(MAP_STORAGE_KEY, {
+        pastas: (map.pastas || []).filter((x) => x.pastaId !== pastaAlvo.pastaId),
+        vinculos: map.vinculos || {},
+      });
+
+      setPastaSelecionada((cur) => (cur === pastaAlvo.pastaId ? 'todas' : cur));
+      setPesquisas((prev) => prev.map(p => (p.pastaId === pastaAlvo.pastaId ? { ...p, pastaId: null } : p)));
+
+      toast.success('Pasta excluída!');
+    } catch (err) {
+      console.error('Falha ao excluir pasta:', err);
+      toast.error('Falha ao excluir a pasta.');
+    } finally {
+      setIsExcluirOpen(false);
+      setPastaAlvo(null);
+    }
+  };
 
   /* ============================== RENDER ============================== */
   return (
@@ -398,6 +608,7 @@ const HomePage = () => {
               key={p.pastaId}
               className={[
                 styles.pastaChip,
+                styles.pastaChipRow,
                 pastaSelecionada === p.pastaId ? styles.pastaChipActive : '',
                 pastaHover === p.pastaId ? styles.pastaChipHover : '',
                 pastaPulse === p.pastaId ? styles.pastaChipPulse : ''
@@ -411,6 +622,23 @@ const HomePage = () => {
             >
               <Folder size={16} />
               <span>{p.nome}</span>
+
+              <span className={styles.pastaActions}>
+                <button
+                  className={styles.iconBtn}
+                  title="Renomear pasta"
+                  onClick={(e) => { e.stopPropagation(); abrirRenomear(p); }}
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  className={`${styles.iconBtn} ${styles.navDanger}`}
+                  title="Excluir pasta"
+                  onClick={(e) => { e.stopPropagation(); abrirExcluir(p); }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </span>
             </div>
           ))}
         </section>
@@ -439,41 +667,44 @@ const HomePage = () => {
             </div>
           ) : (
             <div className={styles.grid}>
-              {listaFiltrada.map((p) => (
-                <article
-                  key={p.pesquisaid}
-                  className={styles.card}
-                  draggable
-                  onDragStart={(e) => onDragStart(e, p.pesquisaid)}
-                  onDragEnd={onDragEnd}
-                  onClick={() => {
-                    if (draggingId) return;
-                    navigate(`/minhas-pesquisas/resultado/${p.pesquisaid}`);
-                  }}
-                >
-                  <div className={styles.cardHead}>
-                    <span className={styles.badge}>
-                      {p?.tipoPesquisa?.descricao || 'Sem tipo'}
-                    </span>
-                    <span className={styles.folderTag} title={p.pastaId ? labelPasta(p.pastaId) : 'Sem pasta'}>
-                      <Folder size={14} />
-                      <i>{p.pastaId ? labelPasta(p.pastaId) : 'Sem pasta'}</i>
-                    </span>
-                  </div>
+              {listaFiltrada.map((p) => {
+                const pid = getPid(p);
+                const descTipo = p?.tipoPesquisa?.descricao ?? (tipoLookup.get(Number(getTipoId(p))) || 'Sem tipo');
+                return (
+                  <article
+                    key={pid}
+                    className={styles.card}
+                    draggable
+                    onDragStart={(e) => pid && onDragStart(e, pid)}
+                    onDragEnd={onDragEnd}
+                    onClick={() => {
+                      if (draggingId) return;
+                      if (!pid) return;
+                      navigate(`/minhas-pesquisas/resultado/${pid}`);
+                    }}
+                  >
+                    <div className={styles.cardHead}>
+                      <span className={styles.badge}>{descTipo || 'Sem tipo'}</span>
+                      <span className={styles.folderTag} title={p.pastaId ? labelPasta(p.pastaId) : 'Sem pasta'}>
+                        <Folder size={14} />
+                        <i>{p.pastaId ? labelPasta(p.pastaId) : 'Sem pasta'}</i>
+                      </span>
+                    </div>
 
-                  <h3 className={styles.cardTitle}>{p.titulo || 'Sem título'}</h3>
-                  {p.descricao && <p className={styles.cardDesc}>{p.descricao}</p>}
+                    <h3 className={styles.cardTitle}>{p.titulo || 'Sem título'}</h3>
+                    {p.descricao && <p className={styles.cardDesc}>{p.descricao}</p>}
 
-                  <div className={styles.cardFoot}>
-                    <span className={styles.meta}>
-                      {new Date(p.dataCriacao || p.criadoEm || Date.now()).toLocaleDateString('pt-BR')}
-                    </span>
-                    <span className={styles.more}>
-                      Abrir <ChevronRight size={16} />
-                    </span>
-                  </div>
-                </article>
-              ))}
+                    <div className={styles.cardFoot}>
+                      <span className={styles.meta}>
+                        {new Date(p.dataCriacao || p.criadoEm || p.datacriacao || Date.now()).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className={styles.more}>
+                        Abrir <ChevronRight size={16} />
+                      </span>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           )}
         </section>
@@ -528,6 +759,102 @@ const HomePage = () => {
           </div>
         </div>
       )}
+
+      {/* Modal: Renomear Pasta */}
+      {isRenomearOpen && (
+        <div className={styles.modalOverlay} onMouseDown={() => setIsRenomearOpen(false)}>
+          <div
+            className={styles.modalCard}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="renomear-pasta-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h3 id="renomear-pasta-title">Renomear pasta</h3>
+              <button aria-label="Fechar" className={styles.iconBtn} onClick={() => setIsRenomearOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <label className={styles.fieldLabel}>Novo nome</label>
+              <input
+                type="text"
+                maxLength={60}
+                value={novoNomeEdicao}
+                onChange={(e) => setNovoNomeEdicao(e.target.value)}
+                className={styles.textInput}
+              />
+              <small className={styles.helpText}>
+                Renomeando: <b>{pastaAlvo?.nome}</b>
+              </small>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setIsRenomearOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                className={styles.btnPrimary}
+                onClick={confirmarRenomear}
+                disabled={!novoNomeEdicao.trim()}
+                title={!novoNomeEdicao.trim() ? 'Digite um nome' : 'Salvar'}
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Excluir Pasta */}
+      {isExcluirOpen && (
+        <div className={styles.modalOverlay} onMouseDown={() => setIsExcluirOpen(false)}>
+          <div
+            className={styles.modalCard}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="excluir-pasta-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h3 id="excluir-pasta-title">Excluir pasta</h3>
+              <button aria-label="Fechar" className={styles.iconBtn} onClick={() => setIsExcluirOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <p>Tem certeza que deseja excluir a pasta <b>{pastaAlvo?.nome}</b>?</p>
+              <small className={styles.helpText}>
+                As pesquisas não serão apagadas — elas apenas ficarão “Sem pasta”.
+              </small>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setIsExcluirOpen(false)}>
+                Cancelar
+              </button>
+              <button className={`${styles.btnPrimary} ${styles.navDanger}`} onClick={confirmarExcluir}>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ToastContainer
+        position="top-right"
+        autoClose={2200}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss={false}
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
     </div>
   );
 };

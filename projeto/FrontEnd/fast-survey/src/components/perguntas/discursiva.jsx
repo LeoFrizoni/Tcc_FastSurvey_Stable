@@ -5,16 +5,8 @@ import "./pergunta.css";
 /** Util: aplica TemplateJson + style externo */
 function applyBlockStyle(estilo = {}, override = {}) {
   const {
-    corFundo,
-    corTexto,
-    fonte,
-    padding,
-    largura,
-    alinhamento,
-    borda,
-    sombra,
-    bordaRadius,
-    margemInferior,
+    corFundo, corTexto, fonte, padding, largura, alinhamento,
+    borda, sombra, bordaRadius, margemInferior,
   } = estilo || {};
 
   const s = {};
@@ -27,7 +19,9 @@ function applyBlockStyle(estilo = {}, override = {}) {
   if (borda) s.border = borda;
   if (sombra) s.boxShadow = sombra;
   if (bordaRadius != null) s.borderRadius = typeof bordaRadius === "number" ? `${bordaRadius}px` : bordaRadius;
-  s.marginBottom = margemInferior != null ? (typeof margemInferior === "number" ? `${margemInferior}px` : margemInferior) : undefined;
+  s.marginBottom = margemInferior != null
+    ? (typeof margemInferior === "number" ? `${margemInferior}px` : margemInferior)
+    : undefined;
 
   return { ...s, ...override };
 }
@@ -39,7 +33,15 @@ function pickImgAlt(img, i) {
   return img?.file?.name || img?.nome || img?.alt || `imagem-${i}`;
 }
 
-const Discursiva = ({
+/** Evita que cliques no “fundo” do card roubem o foco do input */
+function handleMouseDownContainer(e) {
+  const isEditable = e.target.closest('input, textarea, select, [contenteditable="true"]');
+  if (!isEditable) {
+    e.preventDefault(); // mantém o foco no input atual
+  }
+}
+
+const DiscursivaBase = ({
   bloco,
   onChangeTexto,
   onRemoveImagem,
@@ -52,11 +54,12 @@ const Discursiva = ({
   const unica = imagens.length === 1;
 
   const estiloContainer = useMemo(
-    () => applyBlockStyle(b.estilo, {
-      backgroundColor: style?.backgroundColor || undefined,
-      fontFamily: style?.fontFamily || undefined,
-      color: style?.color || undefined,
-    }),
+    () =>
+      applyBlockStyle(b.estilo, {
+        backgroundColor: style?.backgroundColor || undefined,
+        fontFamily: style?.fontFamily || undefined,
+        color: style?.color || undefined,
+      }),
     [b.estilo, style]
   );
 
@@ -64,6 +67,7 @@ const Discursiva = ({
     <div
       className={`bloco-pergunta ${b.selecionado ? "selecionado" : ""}`}
       style={estiloContainer}
+      onMouseDown={handleMouseDownContainer}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -86,11 +90,7 @@ const Discursiva = ({
             const alt = pickImgAlt(img, i);
             return (
               <div key={i} className={`thumb-imagem ${unica ? "grande" : ""}`}>
-                {src ? (
-                  <img src={src} alt={alt} />
-                ) : (
-                  <span className="thumb-placeholder">{alt}</span>
-                )}
+                {src ? <img src={src} alt={alt} /> : <span className="thumb-placeholder">{alt}</span>}
                 <button
                   type="button"
                   className="btn-remover-img"
@@ -134,4 +134,23 @@ const Discursiva = ({
   );
 };
 
-export default Discursiva;
+/** Memo com comparação customizada para evitar re-render desnecessário */
+function areEqualDisc(a, b) {
+  const A = a.bloco || {};
+  const B = b.bloco || {};
+  return (
+    A.id === B.id &&
+    A.selecionado === B.selecionado &&
+    A.texto === B.texto &&
+    A.respostaExemplo === B.respostaExemplo &&
+    A.estilo === B.estilo &&           // referência já é memoizada no pai
+    A.imagens === B.imagens &&         // referência
+    a.style === b.style &&             // referência
+    a.onChangeTexto === b.onChangeTexto &&
+    a.onRemoveImagem === b.onRemoveImagem &&
+    a.onChangeRespostaExemplo === b.onChangeRespostaExemplo &&
+    a.onClick === b.onClick
+  );
+}
+
+export default React.memo(DiscursivaBase, areEqualDisc);

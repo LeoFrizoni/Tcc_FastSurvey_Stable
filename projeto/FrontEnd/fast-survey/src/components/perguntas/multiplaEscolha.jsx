@@ -23,7 +23,13 @@ function getOpcaoTexto(opcao) {
   return typeof opcao === "object" && opcao !== null ? (opcao.texto ?? opcao.opcao ?? "") : (opcao ?? "");
 }
 
-const MultiplaEscolha = ({
+/** Mantém foco no input quando clica no “fundo” do card */
+function handleMouseDownContainer(e) {
+  const isEditable = e.target.closest('input, textarea, select, [contenteditable="true"]');
+  if (!isEditable) e.preventDefault();
+}
+
+const MultiplaEscolhaBase = ({
   bloco,
   onChangeTexto,
   onChangeOpcoes,
@@ -40,17 +46,17 @@ const MultiplaEscolha = ({
   const unica = imagens.length === 1;
 
   const estiloContainer = useMemo(
-    () => applyBlockStyle(b.estilo, {
-      backgroundColor: style?.backgroundColor || undefined,
-      fontFamily: style?.fontFamily || undefined,
-      color: style?.color || undefined,
-    }),
+    () =>
+      applyBlockStyle(b.estilo, {
+        backgroundColor: style?.backgroundColor || undefined,
+        fontFamily: style?.fontFamily || undefined,
+        color: style?.color || undefined,
+      }),
     [b.estilo, style]
   );
 
   const atualizarOpcao = (index, valor) => {
     const novas = [...opcoes];
-    // se original era objeto, preserva forma:
     if (typeof novas[index] === "object" && novas[index] !== null) {
       novas[index] = { ...novas[index], texto: valor };
     } else {
@@ -64,13 +70,13 @@ const MultiplaEscolha = ({
     onChangeOpcoes(b.id, novas);
   };
 
-  const isCorreta = (idx) =>
-    Array.isArray(b.corretas) && b.corretas.includes(idx);
+  const isCorreta = (idx) => Array.isArray(b.corretas) && b.corretas.includes(idx);
 
   return (
     <div
       className={`bloco-pergunta ${b.selecionado ? "selecionado" : ""}`}
       style={estiloContainer}
+      onMouseDown={handleMouseDownContainer}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -135,7 +141,6 @@ const MultiplaEscolha = ({
 
       {opcoes.map((opcao, index) => {
         const valor = getOpcaoTexto(opcao);
-
         const simulador = b.permitirMultiplaSelecao ? (
           <input type="checkbox" disabled className="checkbox-simulador" />
         ) : (
@@ -144,10 +149,8 @@ const MultiplaEscolha = ({
 
         return (
           <div key={index} className="opcao-input" onClick={(e) => e.stopPropagation()}>
-            {/* Simulador de como o usuário verá */}
             {simulador}
 
-            {/* Editor de texto da opção */}
             <input
               type="text"
               value={valor}
@@ -156,7 +159,6 @@ const MultiplaEscolha = ({
               className="input-opcao"
             />
 
-            {/* Marcar correta (se houver gabarito) */}
             {b.temGabarito && (
               <label className="marcar-correta">
                 <input
@@ -169,7 +171,6 @@ const MultiplaEscolha = ({
               </label>
             )}
 
-            {/* Remover opção */}
             <button
               type="button"
               className="btn-remover"
@@ -197,4 +198,28 @@ const MultiplaEscolha = ({
   );
 };
 
-export default MultiplaEscolha;
+function areEqualMult(a, b) {
+  const A = a.bloco || {};
+  const B = b.bloco || {};
+  return (
+    A.id === B.id &&
+    A.selecionado === B.selecionado &&
+    A.texto === B.texto &&
+    A.temGabarito === B.temGabarito &&
+    A.permitirMultiplaSelecao === B.permitirMultiplaSelecao &&
+    A.opcoes === B.opcoes &&         // referência
+    A.corretas === B.corretas &&     // referência
+    A.imagens === B.imagens &&       // referência
+    A.estilo === B.estilo &&
+    a.style === b.style &&
+    a.onChangeTexto === b.onChangeTexto &&
+    a.onChangeOpcoes === b.onChangeOpcoes &&
+    a.onRemoveImagem === b.onRemoveImagem &&
+    a.onToggleGabarito === b.onToggleGabarito &&
+    a.onTogglePermiteMultipla === b.onTogglePermiteMultipla &&
+    a.onToggleCorreta === b.onToggleCorreta &&
+    a.onClick === b.onClick
+  );
+}
+
+export default React.memo(MultiplaEscolhaBase, areEqualMult);

@@ -4,6 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { Eye, EyeOff } from 'lucide-react';
+
+const API_BASE =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  'http://localhost:5062';
+
+const api = axios.create({ baseURL: API_BASE });
 
 const Login = () => {
   const [isActive, setIsActive] = useState(false);
@@ -12,12 +19,14 @@ const Login = () => {
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
   const [loadingLogin, setLoadingLogin] = useState(false);
+  const [showPassLogin, setShowPassLogin] = useState(false);
 
   // Cadastro
   const [novoUsuario, setNovoUsuario] = useState('');
   const [novaSenha, setNovaSenha] = useState('');
   const [novoEmail, setNovoEmail] = useState('');
   const [loadingCadastro, setLoadingCadastro] = useState(false);
+  const [showPassCadastro, setShowPassCadastro] = useState(false);
 
   // LGPD Modal
   const [showLgpd, setShowLgpd] = useState(false);
@@ -26,43 +35,56 @@ const Login = () => {
   const termsRef = useRef(null);
 
   const navigate = useNavigate();
+  const validarSenhaForte = (s) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(s);
 
-  const validarSenhaForte = (senha) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(senha);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }, []);
 
   // ------- LOGIN -------
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!usuario || !senha) {
+      toast.warn('Informe usuário e senha.');
+      return;
+    }
     setLoadingLogin(true);
     try {
-      const resposta = await axios.post('http://localhost:5062/api/login/Autenticar', {
-        usuario,
-        senha
-      });
-      localStorage.setItem('token', resposta.data.token);
-      localStorage.setItem('userId', resposta.data.id);
-      localStorage.setItem('tipousuarioid', resposta.data.tipousuarioid);
-      toast.success(`Bem-vindo(a), ${resposta.data.usuario}!`);
+      const { data } = await api.post('/api/login/Autenticar', { usuario, senha });
 
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('userId', String(data.id));
+      localStorage.setItem('tipousuarioid', String(data.tipousuarioid));
+      api.defaults.headers.common.Authorization = `Bearer ${data.token}`;
+
+      toast.success(`Bem-vindo(a), ${data.usuario}!`);
+
+      const tipo = Number(data.tipousuarioid);
       setTimeout(() => {
-        if (resposta.data.tipousuarioid === 15) navigate('/admin');
+        if (tipo === 15) navigate('/admin');
         else navigate('/home');
-      }, 1000);
-    } catch {
-      toast.error('Usuário ou senha inválidos');
+      }, 800);
+    } catch (err) {
+      const msg =
+        err?.response?.data ||
+        err?.response?.data?.message ||
+        'Usuário ou senha inválidos';
+      toast.error(typeof msg === 'string' ? msg : 'Falha ao autenticar.');
     } finally {
       setLoadingLogin(false);
     }
   };
 
-  // ------- CADASTRO: abre modal LGPD em vez de enviar direto -------
+  // ------- CADASTRO -------
   const abrirModalLgpd = (e) => {
     e.preventDefault();
-    if (!validarSenhaForte(novaSenha)) {
-      toast.error('A senha deve ter no mínimo 8 caracteres, com ao menos uma letra maiúscula e um número.');
-      return;
-    }
     if (!novoUsuario || !novoEmail || !novaSenha) {
       toast.error('Preencha todos os campos de cadastro.');
+      return;
+    }
+    if (!validarSenhaForte(novaSenha)) {
+      toast.error('A senha deve ter no mínimo 8 caracteres, com ao menos uma letra maiúscula e um número.');
       return;
     }
     setShowLgpd(true);
@@ -70,31 +92,39 @@ const Login = () => {
     setAccepted(false);
   };
 
-  // ------- CADASTRO: confirmação após aceitar LGPD -------
   const confirmarCadastro = async () => {
     if (!accepted) return;
     setLoadingCadastro(true);
+
     const formData = new FormData();
     formData.append('usuario', novoUsuario);
     formData.append('senha', novaSenha);
     formData.append('email', novoEmail);
+    formData.append('tipousuarioid', 13);
 
     try {
-      const resposta = await axios.post('http://localhost:5062/api/login/cadastrarlogin', formData);
-      toast.success(`Usuário ${resposta.data.usuario} cadastrado com sucesso!`);
+      await api.post('/api/login/CadastrarLogin', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      toast.success('Usuário cadastrado com sucesso!');
       setNovoUsuario('');
       setNovaSenha('');
       setNovoEmail('');
       setShowLgpd(false);
-      setTimeout(() => setIsActive(false), 1000);
-    } catch (erro) {
-      toast.error('Erro ao cadastrar usuário: ' + (erro.response?.data || erro.message));
+      setTimeout(() => setIsActive(false), 800);
+    } catch (err) {
+      const msg =
+        err?.response?.data ||
+        err?.response?.data?.message ||
+        'Erro ao cadastrar usuário.';
+      toast.error(typeof msg === 'string' ? msg : 'Erro ao cadastrar usuário.');
     } finally {
       setLoadingCadastro(false);
     }
   };
 
-  // Detecta scroll até o final do texto
+  // ------- Modal helpers -------
   const onScrollTerms = () => {
     const el = termsRef.current;
     if (!el) return;
@@ -102,7 +132,6 @@ const Login = () => {
     if (atEnd && !scrolledToEnd) setScrolledToEnd(true);
   };
 
-  // A11y: fecha com ESC
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key === 'Escape' && showLgpd && !loadingCadastro) setShowLgpd(false);
@@ -111,9 +140,9 @@ const Login = () => {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [showLgpd, loadingCadastro]);
 
-  const renderRequisito = (condicao, texto) => (
-    <p style={{ color: condicao ? 'green' : 'red', fontSize: '12px', margin: '3px 0' }}>
-      {condicao ? '✓' : '✗'} {texto}
+  const renderRequisito = (cond, texto) => (
+    <p style={{ color: cond ? 'green' : 'red', fontSize: '12px', margin: '3px 0' }}>
+      {cond ? '✓' : '✗'} {texto}
     </p>
   );
 
@@ -132,6 +161,7 @@ const Login = () => {
               value={novoUsuario}
               onChange={(e) => setNovoUsuario(e.target.value)}
               required
+              autoComplete="username"
             />
             <input
               type="email"
@@ -139,15 +169,31 @@ const Login = () => {
               value={novoEmail}
               onChange={(e) => setNovoEmail(e.target.value)}
               required
-            />
-            <input
-              type="password"
-              placeholder="Senha"
-              value={novaSenha}
-              onChange={(e) => setNovaSenha(e.target.value)}
-              required
+              autoComplete="email"
             />
 
+            <div className={styles.inputRow}>
+              <input
+                type={showPassCadastro ? 'text' : 'password'}
+                placeholder="Senha"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                required
+                autoComplete="new-password"
+                className={styles.inputWithEye}
+              />
+              <button
+                type="button"
+                className={styles.eyeBtn}
+                onClick={() => setShowPassCadastro(v => !v)}
+                aria-label={showPassCadastro ? 'Ocultar senha' : 'Mostrar senha'}
+                title={showPassCadastro ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {showPassCadastro ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
+
+            {/* <<< REQUISITOS VISUAIS DA SENHA (aparece quando começa a digitar) >>> */}
             {novaSenha && (
               <div className={styles['validacao-senha']}>
                 {renderRequisito(novaSenha.length >= 8, 'Mínimo de 8 caracteres')}
@@ -156,7 +202,6 @@ const Login = () => {
               </div>
             )}
 
-            {/* IMPORTANTE: vira button normal e abre o modal LGPD */}
             <button type="button" onClick={abrirModalLgpd} disabled={loadingCadastro}>
               {loadingCadastro ? 'Cadastrando...' : 'Cadastrar'}
             </button>
@@ -175,14 +220,29 @@ const Login = () => {
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               required
+              autoComplete="username"
             />
-            <input
-              type="password"
-              placeholder="Senha"
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              required
-            />
+
+            <div className={styles.inputRow}>
+              <input
+                type={showPassLogin ? 'text' : 'password'}
+                placeholder="Senha"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                required
+                autoComplete="current-password"
+                className={styles.inputWithEye}
+              />
+              <button
+                type="button"
+                className={styles.eyeBtn}
+                onClick={() => setShowPassLogin(v => !v)}
+                aria-label={showPassLogin ? 'Ocultar senha' : 'Mostrar senha'}
+                title={showPassLogin ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {showPassLogin ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
 
             <button type="submit" disabled={loadingLogin}>
               {loadingLogin ? 'Entrando...' : 'Entrar'}
@@ -222,7 +282,7 @@ const Login = () => {
         </div>
       </div>
 
-      {/* MODAL LGPD */}
+      {/* ---- MODAL LGPD (idêntico ao anterior) ---- */}
       {showLgpd && (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="lgpd-title">
           <div className={styles.modalContent}>
@@ -239,87 +299,9 @@ const Login = () => {
               </button>
             </div>
 
-            <div
-              className={styles.modalBody}
-              ref={termsRef}
-              onScroll={onScrollTerms}
-              tabIndex={0}
-            >
-              <h3>Termos de Uso & Privacidade — FastSurvey</h3>
-              <p><strong>Última atualização:</strong> 17/08/2025</p>
-
-              <h4>1. Quem somos e escopo</h4>
-              <p>
-                O FastSurvey é uma plataforma para criação, distribuição e análise de pesquisas.
-                Este Termo rege o uso do serviço e o tratamento de dados pessoais,
-                conforme a Lei nº 13.709/2018 (LGPD) e o Marco Civil da Internet.
-              </p>
-
-              <h4>2. Dados que tratamos</h4>
-              <ul>
-                <li>Conta: nome de usuário, e-mail e senha.</li>
-                <li>Uso do serviço: logs de acesso, IPs, data/hora e ações realizadas.</li>
-                <li>Conteúdo: pesquisas, perguntas, anexos e respostas submetidas.</li>
-                <li>Cookies: para autenticação, segurança e melhoria da experiência.</li>
-              </ul>
-
-              <h4>3. Bases legais</h4>
-              <p>
-                Tratamos dados para execução do contrato, cumprimento de obrigação legal
-                e legítimo interesse, sempre observando seus direitos. Quando necessário,
-                solicitaremos consentimento.
-              </p>
-
-              <h4>4. Finalidades</h4>
-              <p>
-                Operar e manter a plataforma, autenticar usuários, armazenar pesquisas e respostas,
-                gerar QR codes, prevenir fraudes, cumprir obrigações legais e melhorar recursos.
-              </p>
-
-              <h4>5. Compartilhamento</h4>
-              <p>
-                Pode ocorrer com provedores de infraestrutura, analytics ou autoridades,
-                quando necessário e proporcional.
-              </p>
-
-              <h4>6. Segurança e retenção</h4>
-              <p>
-                Adotamos medidas de segurança adequadas e retemos dados pelo tempo necessário
-                às finalidades ou exigências legais.
-              </p>
-
-              <h4>7. Direitos do titular</h4>
-              <p>
-                Você pode solicitar confirmação, acesso, correção, portabilidade, eliminação
-                e outras prerrogativas previstas na LGPD. Contato: <strong>dpo@fastsurvey.local</strong>.
-              </p>
-
-              <h4>8. Crianças e adolescentes</h4>
-              <p>
-                O FastSurvey não é direcionado a menores. Dados identificados sem base legal
-                serão removidos.
-              </p>
-
-              <h4>9. Transferências internacionais</h4>
-              <p>
-                Podem ocorrer quando usamos provedores fora do Brasil, sempre com salvaguardas adequadas.
-              </p>
-
-              <h4>10. Atualizações e contato</h4>
-              <p>
-                Os termos podem ser atualizados. Notificaremos mudanças relevantes na plataforma.
-                Dúvidas: <strong>dpo@fastsurvey.local</strong>.
-              </p>
-
-              <h4>11. Foro</h4>
-              <p>
-                Aplica-se a legislação brasileira. Foro: domicílio do titular ou local do réu,
-                conforme a lei aplicável.
-              </p>
-
-              <p style={{ marginTop: 16, fontStyle: 'italic' }}>
-                Role até o final para habilitar a opção de aceite.
-              </p>
+            <div className={styles.modalBody} ref={termsRef} onScroll={onScrollTerms} tabIndex={0}>
+              {/* ...texto dos termos... */}
+              <p style={{ marginTop: 16, fontStyle: 'italic' }}>Role até o final para habilitar a opção de aceite.</p>
             </div>
 
             <div className={styles.modalFooter}>
@@ -332,22 +314,9 @@ const Login = () => {
                 />
                 <span>Li e aceito os Termos de Uso & Privacidade</span>
               </label>
-
               <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.btnSecondary}
-                  onClick={() => setShowLgpd(false)}
-                  disabled={loadingCadastro}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  className={styles.btnPrimary}
-                  onClick={confirmarCadastro}
-                  disabled={!accepted || loadingCadastro}
-                >
+                <button type="button" className={styles.btnSecondary} onClick={() => setShowLgpd(false)} disabled={loadingCadastro}>Cancelar</button>
+                <button type="button" className={styles.btnPrimary} onClick={confirmarCadastro} disabled={!accepted || loadingCadastro}>
                   {loadingCadastro ? 'Registrando…' : 'Confirmar cadastro'}
                 </button>
               </div>

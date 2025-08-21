@@ -1,174 +1,199 @@
-﻿// FASTSURVEY/Controllers/PerguntasController.cs
-using FASTSURVEY.Models;
-using FASTSURVEY.Models.DTO;
-using FASTSURVEY.Services;
-using Microsoft.AspNetCore.Mvc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FASTSURVEY.Dtos.Opcoes;
+using FASTSURVEY.Dtos.Perguntas;
+using FASTSURVEY.Dtos.Perguntas.Discursiva;
+using FASTSURVEY.Dtos.Perguntas.Objetiva;
+using FASTSURVEY.Dtos.Perguntas.Multipla;
+using FASTSURVEY.Services.Pergunta;
+using Microsoft.AspNetCore.Mvc;
+using FASTSURVEY.Services.Result;
 
 namespace FASTSURVEY.Controllers
 {
-    [Route("api")]
     [ApiController]
-    [Produces("application/json")]
+    [Route("api/[controller]")]
     public class PerguntasController : ControllerBase
     {
-        private readonly ServicePerguntas _svcPerguntas;
+        private readonly IPerguntaService _service;
 
-        public PerguntasController(ServicePerguntas svcPerguntas)
+        public PerguntasController(IPerguntaService service)
         {
-            _svcPerguntas = svcPerguntas;
+            _service = service;
         }
 
-        // GET: api/pesquisas/{pesquisaId}/perguntas
-        [HttpGet("pesquisas/{pesquisaId:int}/perguntas")]
+        // -------------------- Helpers --------------------
+        private IActionResult ToActionResult<T>(ServiceResult<T> result)
+        {
+            if (result == null) return StatusCode(500, "Erro inesperado.");
+
+            if (result.Success) return Ok(result.Data);
+
+            // Ajuste para acessar a lista de erros corretamente
+            return BadRequest(result.Errors);
+        }
+
+        // -------------------- CREATE --------------------
+
+        [HttpPost("discursiva")]
+        public async Task<IActionResult> CriarDiscursiva(
+            [FromBody] CriarPerguntaDiscursivaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.CriarDiscursivaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        [HttpPost("objetiva")]
+        public async Task<IActionResult> CriarObjetiva(
+            [FromBody] CriarPerguntaObjetivaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.CriarObjetivaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        [HttpPost("multipla")]
+        public async Task<IActionResult> CriarMultipla(
+            [FromBody] CriarPerguntaMultiplaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.CriarMultiplaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        // -------------------- UPDATE --------------------
+
+        [HttpPut("discursiva")]
+        public async Task<IActionResult> AtualizarDiscursiva(
+            [FromBody] AtualizarPerguntaDiscursivaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.AtualizarDiscursivaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        [HttpPut("objetiva")]
+        public async Task<IActionResult> AtualizarObjetiva(
+            [FromBody] AtualizarPerguntaObjetivaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.AtualizarObjetivaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        [HttpPut("multipla")]
+        public async Task<IActionResult> AtualizarMultipla(
+            [FromBody] AtualizarPerguntaMultiplaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.AtualizarMultiplaAsync(req, ct);
+            return ToActionResult(result);
+        }
+
+        // -------------------- DELETE --------------------
+
+        [HttpDelete("{perguntaId:int}")]
+        public async Task<IActionResult> Excluir(int perguntaId, CancellationToken ct)
+        {
+            var result = await _service.ExcluirAsync(perguntaId, ct);
+            return ToActionResult(result);
+        }
+
+        // -------------------- GET --------------------
+
+        [HttpGet("{perguntaId:int}")]
+        public async Task<IActionResult> ObterPorId(int perguntaId, CancellationToken ct)
+        {
+            var result = await _service.ObterPorIdAsync(perguntaId, ct);
+            return ToActionResult(result);
+        }
+
+        [HttpGet("por-pesquisa/{pesquisaId:int}")]
         public async Task<IActionResult> ListarPorPesquisa(int pesquisaId, CancellationToken ct)
         {
-            var list = await _svcPerguntas.ListarPorPesquisaAsync(pesquisaId, ct);
-            if (list == null || list.Count == 0) return NotFound("Nenhuma pergunta encontrada para a pesquisa.");
-            return Ok(list);
+            var result = await _service.ListarPorPesquisaAsync(pesquisaId, ct);
+            return ToActionResult(result);
         }
 
-        // GET: api/perguntas/{id}
-        [HttpGet("perguntas/{id:int}")]
-        public async Task<IActionResult> BuscarPorId(int id, CancellationToken ct)
+        // -------------------- GABARITO --------------------
+        public class DefinirGabaritoBody
         {
-            var p = await _svcPerguntas.BuscarPerguntaPorIdAsync(id, ct);
-            if (p == null) return NotFound("Pergunta não encontrada.");
-            return Ok(p);
+            public IEnumerable<int> OpcaoIds { get; set; } = new List<int>();
+            public bool PermitirApenasUma { get; set; } = true; // true=Objetiva; false=Múltipla
         }
 
-        // POST: api/pesquisas/{pesquisaId}/perguntas/discursiva
-        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/discursiva")]
-        public async Task<IActionResult> CriarDiscursiva(int pesquisaId, [FromBody] PerguntaDiscursivaDto dto, CancellationToken ct)
+        [HttpPost("{perguntaId:int}/gabarito")]
+        public async Task<IActionResult> DefinirGabarito(
+            int perguntaId,
+            [FromBody] DefinirGabaritoBody body,
+            CancellationToken ct)
         {
-            try
-            {
-                var p = await _svcPerguntas.CadastrarDiscursivaAsync(pesquisaId, dto, ct);
-                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            var result = await _service.DefinirGabaritoAsync(perguntaId, body.OpcaoIds, body.PermitirApenasUma, ct);
+            return ToActionResult(result);
         }
 
-        // POST: api/pesquisas/{pesquisaId}/perguntas/objetiva
-        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/objetiva")]
-        public async Task<IActionResult> CriarObjetiva(int pesquisaId, [FromBody] PerguntaObjetivaDto dto, CancellationToken ct)
+        // -------------------- ORDENAR PERGUNTAS --------------------
+        public class ReordenarPerguntasBody
         {
-            try
-            {
-                var p = await _svcPerguntas.CadastrarObjetivaAsync(pesquisaId, dto, ct);
-                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            public int PesquisaId { get; set; }
+            public IReadOnlyList<int> PerguntaIdsNaOrdem { get; set; } = new List<int>();
         }
 
-        // POST: api/pesquisas/{pesquisaId}/perguntas/multipla
-        [HttpPost("pesquisas/{pesquisaId:int}/perguntas/multipla")]
-        public async Task<IActionResult> CriarMultipla(int pesquisaId, [FromBody] PerguntaMultiplaEscolhaDto dto, CancellationToken ct)
+        [HttpPost("reordenar")]
+        public async Task<IActionResult> ReordenarPerguntas(
+            [FromBody] ReordenarPerguntasBody body,
+            CancellationToken ct)
         {
-            try
-            {
-                var p = await _svcPerguntas.CadastrarMultiplaAsync(pesquisaId, dto, ct);
-                return CreatedAtAction(nameof(BuscarPorId), new { id = p.perguntaid }, p);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            var result = await _service.ReordenarAsync(body.PesquisaId, body.PerguntaIdsNaOrdem, ct);
+            return ToActionResult(result);
         }
 
-        // PUT: api/perguntas/{id}
-        // (atualiza campos simples da pergunta — texto, flags; use endpoints de gabarito/opções para o resto)
-        [HttpPut("perguntas/{id:int}")]
-        public async Task<IActionResult> AtualizarPergunta(int id, [FromBody] PerguntaRecriarDto dto, CancellationToken ct)
+        // -------------------- OPÇÕES --------------------
+
+        [HttpPost("{perguntaId:int}/opcoes")]
+        public async Task<IActionResult> AdicionarOpcao(
+            int perguntaId,
+            [FromBody] OpcaoPerguntaRequest req,
+            CancellationToken ct)
         {
-            try
-            {
-                var atual = await _svcPerguntas.BuscarPerguntaPorIdAsync(id, ct);
-                if (atual == null) return NotFound("Pergunta não encontrada.");
-
-                if (!string.IsNullOrWhiteSpace(dto.Titulo)) atual.texto = dto.Titulo.Trim();
-                if (dto.TemGabarito.HasValue) atual.temgabarito = dto.TemGabarito.Value;
-                if (dto.PermitirMultiplaSelecao.HasValue) atual.permitemultiplaselecao = dto.PermitirMultiplaSelecao.Value;
-
-                var updated = await _svcPerguntas.AtualizarPerguntaAsync(atual, ct);
-                return Ok(updated);
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            var result = await _service.AdicionarOpcaoAsync(perguntaId, req, ct);
+            return ToActionResult(result);
         }
 
-        // PUT: api/perguntas/{id}/opcoes
-        // Body: array de { texto, correta } — substitui todas as opções
-        [HttpPut("perguntas/{id:int}/opcoes")]
-        public async Task<IActionResult> RecriarOpcoes(int id, [FromBody] List<OpcaoRecriarDto> novas, CancellationToken ct)
+        [HttpPut("opcoes")]
+        public async Task<IActionResult> AtualizarOpcao(
+            [FromBody] OpcaoPerguntaUpdateRequest req,
+            CancellationToken ct)
         {
-            try
-            {
-                var tuples = (novas ?? new List<OpcaoRecriarDto>())
-                    .Select(x => (x.Texto, x.Correta));
-                await _svcPerguntas.RecriarOpcoesAsync(id, tuples, ct);
-                return NoContent();
-            }
-            catch (ArgumentException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            var result = await _service.AtualizarOpcaoAsync(req, ct);
+            return ToActionResult(result);
         }
 
-        // PUT: api/perguntas/{id}/gabarito/objetiva?corretaIndex=0
-        [HttpPut("perguntas/{id:int}/gabarito/objetiva")]
-        public async Task<IActionResult> DefinirGabaritoObjetiva(int id, [FromQuery] int? corretaIndex, CancellationToken ct)
+        [HttpDelete("opcoes/{opcaoId:int}")]
+        public async Task<IActionResult> RemoverOpcao(int opcaoId, CancellationToken ct)
         {
-            try
-            {
-                await _svcPerguntas.AtualizarGabaritoObjetivaAsync(id, corretaIndex, ct);
-                return NoContent();
-            }
-            catch (ArgumentOutOfRangeException ex) { return BadRequest(ex.Message); }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            // O modelo não suporta soft-delete; parâmetro está na interface, mas sempre removerá físico
+            var result = await _service.RemoverOpcaoAsync(opcaoId, softDelete: false, ct);
+            return ToActionResult(result);
         }
 
-        // PUT: api/perguntas/{id}/gabarito/multipla
-        // Body: array de índices corretos (int[])
-        [HttpPut("perguntas/{id:int}/gabarito/multipla")]
-        public async Task<IActionResult> DefinirGabaritoMultipla(int id, [FromBody] int[] corretasIdx, CancellationToken ct)
+        // Como seu modelo de OpcaoPergunta não possui coluna de ordenação,
+        // este endpoint invocará o service que retorna "não suportado".
+        public class ReordenarOpcoesBody
         {
-            try
-            {
-                await _svcPerguntas.AtualizarGabaritoMultiplaAsync(id, corretasIdx ?? Array.Empty<int>(), ct);
-                return NoContent();
-            }
-            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
-            catch (Exception ex) { return Problem(ex.Message); }
+            public IReadOnlyList<int> OpcaoIdsNaOrdem { get; set; } = new List<int>();
         }
 
-        // DELETE: api/perguntas/{id}
-        [HttpDelete("perguntas/{id:int}")]
-        public async Task<IActionResult> Excluir(int id, CancellationToken ct)
+        [HttpPost("{perguntaId:int}/opcoes/reordenar")]
+        public async Task<IActionResult> ReordenarOpcoes(
+            int perguntaId,
+            [FromBody] ReordenarOpcoesBody body,
+            CancellationToken ct)
         {
-            try
-            {
-                await _svcPerguntas.ExcluirPerguntaAsync(id, ct);
-                return NoContent();
-            }
-            catch (Exception ex) { return Problem(ex.Message); }
+            var result = await _service.ReordenarOpcoesAsync(perguntaId, body.OpcaoIdsNaOrdem, ct);
+            return ToActionResult(result);
         }
-    }
-
-    // DTOs auxiliares do controller
-    public class PerguntaRecriarDto
-    {
-        public string? Titulo { get; set; }
-        public bool? TemGabarito { get; set; }
-        public bool? PermitirMultiplaSelecao { get; set; }
-    }
-
-    public class OpcaoRecriarDto
-    {
-        public string Texto { get; set; } = "";
-        public bool Correta { get; set; }
     }
 }

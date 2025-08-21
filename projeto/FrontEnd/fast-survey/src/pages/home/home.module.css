@@ -475,3 +475,14 @@
   .main{ padding:20px 16px; }
   .toolbar{ padding:10px; }
 }
+
+.pastaChipRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pastaActions {
+  display: inline-flex;
+  gap: 6px;
+}

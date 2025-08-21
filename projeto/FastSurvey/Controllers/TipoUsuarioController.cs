@@ -14,9 +14,9 @@ namespace FASTSURVEY.Controllers
     public class TipoUsuarioController : ControllerBase
     {
         private readonly FastSurveyContext _context;
-        private readonly RepositoryTipoUsuario _repo;
+        private readonly TipoUsuarioRepository _repo;
 
-        public TipoUsuarioController(FastSurveyContext context, RepositoryTipoUsuario repo)
+        public TipoUsuarioController(FastSurveyContext context, TipoUsuarioRepository repo)
         {
             _context = context;
             _repo = repo;
@@ -24,27 +24,27 @@ namespace FASTSURVEY.Controllers
 
         // POST: /api/tipousuario
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] tipousuario body, CancellationToken ct)
+        public async Task<IActionResult> Post([FromBody] Tipousuario body, CancellationToken ct)
         {
-            if (body == null || string.IsNullOrWhiteSpace(body.tipousuario1))
+            if (body == null || string.IsNullOrWhiteSpace(body.Tipousuario1))
                 return BadRequest("O nome do tipo de usuário é obrigatório.");
 
-            var nome = body.tipousuario1.Trim();
+            var nome = body.Tipousuario1.Trim();
 
-            var existe = await _context.tipousuario
+            var existe = await _context.Tipousuario
                 .AsNoTracking()
-                .AnyAsync(t => EF.Functions.ILike(t.tipousuario1, nome), ct);
+                .AnyAsync(t => EF.Functions.ILike(t.Tipousuario1, nome), ct);
             if (existe)
                 return Conflict("Já existe um tipo de usuário com este nome.");
 
-            body.tipousuario1 = nome;
+            body.Tipousuario1 = nome;
 
-            var criado = await _repo.IncluirAsync(body);
+            var criado = await _repo.AddAsync(body);
 
             return CreatedAtAction(
                 nameof(GetPorId),
-                new { id = criado.usuarioid },
-                new { criado.usuarioid, tipousuario = criado.tipousuario1 }
+                new { id = criado.Tipousuarioid },
+                new { criado.Tipousuarioid, tipousuario = criado.Tipousuario1 }
             );
         }
 
@@ -52,13 +52,13 @@ namespace FASTSURVEY.Controllers
         [HttpGet]
         public async Task<IActionResult> Get(CancellationToken ct)
         {
-            var lista = await _context.tipousuario
+            var lista = await _context.Tipousuario
                 .AsNoTracking()
-                .OrderBy(t => t.usuarioid)
+                .OrderBy(t => t.Tipousuarioid)
                 .Select(t => new
                 {
-                    id = t.usuarioid,
-                    nome = t.tipousuario1
+                    id = t.Tipousuarioid,
+                    nome = t.Tipousuario1
                 })
                 .ToListAsync(ct);
 
@@ -72,13 +72,13 @@ namespace FASTSURVEY.Controllers
         {
             if (id <= 0) return BadRequest("ID inválido.");
 
-            var tipo = await _context.tipousuario
+            var tipo = await _context.Tipousuario
                 .AsNoTracking()
-                .Where(t => t.usuarioid == id)
+                .Where(t => t.Tipousuarioid == id)
                 .Select(t => new
                 {
-                    id = t.usuarioid,
-                    nome = t.tipousuario1
+                    id = t.Tipousuarioid,
+                    nome = t.Tipousuario1
                 })
                 .FirstOrDefaultAsync(ct);
 
@@ -87,30 +87,30 @@ namespace FASTSURVEY.Controllers
 
         // PUT: /api/tipousuario/{id}
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Put(int id, [FromBody] tipousuario body, CancellationToken ct)
+        public async Task<IActionResult> Put(int id, [FromBody] Tipousuario body, CancellationToken ct)
         {
             if (id <= 0 || body == null)
                 return BadRequest("Dados inválidos para alteração.");
 
             // se o body trouxer a PK, garanta que bate com a rota
-            if (body.usuarioid != 0 && body.usuarioid != id)
+            if (body.Tipousuarioid != 0 && body.Tipousuarioid != id)
                 return BadRequest("ID do corpo não confere com a rota.");
 
-            var nome = body.tipousuario1?.Trim();
+            var nome = body.Tipousuario1?.Trim();
             if (string.IsNullOrWhiteSpace(nome))
                 return BadRequest("O nome do tipo de usuário é obrigatório.");
 
-            var existente = await _context.tipousuario.FirstOrDefaultAsync(t => t.usuarioid == id, ct);
+            var existente = await _context.Tipousuario.FirstOrDefaultAsync(t => t.Tipousuarioid == id, ct);
             if (existente == null)
                 return NotFound("Tipo de usuário não encontrado.");
 
-            var existeOutro = await _context.tipousuario
+            var existeOutro = await _context.Tipousuario
                 .AsNoTracking()
-                .AnyAsync(t => t.usuarioid != id && EF.Functions.ILike(t.tipousuario1, nome), ct);
+                .AnyAsync(t => t.Tipousuarioid != id && EF.Functions.ILike(t.Tipousuario1, nome), ct);
             if (existeOutro)
                 return Conflict("Já existe outro tipo de usuário com este nome.");
 
-            existente.tipousuario1 = nome;
+            existente.Tipousuario1 = nome;
 
             await _context.SaveChangesAsync(ct);
             return NoContent();
@@ -122,11 +122,11 @@ namespace FASTSURVEY.Controllers
         {
             if (id <= 0) return BadRequest("ID inválido.");
 
-            var existente = await _context.tipousuario.FirstOrDefaultAsync(t => t.usuarioid == id, ct);
+            var existente = await _context.Tipousuario.FirstOrDefaultAsync(t => t.Tipousuarioid == id, ct);
             if (existente == null)
                 return NotFound("Tipo de usuário não encontrado.");
 
-            _context.tipousuario.Remove(existente);
+            _context.Tipousuario.Remove(existente);
             await _context.SaveChangesAsync(ct);
             return NoContent();
         }

@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class tipousuario
+public partial class Tipousuario
 {
-    public int usuarioid { get; set; }
+    public int Tipousuarioid { get; set; }
 
-    public string tipousuario1 { get; set; }
+    public string Tipousuario1 { get; set; }
 
-    public virtual ICollection<login> login { get; set; } = new List<login>();
+    public virtual ICollection<Login> Login { get; set; } = new List<Login>();
 }

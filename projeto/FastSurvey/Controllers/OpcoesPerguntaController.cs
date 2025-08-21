@@ -1,233 +1,130 @@
-﻿using System;
-using System.Linq;
-using System.Threading.Tasks;
+﻿#nullable enable
+using FASTSURVEY.Dtos.Opcoes;
+using FASTSURVEY.Services.Opcoes;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SISTEMA_FASTSURVEY.MODEL.Models;
-using SISTEMA_FASTSURVEY.MODEL.Repositories;
+
+// ===== ALIAS para casar com a Model do scaffold =====
+using OpcaoPergunta = SISTEMA_FASTSURVEY.MODEL.Models.Opcoespergunta;
 
 namespace FASTSURVEY.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
-    [Produces("application/json")]
-    public class OpcoesPerguntaController : ControllerBase
+    [Route("api/opcaopergunta")]
+    public class OpcaoPerguntaController : ControllerBase
     {
-        private readonly FastSurveyContext _context;
-        private readonly RepositoryOpcoesPergunta _repositoryOpcoesPergunta;
+        private readonly IOpcaoPerguntaService _service;
+        public OpcaoPerguntaController(IOpcaoPerguntaService service) => _service = service;
 
-        public OpcoesPerguntaController(FastSurveyContext context)
+        // -------- Mapper --------
+        private static OpcaoPerguntaResponse MapToResponse(OpcaoPergunta e) => new()
         {
-            _context = context;
-            _repositoryOpcoesPergunta = new RepositoryOpcoesPergunta(_context);
-        }
+            OpcaoId = e.Opcaoid,
+            PerguntaId = e.Perguntaid,
+            Texto = e.Texto ?? string.Empty,
+            Ordem = e.Ordem,
+            Ativa = e.Ativa,
+            Correta = e.Correta
+        };
 
-        // DTOs simples (evita expor a entidade diretamente)
-        public class OpcaoCreateDto
-        {
-            public int perguntaid { get; set; }
-            public string texto { get; set; } = "";
-            public bool? correta { get; set; } // opcional
-        }
+        // -------- Endpoints --------
 
-        public class OpcaoUpdateDto
-        {
-            public int opcaoid { get; set; }
-            public string? texto { get; set; }
-            public bool? correta { get; set; } // opcional
-        }
-
+        /// <summary>Cria uma opção vinculada à pergunta (informando PerguntaId no body).</summary>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] OpcaoCreateDto dto)
+        public async Task<IActionResult> Criar([FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
         {
-            if (dto == null || dto.perguntaid <= 0 || string.IsNullOrWhiteSpace(dto.texto))
-                return BadRequest("Dados inválidos para a opção.");
+            if (dto is null) return BadRequest("Body inválido.");
+            if ((dto.PerguntaId ?? 0) <= 0)
+                return BadRequest("Informe PerguntaId no body ou use a rota /pergunta/{perguntaId}.");
 
-            var texto = dto.texto.Trim();
-            if (texto.Length > 200)
-                return BadRequest("O texto da opção não pode exceder 200 caracteres.");
+            var result = await _service.CriarAsync(
+                perguntaId: dto.PerguntaId.Value,
+                texto: dto.Texto,
+                correta: dto.Correta,
+                ordem: dto.Ordem,
+                ativa: dto.Ativa,
+                ct: ct
+            );
 
-            try
-            {
-                // pergunta precisa existir
-                var pergunta = await _context.perguntas
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.perguntaid == dto.perguntaid);
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Erro ao criar.");
 
-                if (pergunta == null)
-                    return NotFound("Pergunta não encontrada.");
-
-                // checa duplicidade (case-insensitive)
-                var jaExiste = await _context.opcoespergunta
-                    .AsNoTracking()
-                    .AnyAsync(o => o.perguntaid == dto.perguntaid &&
-                                   EF.Functions.ILike(o.texto, texto));
-                if (jaExiste)
-                    return Conflict("Já existe uma opção com esse texto para esta pergunta.");
-
-                var nova = new opcoespergunta
-                {
-                    perguntaid = dto.perguntaid,
-                    texto = texto,
-                    correta = dto.correta ?? false
-                };
-
-                await _repositoryOpcoesPergunta.IncluirAsync(nova);
-
-                // se marcou correta e a pergunta NÃO permite múltipla, zera as demais
-                if (nova.correta && !pergunta.permitemultiplaselecao)
-                {
-                    await _context.opcoespergunta
-                        .Where(o => o.perguntaid == nova.perguntaid && o.opcaoid != nova.opcaoid && o.correta)
-                        .ExecuteUpdateAsync(s => s.SetProperty(x => x.correta, false));
-                }
-
-                return CreatedAtAction(nameof(GetPorPergunta),
-                    new { perguntaId = nova.perguntaid },
-                    new { nova.opcaoid, nova.perguntaid, nova.texto, nova.correta });
-            }
-            catch (DbUpdateException ex)
-            {
-                // cobre violação do índice único (perguntaid, texto)
-                return Conflict($"Conflito ao salvar opção: {ex.InnerException?.Message ?? ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao salvar opção: {ex.Message}");
-            }
+            return Ok(MapToResponse(result.Data!));
         }
 
-        [HttpGet]
-        public async Task<IActionResult> ListarTodas()
+        /// <summary>Cria uma opção pela rota com perguntaId.</summary>
+        [HttpPost("pergunta/{perguntaId:int}")]
+        public async Task<IActionResult> CriarNaPergunta([FromRoute] int perguntaId, [FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
         {
-            try
-            {
-                var opcoes = await _context.opcoespergunta
-                    .AsNoTracking()
-                    .OrderBy(o => o.perguntaid).ThenBy(o => o.opcaoid)
-                    .ToListAsync();
+            if (dto is null) return BadRequest("Body inválido.");
 
-                if (opcoes.Count == 0)
-                    return NotFound("Nenhuma opção encontrada.");
+            var result = await _service.CriarAsync(
+                perguntaId: perguntaId,
+                texto: dto.Texto,
+                correta: dto.Correta,
+                ordem: dto.Ordem,
+                ativa: dto.Ativa,
+                ct: ct
+            );
 
-                return Ok(opcoes);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao listar opções: {ex.Message}");
-            }
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Erro ao criar.");
+
+            return Ok(MapToResponse(result.Data!));
         }
 
-        [HttpGet("Pergunta/{perguntaId:int}")]
-        public async Task<IActionResult> GetPorPergunta(int perguntaId)
+        /// <summary>Obtém uma opção por id.</summary>
+        [HttpGet("{opcaoId:int}")]
+        public async Task<IActionResult> Obter([FromRoute] int opcaoId, CancellationToken ct)
         {
-            if (perguntaId <= 0)
-                return BadRequest("ID de pergunta inválido.");
+            var result = await _service.ObterPorIdAsync(opcaoId, ct);
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
 
-            try
-            {
-                var opcoes = await _context.opcoespergunta
-                    .AsNoTracking()
-                    .Where(o => o.perguntaid == perguntaId)
-                    .OrderBy(o => o.opcaoid)
-                    .ToListAsync();
-
-                // aqui eu devolvo [] se vazio, mas se preferir 404, troque a linha abaixo
-                return Ok(opcoes);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao buscar opções: {ex.Message}");
-            }
+            return Ok(MapToResponse(result.Data!));
         }
 
-        [HttpPut("{id:int}")]
-        public async Task<IActionResult> Put(int id, [FromBody] OpcaoUpdateDto dto)
+        /// <summary>Lista opções de uma pergunta.</summary>
+        [HttpGet("pergunta/{perguntaId:int}")]
+        public async Task<IActionResult> ListarPorPergunta([FromRoute] int perguntaId, CancellationToken ct)
         {
-            if (id <= 0 || dto == null || id != dto.opcaoid)
-                return BadRequest("Dados inválidos para atualização.");
+            var result = await _service.ListarPorPerguntaAsync(perguntaId, ct);
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Pergunta não encontrada.");
 
-            try
-            {
-                var existente = await _context.opcoespergunta
-                    .FirstOrDefaultAsync(o => o.opcaoid == id);
-
-                if (existente == null)
-                    return NotFound("Opção não encontrada.");
-
-                // Atualiza texto (com validações)
-                if (!string.IsNullOrWhiteSpace(dto.texto))
-                {
-                    var novoTexto = dto.texto.Trim();
-                    if (novoTexto.Length > 200)
-                        return BadRequest("O texto da opção não pode exceder 200 caracteres.");
-
-                    var conflito = await _context.opcoespergunta
-                        .AsNoTracking()
-                        .AnyAsync(o => o.perguntaid == existente.perguntaid &&
-                                       o.opcaoid != existente.opcaoid &&
-                                       EF.Functions.ILike(o.texto, novoTexto));
-                    if (conflito)
-                        return Conflict("Já existe uma opção com esse texto para esta pergunta.");
-
-                    existente.texto = novoTexto;
-                }
-
-                // Atualiza flag 'correta' (se informada)
-                if (dto.correta.HasValue && existente.correta != dto.correta.Value)
-                {
-                    existente.correta = dto.correta.Value;
-
-                    if (existente.correta)
-                    {
-                        // se a pergunta não permite múltiplas, desmarca todas as outras
-                        var pergunta = await _context.perguntas
-                            .AsNoTracking()
-                            .FirstOrDefaultAsync(p => p.perguntaid == existente.perguntaid);
-
-                        if (pergunta != null && !pergunta.permitemultiplaselecao)
-                        {
-                            await _context.opcoespergunta
-                                .Where(o => o.perguntaid == existente.perguntaid &&
-                                            o.opcaoid != existente.opcaoid &&
-                                            o.correta)
-                                .ExecuteUpdateAsync(s => s.SetProperty(x => x.correta, false));
-                        }
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-                return NoContent();
-            }
-            catch (DbUpdateException ex)
-            {
-                return Conflict($"Conflito ao atualizar opção: {ex.InnerException?.Message ?? ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao atualizar opção: {ex.Message}");
-            }
+            var list = result.Data!.Select(MapToResponse).ToList();
+            return Ok(list);
         }
 
-        [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id)
+        /// <summary>Atualiza parcialmente uma opção.</summary>
+        [HttpPut("{opcaoId:int}")]
+        public async Task<IActionResult> Atualizar([FromRoute] int opcaoId, [FromBody] OpcaoPerguntaUpdateRequest dto, CancellationToken ct)
         {
-            if (id <= 0)
-                return BadRequest("ID inválido.");
+            if (dto is null || dto.OpcaoId != opcaoId)
+                return BadRequest("Id da rota difere do body.");
 
-            try
+            var result = await _service.AtualizarAsync(opcaoId, e =>
             {
-                var opcao = await _repositoryOpcoesPergunta.SelecionarChaveAsync(id);
-                if (opcao == null)
-                    return NotFound("Opção não encontrada.");
+                if (!string.IsNullOrWhiteSpace(dto.Texto)) e.Texto = dto.Texto.Trim();
+                if (dto.Correta.HasValue) e.Correta = dto.Correta.Value;
+                if (dto.Ordem.HasValue) e.Ordem = dto.Ordem.Value;
+                if (dto.Ativa.HasValue) e.Ativa = dto.Ativa.Value;
+            }, ct);
 
-                await _repositoryOpcoesPergunta.ExcluirAsync(opcao);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Erro ao excluir opção: {ex.Message}");
-            }
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
+
+            return Ok(MapToResponse(result.Data!));
+        }
+
+        /// <summary>Remove uma opção (hard delete).</summary>
+        [HttpDelete("{opcaoId:int}")]
+        public async Task<IActionResult> Remover([FromRoute] int opcaoId, CancellationToken ct)
+        {
+            var result = await _service.RemoverAsync(opcaoId, ct);
+            if (!result.Success)
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
+
+            return Ok(new { success = true });
         }
     }
 }

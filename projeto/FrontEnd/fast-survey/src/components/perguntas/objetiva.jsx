@@ -23,7 +23,13 @@ function getOpcaoTexto(opcao) {
   return typeof opcao === "object" && opcao !== null ? (opcao.texto ?? opcao.opcao ?? "") : (opcao ?? "");
 }
 
-const Objetiva = ({
+/** Mantém foco no input quando clica no “fundo” do card */
+function handleMouseDownContainer(e) {
+  const isEditable = e.target.closest('input, textarea, select, [contenteditable="true"]');
+  if (!isEditable) e.preventDefault();
+}
+
+const ObjetivaBase = ({
   bloco,
   onChangeTexto,
   onChangeOpcoes,
@@ -39,11 +45,12 @@ const Objetiva = ({
   const unica = imagens.length === 1;
 
   const estiloContainer = useMemo(
-    () => applyBlockStyle(b.estilo, {
-      backgroundColor: style?.backgroundColor || undefined,
-      fontFamily: style?.fontFamily || undefined,
-      color: style?.color || undefined,
-    }),
+    () =>
+      applyBlockStyle(b.estilo, {
+        backgroundColor: style?.backgroundColor || undefined,
+        fontFamily: style?.fontFamily || undefined,
+        color: style?.color || undefined,
+      }),
     [b.estilo, style]
   );
 
@@ -66,6 +73,7 @@ const Objetiva = ({
     <div
       className={`bloco-pergunta ${b.selecionado ? "selecionado" : ""}`}
       style={estiloContainer}
+      onMouseDown={handleMouseDownContainer}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -121,13 +129,10 @@ const Objetiva = ({
 
       {opcoes.map((opcao, index) => {
         const valor = getOpcaoTexto(opcao);
-
         return (
           <div key={index} className="opcao-input" onClick={(e) => e.stopPropagation()}>
-            {/* Simulador de input do usuário */}
             <input type="radio" disabled className="radio-simulador" />
 
-            {/* Texto da opção */}
             <input
               type="text"
               value={valor}
@@ -136,7 +141,6 @@ const Objetiva = ({
               className="input-opcao"
             />
 
-            {/* Se houver gabarito, marcar a correta */}
             {b.temGabarito && (
               <label className="marcar-correta">
                 <input
@@ -176,4 +180,26 @@ const Objetiva = ({
   );
 };
 
-export default Objetiva;
+function areEqualObj(a, b) {
+  const A = a.bloco || {};
+  const B = b.bloco || {};
+  return (
+    A.id === B.id &&
+    A.selecionado === B.selecionado &&
+    A.texto === B.texto &&
+    A.temGabarito === B.temGabarito &&
+    A.corretaIndex === B.corretaIndex &&
+    A.opcoes === B.opcoes &&       // referência
+    A.imagens === B.imagens &&     // referência
+    A.estilo === B.estilo &&
+    a.style === b.style &&
+    a.onChangeTexto === b.onChangeTexto &&
+    a.onChangeOpcoes === b.onChangeOpcoes &&
+    a.onRemoveImagem === b.onRemoveImagem &&
+    a.onToggleGabarito === b.onToggleGabarito &&
+    a.onSetCorretaIndex === b.onSetCorretaIndex &&
+    a.onClick === b.onClick
+  );
+}
+
+export default React.memo(ObjetivaBase, areEqualObj);

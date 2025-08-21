@@ -5,13 +5,13 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class tokens
+public partial class Tokens
 {
-    public int tokenid { get; set; }
+    public int Tokenid { get; set; }
 
-    public string token { get; set; }
+    public string Token { get; set; }
 
-    public DateTime dataregistro { get; set; }
+    public DateTime Dataregistro { get; set; }
 
-    public DateTime dataexpirado { get; set; }
+    public DateTime Dataexpirado { get; set; }
 }

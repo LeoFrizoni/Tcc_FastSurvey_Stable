@@ -1,37 +1,64 @@
+// src/pages/perfil/Perfil.jsx
 import React, { useEffect, useState } from 'react';
 import TopNavbar from '../../components/layouts/TopNavBar';
-import { User, Mail, BadgeCheck } from 'lucide-react';
+import { User, Tag, BadgeCheck } from 'lucide-react';
 import styles from './perfil.module.css';
 import axios from 'axios';
+
+const API_BASE = 'http://localhost:5062';
+
+// Mapeamento de ID para rótulo exibido no front
+const mapTipoUsuario = {
+  13: 'Usuário Gratuito',
+  14: 'Usuário Premium',
+  15: 'Administrador'
+};
 
 const Perfil = () => {
   const [usuario, setUsuario] = useState({
     nome: '',
-    email: '',
-    status: 'Ativo'
+    tipoUsuarioId: '',
+    status: 'Ativo',
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const buscarUsuario = async () => {
       try {
-        const userId = localStorage.getItem('userId');
-        if (!userId) return;
-        const response = await axios.get(`http://localhost:5062/api/login/me/${userId}`);
-        setUsuario({
-          nome: response.data.nome,
-          email: response.data.email,
-          status: response.data.status || 'Ativo'
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('Token não encontrado. Redirecione para o login, se necessário.');
+          setLoading(false);
+          return;
+        }
+
+        // Endpoint protegido que lê os claims do JWT
+        const resp = await axios.get(`${API_BASE}/api/login/Perfil`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-      } catch (error) {
-        console.error('Erro ao buscar dados do usuário:', error);
+
+        const data = resp.data || {};
+        setUsuario({
+          nome: data.usuario || '',
+          tipoUsuarioId: data.tipoUsuarioId || '',
+          status: 'Ativo',
+        });
+      } catch (err) {
+        console.error('Erro ao buscar dados do usuário:', err);
+      } finally {
+        setLoading(false);
       }
     };
+
     buscarUsuario();
   }, []);
 
   const iniciais = usuario.nome
-    ? usuario.nome.split(' ').map(n => n[0]).join('').toUpperCase()
+    ? usuario.nome.split(' ').map((n) => n[0]).join('').toUpperCase()
     : '??';
+
+  // Traduz o tipo de usuário para rótulo amigável
+  const tipoUsuarioLabel = mapTipoUsuario[usuario.tipoUsuarioId] || usuario.tipoUsuarioId || '—';
 
   return (
     <>
@@ -54,17 +81,17 @@ const Perfil = () => {
               <li>
                 <User size={18} />
                 <strong>Nome:</strong>
-                <span>{usuario.nome || '—'}</span>
+                <span>{loading ? '…' : (usuario.nome || '—')}</span>
               </li>
               <li>
-                <Mail size={18} />
-                <strong>Email:</strong>
-                <span>{usuario.email || '—'}</span>
+                <Tag size={18} />
+                <strong>Tipo de Usuário:</strong>
+                <span>{loading ? '…' : tipoUsuarioLabel}</span>
               </li>
               <li>
                 <BadgeCheck size={18} />
                 <strong>Status:</strong>
-                <span>{usuario.status || '—'}</span>
+                <span>{loading ? '…' : (usuario.status || '—')}</span>
               </li>
             </ul>
           </div>

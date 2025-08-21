@@ -5,25 +5,25 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class login
+public partial class Login
 {
-    public int loginid { get; set; }
+    public int Loginid { get; set; }
 
-    public string usuario { get; set; }
+    public string Usuario { get; set; }
 
-    public string email { get; set; }
+    public string Email { get; set; }
 
-    public string senha { get; set; }
+    public string Senha { get; set; }
 
-    public DateTime dataregistro { get; set; }
+    public DateTime Dataregistro { get; set; }
 
-    public int? tipousuarioid { get; set; }
+    public int? Tipousuarioid { get; set; }
 
-    public string tipousuariotexto { get; set; }
+    public string Tipousuariotexto { get; set; }
 
-    public virtual ICollection<pastas> pastas { get; set; } = new List<pastas>();
+    public virtual ICollection<Pastas> Pastas { get; set; } = new List<Pastas>();
 
-    public virtual ICollection<pesquisas> pesquisas { get; set; } = new List<pesquisas>();
+    public virtual ICollection<Pesquisas> Pesquisas { get; set; } = new List<Pesquisas>();
 
-    public virtual tipousuario tipousuario { get; set; }
+    public virtual Tipousuario Tipousuario { get; set; }
 }

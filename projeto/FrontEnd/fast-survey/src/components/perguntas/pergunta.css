@@ -1,16 +1,5 @@
-/* ===== Estrutura base ===== */
-
-.bloco-pergunta {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 14px 16px;
-  background: #fff;
-}
-
-.bloco-pergunta.selecionado {
-  outline: 2px solid #7c3aed;
-  outline-offset: 2px;
-}
+/* ===== Estrutura “interna” do conteúdo do card ===== */
+/* (O layout do cartão .bloco-pergunta fica no createPesquisa.css) */
 
 .cabecalho-pergunta {
   display: flex;
@@ -19,8 +8,12 @@
   margin-bottom: 10px;
 }
 
+/* Inputs principais */
 .input-pergunta {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;     /* não estoura o card */
+  display: block;
   padding: 10px 12px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -29,8 +22,12 @@
 }
 
 .resposta-simulada,
-.textarea-simulada {
+.textarea-simulada,
+.input-exemplo {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;     /* não estoura o card */
+  display: block;
   min-height: 110px;
   margin-top: 12px;
   border: 1px dashed #d1d5db;
@@ -47,10 +44,14 @@
   align-items: center;
   gap: 8px;
   margin: 6px 0;
+  min-width: 0;               /* impede estouro lateral */
 }
 
 .input-opcao {
   flex: 1;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;     /* não estoura o card */
   padding: 8px 10px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -84,9 +85,8 @@
   cursor: pointer;
 }
 
-/* ===== NOVO: Preview de imagens ===== */
+/* ===== Preview de imagens ===== */
 
-/* layout em flex; quando única, centraliza */
 .galeria-imagens {
   display: flex;
   flex-wrap: wrap;
@@ -95,12 +95,10 @@
   justify-content: flex-start;
 }
 
-/* wrapper centraliza quando há só 1 */
 .galeria-imagens.centralizada {
   justify-content: center;
 }
 
-/* card padrão — tamanho confortável */
 .thumb-imagem {
   position: relative;
   overflow: hidden;
@@ -119,13 +117,11 @@
   display: block;
 }
 
-/* quando for imagem única, aumente mais */
 .thumb-imagem.grande {
   width: clamp(420px, 62vw, 780px);
   max-height: 60vh;
 }
 
-/* botão excluir com melhor contraste e hit-area ampla */
 .btn-remover-img {
   position: absolute;
   top: 10px;
@@ -144,14 +140,11 @@
   outline: none;
   transition: transform .12s ease, filter .12s ease;
 }
-
 .btn-remover-img:hover  { transform: translateY(-1px); filter: brightness(1.03); }
 .btn-remover-img:active { transform: translateY(0);     filter: brightness(.96); }
-
 .btn-remover-img:focus-visible {
   box-shadow:
     0 0 0 3px rgba(124, 58, 237, .25),
     0 10px 24px rgba(124, 58, 237, .35);
 }
-
 .btn-remover-img svg { pointer-events: none; }

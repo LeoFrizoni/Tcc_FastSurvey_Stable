@@ -1,139 +1,123 @@
-﻿// FASTSURVEY/Controllers/PesquisasController.cs
-using FASTSURVEY.Models;
-using FASTSURVEY.Models.DTO;
-using FASTSURVEY.Services;
+﻿// FASTSURVEY/Api/Controllers/PesquisasController.cs
+#nullable enable
+using FASTSURVEY.Dtos.Pesquisas;
+using FASTSURVEY.Services.Pesquisa;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SISTEMA_FASTSURVEY.MODEL.Models;   // <- para o tipo 'pesquisas'
-using System;
-using System.Collections.Generic;        // <- para List<>
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
-namespace FASTSURVEY.Controllers
+namespace FASTSURVEY.Api.Controllers
 {
-    [Route("api/[controller]")] // => /api/pesquisas
     [ApiController]
+    [Route("api/[controller]")] // /api/pesquisas
     [Produces("application/json")]
+    [Authorize]
     public class PesquisasController : ControllerBase
     {
-    // ...existing code...
+        private readonly IPesquisaService _service;
 
-        /// <summary>
-        /// Move uma pesquisa para outra pasta.
-        /// </summary>
-        // PATCH: api/pesquisas/{id}/mover-pasta
-        [HttpPatch("{id:int}/mover-pasta")]
-        public async Task<IActionResult> MoverPasta(int id, [FromBody] int novaPastaId, CancellationToken ct)
+        public PesquisasController(IPesquisaService service)
         {
-            if (id <= 0 || novaPastaId <= 0)
-                return BadRequest("ID da pesquisa e da pasta devem ser válidos.");
-
-            var sucesso = await _svcPesquisas.MoverPesquisaParaPastaAsync(id, novaPastaId, ct);
-            if (!sucesso)
-                return NotFound("Pesquisa ou pasta não encontrada.");
-
-            return NoContent();
-        }
-        private readonly ServicePesquisas _svcPesquisas;
-
-        public PesquisasController(ServicePesquisas svcPesquisas)
-        {
-            _svcPesquisas = svcPesquisas;
+            _service = service;
         }
 
-        // GET: api/Pesquisas
+        // GET: api/pesquisas/{id}
+        [HttpGet("{id:int}")]
+        [ProducesResponseType(typeof(PesquisaResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<PesquisaResponse>> GetById([FromRoute] int id, CancellationToken ct)
+        {
+            var res = await _service.ObterPorIdAsync(id, ct);
+            if (res is null) return NotFound();
+            return Ok(res);
+        }
+
+        // GET: api/pesquisas?LoginId=&PastaId=&TipoPesquisaId=&Busca=&Page=&PageSize=
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken ct)
+        [ProducesResponseType(typeof(PagedResult<PesquisaListItemResponse>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResult<PesquisaListItemResponse>>> List(
+            [FromQuery] PesquisaFiltroRequest filtro,
+            CancellationToken ct)
         {
-            var list = await _svcPesquisas.ListarTodasPesquisasAsync(ct);
-            if (list == null || list.Count == 0) return NotFound("Nenhuma pesquisa encontrada.");
+            var page = await _service.ListarAsync(filtro, ct);
+            return Ok(page);
+        }
+
+        // ===== Endpoint específico usado pelo Home.jsx =====
+        // GET: api/pesquisas/usuario/{loginId}
+        [HttpGet("usuario/{loginId:int}")]
+        [ProducesResponseType(typeof(IEnumerable<PesquisaListItemResponse>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<IEnumerable<PesquisaListItemResponse>>> ListarPorUsuario(
+            [FromRoute] int loginId, CancellationToken ct)
+        {
+            if (loginId <= 0) return BadRequest("loginId inválido.");
+            var list = await _service.ListarPorLoginAsync(loginId, ct);
             return Ok(list);
         }
 
-        // GET: api/Pesquisas/5
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, CancellationToken ct)
-        {
-            var result = await _svcPesquisas.BuscarPesquisaPorIdAsync(id, ct);
-            if (result is { } && result.GetType().GetProperty("mensagem") != null) return NotFound(result);
-            return Ok(result);
-        }
-
-        // GET: api/pesquisas/usuario/16
-        // Retorna [] quando não houver pesquisas (evita erro no front)
-        [HttpGet("usuario/{id:int}")]
-        public async Task<IActionResult> ListarPorUsuario(int id, CancellationToken ct)
-        {
-            if (id <= 0) return BadRequest("ID de usuário inválido.");
-            try
-            {
-                var list = await _svcPesquisas.ListarPorUsuarioAsync(id, ct);
-                return Ok(list ?? new List<pesquisas>());
-            }
-            catch (Exception ex)
-            {
-                // Log detalhado (pode ser substituído por um logger real)
-                Console.WriteLine($"Erro ao buscar pesquisas do usuário {id}: {ex.Message}\n{ex.StackTrace}");
-                return Problem($"Erro interno ao buscar pesquisas do usuário: {ex.Message}");
-            }
-        }
-
-        // POST: api/Pesquisas
-        // Body: PesquisaVM (com perguntas dentro)
+        // POST: api/pesquisas
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] PesquisaVM vm, CancellationToken ct)
+        [ProducesResponseType(typeof(object), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult> Create([FromBody] CriarPesquisaRequest req, CancellationToken ct)
         {
-            try
-            {
-                var created = await _svcPesquisas.CadastrarPesquisaAsync(vm, ct);
-                return CreatedAtAction(nameof(GetById), new { id = created.pesquisaid }, created);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return Problem($"Erro ao cadastrar pesquisa: {ex.Message}");
-            }
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var id = await _service.CriarAsync(req, ct);
+            return CreatedAtAction(nameof(GetById), new { id }, new { id });
         }
 
-        // PUT: api/Pesquisas/5
+        // PUT: api/pesquisas/{id}
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(int id, [FromBody] PesquisaVM vm, CancellationToken ct)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> Update([FromRoute] int id, [FromBody] AtualizarPesquisaRequest req, CancellationToken ct)
         {
-            try
-            {
-                vm.CodigoPesquisa = id;
-                var updated = await _svcPesquisas.AtualizarPesquisaAsync(vm, ct);
-                return Ok(updated);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return Problem($"Erro ao atualizar: {ex.Message}");
-            }
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var ok = await _service.AtualizarAsync(id, req, ct);
+            if (!ok) return NotFound();
+
+            return NoContent();
         }
 
-        // DELETE: api/Pesquisas/5
+        // PATCH: api/pesquisas/{id}/template
+        [HttpPatch("{id:int}/template")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> PatchTemplate([FromRoute] int id, [FromBody] AtualizarTemplateRequest body, CancellationToken ct)
+        {
+            var ok = await _service.AtualizarTemplateAsync(id, body.TemplateJson, ct);
+            if (!ok) return NotFound();
+
+            return NoContent();
+        }
+
+        // ===== Endpoint específico usado pelo Home.jsx =====
+        // PATCH: api/pesquisas/{id}/mover-pasta  body: { pastaId: 123 | null }
+        public record MoverPastaRequest(int? PastaId);
+
+        [HttpPatch("{id:int}/mover-pasta")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> MoverParaPasta([FromRoute] int id, [FromBody] MoverPastaRequest body, CancellationToken ct)
+        {
+            var ok = await _service.DefinirPastaAsync(id, body.PastaId, ct);
+            if (!ok) return NotFound();
+
+            return NoContent();
+        }
+
+        // DELETE: api/pesquisas/{id}
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(int id, CancellationToken ct)
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> Delete([FromRoute] int id, CancellationToken ct)
         {
-            try
-            {
-                await _svcPesquisas.ExcluirPesquisaAsync(id, ct);
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                return Problem($"Erro ao excluir: {ex.Message}");
-            }
-        }
+            var ok = await _service.ExcluirAsync(id, ct);
+            if (!ok) return NotFound();
 
-        /// <summary>
+            return NoContent();
+        }
     }
 }
