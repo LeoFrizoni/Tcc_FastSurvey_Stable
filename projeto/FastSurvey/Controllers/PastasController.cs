@@ -18,7 +18,7 @@ namespace FASTSURVEY.Controllers
         [Authorize]
         public async Task<ActionResult<List<PastaResponse>>> Listar([FromQuery] int loginid, CancellationToken ct)
         {
-            if (loginid <= 0) return BadRequest("loginid é obrigatório.");
+            if (loginid <= 0) return BadRequest("loginid ï¿½ obrigatï¿½rio.");
             var list = await _service.ListarAsync(loginid, ct);
             return Ok(list);
         }
@@ -50,7 +50,7 @@ namespace FASTSURVEY.Controllers
         public async Task<IActionResult> Renomear([FromRoute] int id, [FromQuery] int loginid,
                                                  [FromBody] RenomearPastaRequest req, CancellationToken ct)
         {
-            if (loginid <= 0) return BadRequest("loginid é obrigatório.");
+            if (loginid <= 0) return BadRequest("loginid ï¿½ obrigatï¿½rio.");
             if (!ModelState.IsValid) return ValidationProblem(ModelState);
 
             var ok = await _service.RenomearAsync(id, loginid, req.NovoNome, ct);
@@ -62,7 +62,7 @@ namespace FASTSURVEY.Controllers
         [Authorize]
         public async Task<IActionResult> Excluir([FromRoute] int id, [FromQuery] int loginid, CancellationToken ct)
         {
-            if (loginid <= 0) return BadRequest("loginid é obrigatório.");
+            if (loginid <= 0) return BadRequest("loginid ï¿½ obrigatï¿½rio.");
             var ok = await _service.ExcluirAsync(id, loginid, ct);
             return ok ? NoContent() : NotFound();
         }

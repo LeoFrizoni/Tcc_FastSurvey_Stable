@@ -15,6 +15,14 @@ public partial class Respostas
 
     public DateTime Dataresposta { get; set; }
 
+    public string SessaoId { get; set; }
+
+    public bool RespostaAnonima { get; set; }
+
+    public int? ParticipanteId { get; set; }
+
+    public virtual ParticipantesSessao Participante { get; set; }
+
     public virtual Perguntas Pergunta { get; set; }
 
     public virtual ICollection<Anexos> Anexo { get; set; } = new List<Anexos>();

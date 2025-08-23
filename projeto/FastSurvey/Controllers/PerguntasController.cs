@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FASTSURVEY.Dtos.Opcoes;
@@ -6,6 +6,7 @@ using FASTSURVEY.Dtos.Perguntas;
 using FASTSURVEY.Dtos.Perguntas.Discursiva;
 using FASTSURVEY.Dtos.Perguntas.Objetiva;
 using FASTSURVEY.Dtos.Perguntas.Multipla;
+
 using FASTSURVEY.Services.Pergunta;
 using Microsoft.AspNetCore.Mvc;
 using FASTSURVEY.Services.Result;
@@ -35,6 +36,15 @@ namespace FASTSURVEY.Controllers
         }
 
         // -------------------- CREATE --------------------
+
+        [HttpPost]
+        public async Task<IActionResult> Criar(
+            [FromBody] CriarPerguntaRequest req,
+            CancellationToken ct)
+        {
+            var result = await _service.CriarAsync(req, ct);
+            return ToActionResult(result);
+        }
 
         [HttpPost("discursiva")]
         public async Task<IActionResult> CriarDiscursiva(
@@ -121,7 +131,7 @@ namespace FASTSURVEY.Controllers
         public class DefinirGabaritoBody
         {
             public IEnumerable<int> OpcaoIds { get; set; } = new List<int>();
-            public bool PermitirApenasUma { get; set; } = true; // true=Objetiva; false=Múltipla
+            public bool PermitirApenasUma { get; set; } = true; // true=Objetiva; false=M�ltipla
         }
 
         [HttpPost("{perguntaId:int}/gabarito")]
@@ -150,7 +160,7 @@ namespace FASTSURVEY.Controllers
             return ToActionResult(result);
         }
 
-        // -------------------- OPÇÕES --------------------
+        // -------------------- OP��ES --------------------
 
         [HttpPost("{perguntaId:int}/opcoes")]
         public async Task<IActionResult> AdicionarOpcao(
@@ -174,13 +184,13 @@ namespace FASTSURVEY.Controllers
         [HttpDelete("opcoes/{opcaoId:int}")]
         public async Task<IActionResult> RemoverOpcao(int opcaoId, CancellationToken ct)
         {
-            // O modelo não suporta soft-delete; parâmetro está na interface, mas sempre removerá físico
+            // O modelo n�o suporta soft-delete; par�metro est� na interface, mas sempre remover� f�sico
             var result = await _service.RemoverOpcaoAsync(opcaoId, softDelete: false, ct);
             return ToActionResult(result);
         }
 
-        // Como seu modelo de OpcaoPergunta não possui coluna de ordenação,
-        // este endpoint invocará o service que retorna "não suportado".
+        // Como seu modelo de OpcaoPergunta n�o possui coluna de ordena��o,
+        // este endpoint invocar� o service que retorna "n�o suportado".
         public class ReordenarOpcoesBody
         {
             public IReadOnlyList<int> OpcaoIdsNaOrdem { get; set; } = new List<int>();

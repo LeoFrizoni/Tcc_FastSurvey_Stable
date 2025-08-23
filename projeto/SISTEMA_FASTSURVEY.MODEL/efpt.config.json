@@ -19,11 +19,23 @@
          "ObjectType": 0
       },
       {
+         "Name": "public.externallogins",
+         "ObjectType": 0
+      },
+      {
          "Name": "public.login",
          "ObjectType": 0
       },
       {
+         "Name": "public.loginavatar",
+         "ObjectType": 0
+      },
+      {
          "Name": "public.opcoespergunta",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.participantes_sessao",
          "ObjectType": 0
       },
       {
@@ -48,6 +60,10 @@
       },
       {
          "Name": "public.respostas_opcoes",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.sessoes_interativas",
          "ObjectType": 0
       },
       {

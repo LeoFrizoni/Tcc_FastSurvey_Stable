@@ -27,7 +27,7 @@ namespace FASTSURVEY.Services.Anexo
                 {
                     var existsPesquisa = await _ctx.Pesquisas.AnyAsync(p => p.Pesquisaid == req.PesquisaId.Value, ct);
                     if (!existsPesquisa)
-                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pesquisa não encontrada.");
+                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pesquisa nï¿½o encontrada.");
                 }
 
                 if (req.PerguntaId is not null)
@@ -39,16 +39,16 @@ namespace FASTSURVEY.Services.Anexo
                         .FirstOrDefaultAsync(ct);
 
                     if (pergunta is null)
-                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pergunta não encontrada.");
+                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pergunta nï¿½o encontrada.");
 
                     if (pesquisaIdFinal is null)
                         pesquisaIdFinal = pergunta.Pesquisaid;
                 }
 
                 if (pesquisaIdFinal is null)
-                    return ServiceResult<AnexoResponse>.Fail("BadRequest", "Não foi possível determinar a PesquisaId para o anexo.");
+                    return ServiceResult<AnexoResponse>.Fail("BadRequest", "Nï¿½o foi possï¿½vel determinar a PesquisaId para o anexo.");
 
-                // Lê bytes do arquivo
+                // Lï¿½ bytes do arquivo
                 byte[] bytes;
                 using (var ms = new MemoryStream())
                 {
@@ -61,7 +61,7 @@ namespace FASTSURVEY.Services.Anexo
                 var ext = Path.GetExtension(originalName)?.TrimStart('.').ToLowerInvariant() ?? "";
                 var safeExt = string.IsNullOrWhiteSpace(ext) ? "" : ext;
 
-                // Nome interno simples e único
+                // Nome interno simples e ï¿½nico
                 var internalName = $"{Guid.NewGuid():N}{(safeExt != "" ? "." + safeExt : "")}";
 
                 var entity = new AnexoEntity
@@ -93,7 +93,7 @@ namespace FASTSURVEY.Services.Anexo
                 .FirstOrDefaultAsync(a => a.Anexoid == id, ct);
 
             if (entity is null)
-                return ServiceResult<AnexoResponse>.Fail("NotFound", "Anexo não encontrado.");
+                return ServiceResult<AnexoResponse>.Fail("NotFound", "Anexo nï¿½o encontrado.");
 
             return ServiceResult<AnexoResponse>.Ok(ToResponse(entity));
         }
@@ -122,9 +122,9 @@ namespace FASTSURVEY.Services.Anexo
         {
             var entity = await _ctx.Anexos.FirstOrDefaultAsync(a => a.Anexoid == id, ct);
             if (entity is null)
-                return ServiceResult<bool>.Fail("NotFound", "Anexo não encontrado.");
+                return ServiceResult<bool>.Fail("NotFound", "Anexo nï¿½o encontrado.");
 
-            // Se quiser bloquear remoção quando houver resposta que referencie o anexo, valide aqui.
+            // Se quiser bloquear remoï¿½ï¿½o quando houver resposta que referencie o anexo, valide aqui.
 
             _ctx.Anexos.Remove(entity);
             await _ctx.SaveChangesAsync(ct);
@@ -137,7 +137,7 @@ namespace FASTSURVEY.Services.Anexo
                 .FirstOrDefaultAsync(a => a.Anexoid == id, ct);
 
             if (entity is null)
-                return ServiceResult<(byte[], string, string)>.Fail("NotFound", "Anexo não encontrado.");
+                return ServiceResult<(byte[], string, string)>.Fail("NotFound", "Anexo nï¿½o encontrado.");
 
             if (string.IsNullOrWhiteSpace(entity.Base64data))
                 return ServiceResult<(byte[], string, string)>.Fail("BadRequest", "Anexo sem dados armazenados.");
@@ -160,11 +160,11 @@ namespace FASTSURVEY.Services.Anexo
                 Id = a.Anexoid,
                 PesquisaId = a.Pesquisaid,
                 PerguntaId = a.Perguntaid,
-                NomeArquivo = a.Nomeoriginal ?? a.Nome ?? $"anexo_{a.Anexoid}",
+                Nome = a.Nomeoriginal ?? a.Nome ?? $"anexo_{a.Anexoid}",
                 Url = $"/api/anexos/{a.Anexoid}/download",
                 ContentType = a.Contenttype,
-                TamanhoBytes = a.Tamanhobytes,
-                DataCriacao = DateTime.UtcNow
+                TamanhoBytes = a.Tamanhobytes
+                // Note: AnexoResponse doesn't have DataCriacao property
             };
         }
     }

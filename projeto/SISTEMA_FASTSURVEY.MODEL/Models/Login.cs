@@ -21,9 +21,17 @@ public partial class Login
 
     public string Tipousuariotexto { get; set; }
 
+    public bool Emailconfirmado { get; set; }
+
+    public virtual ICollection<Externallogins> Externallogins { get; set; } = new List<Externallogins>();
+
+    public virtual Loginavatar Loginavatar { get; set; }
+
     public virtual ICollection<Pastas> Pastas { get; set; } = new List<Pastas>();
 
     public virtual ICollection<Pesquisas> Pesquisas { get; set; } = new List<Pesquisas>();
 
     public virtual Tipousuario Tipousuario { get; set; }
+
+    public virtual ICollection<Tokens> Tokens { get; set; } = new List<Tokens>();
 }

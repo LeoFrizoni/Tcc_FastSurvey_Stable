@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Dtos.Pesquisas;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -32,7 +32,14 @@ namespace FASTSURVEY.Services.Pesquisa
                 Templatejson = template,
                 Qrcodeurl = req.QrCodeUrl,   // pode ser nulo
                 Datacriacao = DateTime.UtcNow,
-                Dataatualizacao = null
+                Dataatualizacao = null,
+                // Novas funcionalidades
+                Temlimitadortempo = req.TemLimitadorTempo,
+                Datafechamento = req.DataFechamento,
+                Isinterativa = req.IsInterativa,
+                PermiteRespostasAnonimas = req.PermiteRespostasAnonimas,
+                LimiteRespostas = req.LimiteRespostas,
+                Ativa = true
             };
 
             _ctx.Pesquisas.Add(entity);
@@ -52,6 +59,13 @@ namespace FASTSURVEY.Services.Pesquisa
             entity.Pastaid = req.PastaId ?? entity.Pastaid;
             entity.Tipopesquisaid = req.TipoPesquisaId ?? entity.Tipopesquisaid;
             entity.Qrcodeurl = req.QrCodeUrl ?? entity.Qrcodeurl;
+            
+            // Atualizar novas funcionalidades
+            if (req.TemLimitadorTempo.HasValue) entity.Temlimitadortempo = req.TemLimitadorTempo.Value;
+            if (req.DataFechamento.HasValue) entity.Datafechamento = req.DataFechamento;
+            if (req.IsInterativa.HasValue) entity.Isinterativa = req.IsInterativa.Value;
+            if (req.PermiteRespostasAnonimas.HasValue) entity.PermiteRespostasAnonimas = req.PermiteRespostasAnonimas.Value;
+            if (req.LimiteRespostas.HasValue) entity.LimiteRespostas = req.LimiteRespostas;
 
             entity.Dataatualizacao = DateTime.UtcNow;
 
@@ -89,8 +103,8 @@ namespace FASTSURVEY.Services.Pesquisa
                 PastaId = q.Pastaid,
                 TemplateJson = q.Templatejson ?? "[]",
                 QrCodeUrl = q.Qrcodeurl,
-                Datacriacao = q.Datacriacao,
-                Dataatualizacao = q.Dataatualizacao
+                DataCriacao = q.Datacriacao,
+                DataAtualizacao = q.Dataatualizacao
             };
         }
 
@@ -136,8 +150,14 @@ namespace FASTSURVEY.Services.Pesquisa
                     TipoPesquisaId = q.Tipopesquisaid,
                     PastaId = q.Pastaid,
                     QrCodeUrl = q.Qrcodeurl,
-                    Datacriacao = q.Datacriacao,
-                    Dataatualizacao = q.Dataatualizacao
+                    DataCriacao = q.Datacriacao,
+                    DataAtualizacao = q.Dataatualizacao,
+                    TemLimitadorTempo = q.Temlimitadortempo,
+                    DataFechamento = q.Datafechamento,
+                    IsInterativa = q.Isinterativa,
+                    PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
+                    LimiteRespostas = q.LimiteRespostas,
+                    Ativa = q.Ativa
                 })
                 .ToListAsync(ct);
 
@@ -167,9 +187,9 @@ namespace FASTSURVEY.Services.Pesquisa
             return true;
         }
 
-        // ================== NOVOS MÉTODOS (exigidos pela interface) ==================
+        // ================== NOVOS M�TODOS (exigidos pela interface) ==================
 
-        // Lista simples por usuário — usada por GET /api/pesquisas/usuario/{loginId}
+        // Lista simples por usu�rio � usada por GET /api/pesquisas/usuario/{loginId}
         public async Task<List<PesquisaListItemResponse>> ListarPorLoginAsync(int loginId, CancellationToken ct = default)
         {
             var list = await _ctx.Pesquisas
@@ -186,21 +206,21 @@ namespace FASTSURVEY.Services.Pesquisa
                     TipoPesquisaId = q.Tipopesquisaid,
                     PastaId = q.Pastaid,
                     QrCodeUrl = q.Qrcodeurl,
-                    Datacriacao = q.Datacriacao,
-                    Dataatualizacao = q.Dataatualizacao
+                    DataCriacao = q.Datacriacao,
+                    DataAtualizacao = q.Dataatualizacao
                 })
                 .ToListAsync(ct);
 
             return list;
         }
 
-        // Define/atualiza a pasta — usada por PATCH /api/pesquisas/{id}/mover-pasta
+        // Define/atualiza a pasta � usada por PATCH /api/pesquisas/{id}/mover-pasta
         public async Task<bool> DefinirPastaAsync(int pesquisaId, int? pastaId, CancellationToken ct = default)
         {
             var entity = await _ctx.Pesquisas.FirstOrDefaultAsync(x => x.Pesquisaid == pesquisaId, ct);
             if (entity is null) return false;
 
-            entity.Pastaid = pastaId;               // null = “Sem pasta”
+            entity.Pastaid = pastaId;               // null = �Sem pasta�
             entity.Dataatualizacao = DateTime.UtcNow;
 
             await _ctx.SaveChangesAsync(ct);

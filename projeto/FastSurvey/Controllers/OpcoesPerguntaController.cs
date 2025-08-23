@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Dtos.Opcoes;
 using FASTSURVEY.Services.Opcoes;
 using Microsoft.AspNetCore.Mvc;
@@ -28,11 +28,11 @@ namespace FASTSURVEY.Controllers
 
         // -------- Endpoints --------
 
-        /// <summary>Cria uma opção vinculada à pergunta (informando PerguntaId no body).</summary>
+        /// <summary>Cria uma op��o vinculada � pergunta (informando PerguntaId no body).</summary>
         [HttpPost]
         public async Task<IActionResult> Criar([FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
         {
-            if (dto is null) return BadRequest("Body inválido.");
+            if (dto is null) return BadRequest("Body inv�lido.");
             if ((dto.PerguntaId ?? 0) <= 0)
                 return BadRequest("Informe PerguntaId no body ou use a rota /pergunta/{perguntaId}.");
 
@@ -51,11 +51,11 @@ namespace FASTSURVEY.Controllers
             return Ok(MapToResponse(result.Data!));
         }
 
-        /// <summary>Cria uma opção pela rota com perguntaId.</summary>
+        /// <summary>Cria uma op��o pela rota com perguntaId.</summary>
         [HttpPost("pergunta/{perguntaId:int}")]
         public async Task<IActionResult> CriarNaPergunta([FromRoute] int perguntaId, [FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
         {
-            if (dto is null) return BadRequest("Body inválido.");
+            if (dto is null) return BadRequest("Body inv�lido.");
 
             var result = await _service.CriarAsync(
                 perguntaId: perguntaId,
@@ -72,30 +72,30 @@ namespace FASTSURVEY.Controllers
             return Ok(MapToResponse(result.Data!));
         }
 
-        /// <summary>Obtém uma opção por id.</summary>
+        /// <summary>Obt�m uma op��o por id.</summary>
         [HttpGet("{opcaoId:int}")]
         public async Task<IActionResult> Obter([FromRoute] int opcaoId, CancellationToken ct)
         {
             var result = await _service.ObterPorIdAsync(opcaoId, ct);
             if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
 
             return Ok(MapToResponse(result.Data!));
         }
 
-        /// <summary>Lista opções de uma pergunta.</summary>
+        /// <summary>Lista op��es de uma pergunta.</summary>
         [HttpGet("pergunta/{perguntaId:int}")]
         public async Task<IActionResult> ListarPorPergunta([FromRoute] int perguntaId, CancellationToken ct)
         {
             var result = await _service.ListarPorPerguntaAsync(perguntaId, ct);
             if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Pergunta não encontrada.");
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Pergunta n�o encontrada.");
 
             var list = result.Data!.Select(MapToResponse).ToList();
             return Ok(list);
         }
 
-        /// <summary>Atualiza parcialmente uma opção.</summary>
+        /// <summary>Atualiza parcialmente uma op��o.</summary>
         [HttpPut("{opcaoId:int}")]
         public async Task<IActionResult> Atualizar([FromRoute] int opcaoId, [FromBody] OpcaoPerguntaUpdateRequest dto, CancellationToken ct)
         {
@@ -111,18 +111,18 @@ namespace FASTSURVEY.Controllers
             }, ct);
 
             if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
 
             return Ok(MapToResponse(result.Data!));
         }
 
-        /// <summary>Remove uma opção (hard delete).</summary>
+        /// <summary>Remove uma op��o (hard delete).</summary>
         [HttpDelete("{opcaoId:int}")]
         public async Task<IActionResult> Remover([FromRoute] int opcaoId, CancellationToken ct)
         {
             var result = await _service.RemoverAsync(opcaoId, ct);
             if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Opção não encontrada.");
+                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
 
             return Ok(new { success = true });
         }

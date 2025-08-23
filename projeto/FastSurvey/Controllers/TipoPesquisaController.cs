@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Dtos.Tipos;
 using FASTSURVEY.Services.Tipos;
 using Microsoft.AspNetCore.Mvc;
@@ -23,9 +23,9 @@ namespace FASTSURVEY.Controllers
 
             var dtos = lista.Select(x => new TipoPesquisaDto
             {
-                tipopesquisaid = x.Tipopesquisaid,
-                tipopesquisa = x.Tipopesquisa1 ?? string.Empty,
-                desabilitado = x.Desabilitado
+                TipoPesquisaId = x.Tipopesquisaid,
+                TipoPesquisa = x.Tipopesquisa1 ?? string.Empty,
+                Desabilitado = x.Desabilitado
             });
 
             return Ok(dtos);

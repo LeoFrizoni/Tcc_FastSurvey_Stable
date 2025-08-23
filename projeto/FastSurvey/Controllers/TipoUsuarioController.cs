@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using SISTEMA_FASTSURVEY.MODEL.Repositories;
+using FASTSURVEY.Dtos.Tipos;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,9 +15,9 @@ namespace FASTSURVEY.Controllers
     public class TipoUsuarioController : ControllerBase
     {
         private readonly FastSurveyContext _context;
-        private readonly TipoUsuarioRepository _repo;
+        private readonly ITipoUsuarioRepository _repo;
 
-        public TipoUsuarioController(FastSurveyContext context, TipoUsuarioRepository repo)
+        public TipoUsuarioController(FastSurveyContext context, ITipoUsuarioRepository repo)
         {
             _context = context;
             _repo = repo;
@@ -41,10 +42,17 @@ namespace FASTSURVEY.Controllers
 
             var criado = await _repo.AddAsync(body);
 
+            var response = new TipoUsuarioDto
+            {
+                TipoUsuarioId = criado.Tipousuarioid,
+                TipoUsuario = criado.Tipousuario1,
+                Desabilitado = false
+            };
+
             return CreatedAtAction(
                 nameof(GetPorId),
                 new { id = criado.Tipousuarioid },
-                new { criado.Tipousuarioid, tipousuario = criado.Tipousuario1 }
+                response
             );
         }
 
@@ -55,10 +63,11 @@ namespace FASTSURVEY.Controllers
             var lista = await _context.Tipousuario
                 .AsNoTracking()
                 .OrderBy(t => t.Tipousuarioid)
-                .Select(t => new
+                .Select(t => new TipoUsuarioDto
                 {
-                    id = t.Tipousuarioid,
-                    nome = t.Tipousuario1
+                    TipoUsuarioId = t.Tipousuarioid,
+                    TipoUsuario = t.Tipousuario1,
+                    Desabilitado = false
                 })
                 .ToListAsync(ct);
 
@@ -75,10 +84,11 @@ namespace FASTSURVEY.Controllers
             var tipo = await _context.Tipousuario
                 .AsNoTracking()
                 .Where(t => t.Tipousuarioid == id)
-                .Select(t => new
+                .Select(t => new TipoUsuarioDto
                 {
-                    id = t.Tipousuarioid,
-                    nome = t.Tipousuario1
+                    TipoUsuarioId = t.Tipousuarioid,
+                    TipoUsuario = t.Tipousuario1,
+                    Desabilitado = false
                 })
                 .FirstOrDefaultAsync(ct);
 

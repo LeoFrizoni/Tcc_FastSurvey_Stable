@@ -2,8 +2,8 @@
 {
     public class TipoPesquisaDto
     {
-        public int tipopesquisaid { get; set; }
-        public string tipopesquisa { get; set; } = string.Empty;
-        public bool desabilitado { get; set; }
+        public int TipoPesquisaId { get; set; }
+        public string TipoPesquisa { get; set; } = string.Empty;
+        public bool Desabilitado { get; set; }
     }
 }

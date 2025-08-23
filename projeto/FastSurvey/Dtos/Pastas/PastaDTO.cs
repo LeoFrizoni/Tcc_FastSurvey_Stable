@@ -17,5 +17,6 @@ namespace FASTSURVEY.Dtos.Pastas
     {
         public int PastaId { get; set; }
         public string Nome { get; set; } = string.Empty;
+        public int? LoginId { get; set; }
     }
 }

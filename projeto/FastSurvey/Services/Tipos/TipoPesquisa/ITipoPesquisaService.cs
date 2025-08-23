@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using SISTEMA_FASTSURVEY.MODEL.Models;
 
 namespace FASTSURVEY.Services.Tipos

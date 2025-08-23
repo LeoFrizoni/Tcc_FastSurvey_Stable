@@ -14,4 +14,12 @@ public partial class Tokens
     public DateTime Dataregistro { get; set; }
 
     public DateTime Dataexpirado { get; set; }
+
+    public int? Loginid { get; set; }
+
+    public string Finalidade { get; set; }
+
+    public DateTime? Usadoem { get; set; }
+
+    public virtual Login Login { get; set; }
 }

@@ -1,0 +1,77 @@
+// using FASTSURVEY;
+// using FASTSURVEY.Services.Email;
+// using Microsoft.AspNetCore.Authentication.JwtBearer;
+// using Microsoft.IdentityModel.Tokens;
+// using SISTEMA_FASTSURVEY.MODEL.Repositories;
+// using System.Text;
+
+// var builder = WebApplication.CreateBuilder(args);
+
+// // Infra do projeto (DbContext + Repos + Services)
+// builder.Services.AddFastSurvey(builder.Configuration);
+
+// // Sender de e‑mail (SMTP via MailKit)
+// builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+// // Autenticação JWT
+// var jwtKey = builder.Configuration["Jwt:Key"]
+//     ?? throw new InvalidOperationException("JWT Key is not configured.");
+
+// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//     .AddJwtBearer(options =>
+//     {
+//         options.TokenValidationParameters = new TokenValidationParameters
+//         {
+//             ValidateIssuer = true,
+//             ValidateAudience = true,
+//             ValidateLifetime = true,
+//             ValidateIssuerSigningKey = true,
+//             ValidIssuer = builder.Configuration["Jwt:Issuer"],
+//             ValidAudience = builder.Configuration["Jwt:Audience"],
+//             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+//         };
+//     });
+
+// builder.Services.AddScoped<ITipoUsuarioRepository, TipoUsuarioRepository>();
+
+// // MVC & Swagger básico (UI só em dev)
+// builder.Services.AddControllers();
+// builder.Services.AddEndpointsApiExplorer();
+// builder.Services.AddSwaggerGen();
+
+// // CORS: em produção libera apenas o Frontend
+// var frontOrigin = (builder.Configuration["Frontend:BaseUrl"] ?? "http://localhost:3000").TrimEnd('/');
+// builder.Services.AddCors(opt =>
+// {
+//     opt.AddPolicy("ProdCors", p =>
+//         p.WithOrigins(frontOrigin)
+//          .AllowAnyHeader()
+//          .AllowAnyMethod());
+//     opt.AddPolicy("DevCors", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+// });
+
+// var app = builder.Build();
+
+// // Swagger apenas em desenvolvimento
+// if (app.Environment.IsDevelopment())
+// {
+//     app.UseSwagger();
+//     app.UseSwaggerUI();
+// }
+// else
+// {
+//     // Recomendado em produção
+//     app.UseHsts();
+// }
+
+// app.UseHttpsRedirection();
+
+// // CORS (usa ProdCors fora do dev)
+// app.UseCors(app.Environment.IsDevelopment() ? "DevCors" : "ProdCors");
+
+// app.UseAuthentication();
+// app.UseAuthorization();
+
+// app.MapControllers();
+
+// app.Run();

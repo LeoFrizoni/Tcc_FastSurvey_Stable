@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Dtos.Tokens;
 using FASTSURVEY.Services.Result;
 using FASTSURVEY.Services.Tokens;

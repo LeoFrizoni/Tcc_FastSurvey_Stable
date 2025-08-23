@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
+/// <summary>
+/// Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste
+/// </summary>
 public partial class Tipopesquisa
 {
     public int Tipopesquisaid { get; set; }

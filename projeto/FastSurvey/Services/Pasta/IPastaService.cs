@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Pastas;
+using FASTSURVEY.Dtos.Pastas;
 
 namespace FASTSURVEY.Services.Pasta
 {

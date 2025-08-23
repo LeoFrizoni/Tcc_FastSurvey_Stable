@@ -19,9 +19,15 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<Anexos> Anexos { get; set; }
 
+    public virtual DbSet<Externallogins> Externallogins { get; set; }
+
     public virtual DbSet<Login> Login { get; set; }
 
+    public virtual DbSet<Loginavatar> Loginavatar { get; set; }
+
     public virtual DbSet<Opcoespergunta> Opcoespergunta { get; set; }
+
+    public virtual DbSet<ParticipantesSessao> ParticipantesSessao { get; set; }
 
     public virtual DbSet<Pastas> Pastas { get; set; }
 
@@ -30,6 +36,8 @@ public partial class FastSurveyContext : DbContext
     public virtual DbSet<Pesquisas> Pesquisas { get; set; }
 
     public virtual DbSet<Respostas> Respostas { get; set; }
+
+    public virtual DbSet<SessoesInterativas> SessoesInterativas { get; set; }
 
     public virtual DbSet<Tipopergunta> Tipopergunta { get; set; }
 
@@ -40,8 +48,14 @@ public partial class FastSurveyContext : DbContext
     public virtual DbSet<Tokens> Tokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-        => optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
+    {
+        // A connection string será configurada via injeção de dependência
+        // Se não estiver configurada, usa a connection string padrão
+        if (!optionsBuilder.IsConfigured)
+        {
+            optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +99,35 @@ public partial class FastSurveyContext : DbContext
                 .HasConstraintName("anexos_pesquisaid_fkey");
         });
 
+        modelBuilder.Entity<Externallogins>(entity =>
+        {
+            entity.HasKey(e => e.Externalloginid).HasName("externallogins_pkey");
+
+            entity.ToTable("externallogins");
+
+            entity.HasIndex(e => e.Loginid, "idx_externallogins_loginid");
+
+            entity.HasIndex(e => new { e.Provider, e.Provideruserid }, "uq_provider_user").IsUnique();
+
+            entity.Property(e => e.Externalloginid).HasColumnName("externalloginid");
+            entity.Property(e => e.Criadoem)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("criadoem");
+            entity.Property(e => e.Loginid).HasColumnName("loginid");
+            entity.Property(e => e.Provider)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasColumnName("provider");
+            entity.Property(e => e.Provideruserid)
+                .IsRequired()
+                .HasMaxLength(255)
+                .HasColumnName("provideruserid");
+
+            entity.HasOne(d => d.Login).WithMany(p => p.Externallogins)
+                .HasForeignKey(d => d.Loginid)
+                .HasConstraintName("fk_externallogins_loginid");
+        });
+
         modelBuilder.Entity<Login>(entity =>
         {
             entity.HasKey(e => e.Loginid).HasName("login_pkey");
@@ -101,11 +144,16 @@ public partial class FastSurveyContext : DbContext
                 .IsRequired()
                 .HasMaxLength(100)
                 .HasColumnName("email");
+            entity.Property(e => e.Emailconfirmado)
+                .HasDefaultValue(false)
+                .HasColumnName("emailconfirmado");
             entity.Property(e => e.Senha)
                 .IsRequired()
                 .HasMaxLength(100)
                 .HasColumnName("senha");
-            entity.Property(e => e.Tipousuarioid).HasColumnName("tipousuarioid");
+            entity.Property(e => e.Tipousuarioid)
+                .HasDefaultValue(13)
+                .HasColumnName("tipousuarioid");
             entity.Property(e => e.Tipousuariotexto)
                 .HasMaxLength(50)
                 .HasColumnName("tipousuariotexto");
@@ -119,11 +167,48 @@ public partial class FastSurveyContext : DbContext
                 .HasConstraintName("fk_login_tipousuarioid");
         });
 
+        modelBuilder.Entity<Loginavatar>(entity =>
+        {
+            entity.HasKey(e => e.Avatarid).HasName("loginavatar_pkey");
+
+            entity.ToTable("loginavatar");
+
+            entity.HasIndex(e => e.Loginid, "idx_loginavatar_loginid");
+
+            entity.HasIndex(e => e.Loginid, "uq_loginavatar_loginid").IsUnique();
+
+            entity.Property(e => e.Avatarid).HasColumnName("avatarid");
+            entity.Property(e => e.Atualizadoem).HasColumnName("atualizadoem");
+            entity.Property(e => e.Contenttype)
+                .HasMaxLength(150)
+                .HasColumnName("contenttype");
+            entity.Property(e => e.Criadoem)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("criadoem");
+            entity.Property(e => e.Loginid).HasColumnName("loginid");
+            entity.Property(e => e.Nomeoriginal)
+                .HasMaxLength(255)
+                .HasColumnName("nomeoriginal");
+            entity.Property(e => e.Storageurl).HasColumnName("storageurl");
+            entity.Property(e => e.Tamanhobytes).HasColumnName("tamanhobytes");
+            entity.Property(e => e.Versao)
+                .HasDefaultValue(0)
+                .HasColumnName("versao");
+
+            entity.HasOne(d => d.Login).WithOne(p => p.Loginavatar)
+                .HasForeignKey<Loginavatar>(d => d.Loginid)
+                .HasConstraintName("fk_loginavatar_loginid");
+        });
+
         modelBuilder.Entity<Opcoespergunta>(entity =>
         {
             entity.HasKey(e => e.Opcaoid).HasName("opcoespergunta_pkey");
 
             entity.ToTable("opcoespergunta");
+
+            entity.HasIndex(e => e.Ativa, "idx_opcoespergunta_ativa");
+
+            entity.HasIndex(e => e.Ordem, "idx_opcoespergunta_ordem");
 
             entity.HasIndex(e => e.Perguntaid, "idx_opcoespergunta_perguntaid");
 
@@ -148,6 +233,31 @@ public partial class FastSurveyContext : DbContext
             entity.HasOne(d => d.Pergunta).WithMany(p => p.Opcoespergunta)
                 .HasForeignKey(d => d.Perguntaid)
                 .HasConstraintName("opcoespergunta_perguntaid_fkey");
+        });
+
+        modelBuilder.Entity<ParticipantesSessao>(entity =>
+        {
+            entity.HasKey(e => e.ParticipanteId).HasName("participantes_sessao_pkey");
+
+            entity.ToTable("participantes_sessao");
+
+            entity.Property(e => e.ParticipanteId).HasColumnName("participante_id");
+            entity.Property(e => e.EntrouEm)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("entrou_em");
+            entity.Property(e => e.NomeParticipante)
+                .IsRequired()
+                .HasMaxLength(100)
+                .HasColumnName("nome_participante");
+            entity.Property(e => e.SaiuEm).HasColumnName("saiu_em");
+            entity.Property(e => e.SessaoId)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasColumnName("sessao_id");
+
+            entity.HasOne(d => d.Sessao).WithMany(p => p.ParticipantesSessao)
+                .HasForeignKey(d => d.SessaoId)
+                .HasConstraintName("fk_participantes_sessao");
         });
 
         modelBuilder.Entity<Pastas>(entity =>
@@ -215,9 +325,15 @@ public partial class FastSurveyContext : DbContext
 
             entity.ToTable("pesquisas");
 
+            entity.HasIndex(e => e.Ativa, "idx_pesquisas_ativa");
+
             entity.HasIndex(e => e.Datacriacao, "idx_pesquisas_datacriacao");
 
+            entity.HasIndex(e => e.Datafechamento, "idx_pesquisas_datafechamento");
+
             entity.HasIndex(e => e.Descricao, "idx_pesquisas_descricao");
+
+            entity.HasIndex(e => e.Isinterativa, "idx_pesquisas_isinterativa");
 
             entity.HasIndex(e => e.Loginid, "idx_pesquisas_loginid");
 
@@ -228,17 +344,31 @@ public partial class FastSurveyContext : DbContext
             entity.HasIndex(e => e.Titulo, "idx_pesquisas_titulo");
 
             entity.Property(e => e.Pesquisaid).HasColumnName("pesquisaid");
+            entity.Property(e => e.Ativa)
+                .HasDefaultValue(true)
+                .HasColumnName("ativa");
             entity.Property(e => e.Dataatualizacao).HasColumnName("dataatualizacao");
             entity.Property(e => e.Datacriacao)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("datacriacao");
+            entity.Property(e => e.Datafechamento).HasColumnName("datafechamento");
             entity.Property(e => e.Descricao)
                 .IsRequired()
                 .HasMaxLength(500)
                 .HasColumnName("descricao");
+            entity.Property(e => e.Isinterativa)
+                .HasDefaultValue(false)
+                .HasColumnName("isinterativa");
+            entity.Property(e => e.LimiteRespostas).HasColumnName("limite_respostas");
             entity.Property(e => e.Loginid).HasColumnName("loginid");
             entity.Property(e => e.Pastaid).HasColumnName("pastaid");
+            entity.Property(e => e.PermiteRespostasAnonimas)
+                .HasDefaultValue(true)
+                .HasColumnName("permite_respostas_anonimas");
             entity.Property(e => e.Qrcodeurl).HasColumnName("qrcodeurl");
+            entity.Property(e => e.Temlimitadortempo)
+                .HasDefaultValue(false)
+                .HasColumnName("temlimitadortempo");
             entity.Property(e => e.Templatejson)
                 .HasDefaultValueSql("'[]'::text")
                 .HasColumnName("templatejson");
@@ -270,18 +400,34 @@ public partial class FastSurveyContext : DbContext
 
             entity.ToTable("respostas");
 
+            entity.HasIndex(e => e.RespostaAnonima, "idx_respostas_anonima");
+
             entity.HasIndex(e => e.Dataresposta, "idx_respostas_dataresposta");
 
             entity.HasIndex(e => e.Perguntaid, "idx_respostas_perguntaid");
+
+            entity.HasIndex(e => e.SessaoId, "idx_respostas_sessao");
 
             entity.Property(e => e.Respostaid).HasColumnName("respostaid");
             entity.Property(e => e.Dataresposta)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("dataresposta");
+            entity.Property(e => e.ParticipanteId).HasColumnName("participante_id");
             entity.Property(e => e.Perguntaid).HasColumnName("perguntaid");
+            entity.Property(e => e.RespostaAnonima)
+                .HasDefaultValue(false)
+                .HasColumnName("resposta_anonima");
+            entity.Property(e => e.SessaoId)
+                .HasMaxLength(50)
+                .HasColumnName("sessao_id");
             entity.Property(e => e.Texto)
                 .IsRequired()
                 .HasColumnName("texto");
+
+            entity.HasOne(d => d.Participante).WithMany(p => p.Respostas)
+                .HasForeignKey(d => d.ParticipanteId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("fk_respostas_participante");
 
             entity.HasOne(d => d.Pergunta).WithMany(p => p.Respostas)
                 .HasForeignKey(d => d.Perguntaid)
@@ -327,11 +473,45 @@ public partial class FastSurveyContext : DbContext
                     });
         });
 
+        modelBuilder.Entity<SessoesInterativas>(entity =>
+        {
+            entity.HasKey(e => e.SessaoId).HasName("sessoes_interativas_pkey");
+
+            entity.ToTable("sessoes_interativas");
+
+            entity.HasIndex(e => e.Ativa, "idx_sessoes_ativa");
+
+            entity.HasIndex(e => e.CodigoAcesso, "idx_sessoes_codigo");
+
+            entity.HasIndex(e => e.CodigoAcesso, "uq_sessoes_codigo").IsUnique();
+
+            entity.Property(e => e.SessaoId)
+                .HasMaxLength(50)
+                .HasColumnName("sessao_id");
+            entity.Property(e => e.Ativa)
+                .HasDefaultValue(true)
+                .HasColumnName("ativa");
+            entity.Property(e => e.CodigoAcesso)
+                .IsRequired()
+                .HasMaxLength(10)
+                .HasColumnName("codigo_acesso");
+            entity.Property(e => e.CriadaEm)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnName("criada_em");
+            entity.Property(e => e.FinalizadaEm).HasColumnName("finalizada_em");
+            entity.Property(e => e.IniciadaEm).HasColumnName("iniciada_em");
+            entity.Property(e => e.PesquisaId).HasColumnName("pesquisa_id");
+
+            entity.HasOne(d => d.Pesquisa).WithMany(p => p.SessoesInterativas)
+                .HasForeignKey(d => d.PesquisaId)
+                .HasConstraintName("fk_sessoes_pesquisa");
+        });
+
         modelBuilder.Entity<Tipopergunta>(entity =>
         {
             entity.HasKey(e => e.Tipoperguntaid).HasName("tipopergunta_pkey");
 
-            entity.ToTable("tipopergunta");
+            entity.ToTable("tipopergunta", tb => tb.HasComment("Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha"));
 
             entity.Property(e => e.Tipoperguntaid).HasColumnName("tipoperguntaid");
             entity.Property(e => e.Desabilitado)
@@ -347,7 +527,7 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.Tipopesquisaid).HasName("tipopesquisa_pkey");
 
-            entity.ToTable("tipopesquisa");
+            entity.ToTable("tipopesquisa", tb => tb.HasComment("Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste"));
 
             entity.Property(e => e.Tipopesquisaid).HasColumnName("tipopesquisaid");
             entity.Property(e => e.Desabilitado)
@@ -363,7 +543,7 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.Tipousuarioid).HasName("tipousuario_pkey");
 
-            entity.ToTable("tipousuario");
+            entity.ToTable("tipousuario", tb => tb.HasComment("Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador"));
 
             entity.Property(e => e.Tipousuarioid).HasColumnName("tipousuarioid");
             entity.Property(e => e.Tipousuario1)
@@ -377,19 +557,35 @@ public partial class FastSurveyContext : DbContext
 
             entity.ToTable("tokens");
 
+            entity.HasIndex(e => e.Token, "idx_tokens_token_validos").HasFilter("(usadoem IS NULL)");
+
+            entity.HasIndex(e => new { e.Loginid, e.Finalidade }, "uq_tokens_loginid_finalidade_ativo")
+                .IsUnique()
+                .HasFilter("(usadoem IS NULL)");
+
             entity.HasIndex(e => e.Token, "uq_tokens_token").IsUnique();
 
             entity.Property(e => e.Tokenid).HasColumnName("tokenid");
             entity.Property(e => e.Dataexpirado)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasDefaultValueSql("(CURRENT_TIMESTAMP + '24:00:00'::interval)")
                 .HasColumnName("dataexpirado");
             entity.Property(e => e.Dataregistro)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnName("dataregistro");
+            entity.Property(e => e.Finalidade)
+                .HasMaxLength(30)
+                .HasColumnName("finalidade");
+            entity.Property(e => e.Loginid).HasColumnName("loginid");
             entity.Property(e => e.Token)
                 .IsRequired()
-                .HasMaxLength(6)
+                .HasMaxLength(255)
                 .HasColumnName("token");
+            entity.Property(e => e.Usadoem).HasColumnName("usadoem");
+
+            entity.HasOne(d => d.Login).WithMany(p => p.Tokens)
+                .HasForeignKey(d => d.Loginid)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("fk_tokens_loginid");
         });
 
         OnModelCreatingPartial(modelBuilder);

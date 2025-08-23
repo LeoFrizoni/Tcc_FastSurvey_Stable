@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Perguntas;
+using FASTSURVEY.Dtos.Perguntas;
 using FASTSURVEY.Dtos.Perguntas.Base;
 using FASTSURVEY.Dtos.Perguntas.Discursiva;
 using FASTSURVEY.Dtos.Perguntas.Objetiva;
@@ -13,7 +13,10 @@ namespace FASTSURVEY.Services.Pergunta
 {
     public interface IPerguntaService
     {
-        // -------------------- CRUD Perguntas (por tipo) --------------------
+        // -------------------- CREATE SIMPLES --------------------
+        Task<ServiceResult<PerguntaResponse>> CriarAsync(CriarPerguntaRequest req, CancellationToken ct = default);
+
+        // -------------------- CREATE --------------------
         Task<ServiceResult<PerguntaResponse>> CriarDiscursivaAsync(
             CriarPerguntaDiscursivaRequest req, CancellationToken ct = default);
 
@@ -43,15 +46,15 @@ namespace FASTSURVEY.Services.Pergunta
             int pesquisaId, CancellationToken ct = default);
 
         // -------------------- Gabarito --------------------
-        // permitirApenasUma = true para Objetiva, false para Múltipla (N corretas)
+        // permitirApenasUma = true para Objetiva, false para M�ltipla (N corretas)
         Task<ServiceResult<bool>> DefinirGabaritoAsync(
             int perguntaId, IEnumerable<int> opcaoIds, bool permitirApenasUma, CancellationToken ct = default);
 
-        // -------------------- Ordenação --------------------
+        // -------------------- Ordena��o --------------------
         Task<ServiceResult<bool>> ReordenarAsync(
             int pesquisaId, IReadOnlyList<int> perguntaIdsNaOrdem, CancellationToken ct = default);
 
-        // -------------------- Opções --------------------
+        // -------------------- Op��es --------------------
         Task<ServiceResult<OpcaoPerguntaResponse>> AdicionarOpcaoAsync(
             int perguntaId, OpcaoPerguntaRequest req, CancellationToken ct = default);
 

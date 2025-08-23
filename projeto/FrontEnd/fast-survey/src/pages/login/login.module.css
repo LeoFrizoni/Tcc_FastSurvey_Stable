@@ -25,13 +25,14 @@
   box-shadow:0 10px 28px rgba(0,0,0,.1);
   position:relative;
   overflow:hidden;
-  width:768px;
+  width:900px;
   max-width:100%;
   min-height:480px;
   transition:all .5s ease;
 }
 
-/* --- formulário --- */
+.active {}
+
 .container form{
   background:#fff;
   display:flex;
@@ -68,7 +69,7 @@
   transform:scale(1.01);
 }
 
-/* ========== AQUI o segredo: apenas botões de ação do form ========== */
+/* Botões principais */
 .container form > button{
   background:linear-gradient(90deg,#7A3CED 60%,#6f3de3 100%);
   color:#fff;
@@ -87,20 +88,13 @@
   background:linear-gradient(90deg,#6f3de3 60%,#7A3CED 100%);
 }
 
-.container p{ font-size:14px; color:#444; margin-top:10px; }
-
 /* ===== Input com ícone de olho ===== */
-.inputRow{
-  position:relative;
-  width:100%;
-  margin:8px 0;
-}
+.inputRow{ position:relative; width:100%; margin:8px 0; }
 .inputWithEye{ padding-right:44px; margin:0; width:100%; }
 .inputRow input{ width:100%; margin:0; }
 
-/* Botão do olho — mantemos como <button> por acessibilidade */
 .eyeBtn{
-  all: unset;                       /* reseta heranças de .container form > button */
+  all: unset;
   position:absolute;
   right:12px;
   top:50%;
@@ -117,6 +111,49 @@
 }
 .eyeBtn:hover{ color:#6f3de3; opacity:1; }
 
+/* Link + esqueci senha */
+.forgotRow{
+  width:100%;
+  margin:6px 0 0;
+  display:flex;
+  justify-content:flex-end;
+}
+.linkBtn{
+  all: unset;
+  color:#6f3de3;
+  cursor:pointer;
+  font-weight:600;
+  font-size:13px;
+}
+.linkBtn:hover{ text-decoration: underline; }
+.forgotInline{
+  width:100%;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  margin-top:4px;
+}
+.btnMini{
+  background:#7A3CED;
+  color:#fff;
+  border:none;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+.btnMiniGhost{
+  background:transparent;
+  color:#7A3CED;
+  border:1px solid #7A3CED;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+
 /* --- organização dos painéis --- */
 .form-container{ position:absolute; top:0; height:100%; transition:all .6s ease-in-out; }
 .sign-in{ left:0; width:50%; z-index:2; }
@@ -129,7 +166,7 @@
   50%,100% { opacity:1; z-index:5; }
 }
 
-/* --- painel roxo (lado direito) + painel azul (lado esquerdo) --- */
+/* --- painel roxo/azul --- */
 .toggle-container{
   position:absolute; top:0; left:50%;
   width:50%; height:100%; overflow:hidden;
@@ -168,6 +205,8 @@
   background:transparent; color:#fff; cursor:pointer;
   transition:transform .06s, box-shadow .2s, color .2s, background .2s, border-color .2s;
 }
+.btnSolid{}
+.btnOutline{}
 .toggle-panel.toggle-right .toggleBtn{
   background:#fff; color:var(--brand); border-color:var(--brand);
   box-shadow:0 10px 26px rgba(124,58,237,.28);
@@ -191,6 +230,32 @@
 .mensagem-status.cadastro{ background:rgba(0,128,0,.06); color:#1d7e3e; }
 .validacao-senha{ margin:8px 0 12px; width:100%; text-align:left; font-size:12px; }
 
+/* === Separador “ou” === */
+.sep{ display:flex; align-items:center; gap:10px; width:100%; margin:10px 0 6px; }
+.sepLine{ flex:1; height:1px; background:#e6e6f0; }
+.sep > span{ color:#666; font-size:12px; }
+
+/* === Google button slots (mantém altura enquanto carrega) === */
+.googleWrap{ width:100%; display:flex; justify-content:center; margin:4px 0 8px; }
+.googleBtnSlot{ min-height:44px; display:flex; justify-content:center; align-items:center; }
+.googleHint{ text-align:center; font-size:12px; color:#999; margin-top:6px; }
+
+/* === Linha de ações no cadastro === */
+.actionsRow{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-top:10px;
+}
+.btnLink{
+  all:unset;
+  color:#6f3de3;
+  font-weight:600;
+  cursor:pointer;
+  font-size:13px;
+}
+.btnLink:hover{ text-decoration:underline; }
+
 /* --- responsividade --- */
 @media (max-width:768px){
   .container{ width:90%; border-radius:15px; box-shadow:0 5px 10px rgba(0,0,0,.1); flex-direction:column; padding:20px 0; }
@@ -207,7 +272,6 @@
 .modalHeader h2{ margin:0; font-size:1.1rem; }
 .modalClose{ border:none; background:transparent; font-size:24px; line-height:1; cursor:pointer; }
 .modalBody{ padding:16px 20px; overflow:auto; line-height:1.5; }
-.modalBody h3{ margin:14px 0 6px; font-size:1rem; }
 .modalFooter{ border-top:1px solid #e5e7eb; padding:12px 20px 16px; background:#fafafa; }
 .checkboxRow{ display:flex; gap:10px; align-items:center; font-size:.95rem; margin-bottom:12px; }
 .modalActions{ display:flex; gap:10px; justify-content:end; }
@@ -216,18 +280,8 @@
 .btnSecondary{ background:#e5e7eb; color:#111827; border:none; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; }
 .btnSecondary:disabled{ opacity:.6; cursor:not-allowed; }
 
-/* Esconde o ícone nativo de revelar senha no Edge/IE */
+/* Esconde ícones nativos */
 input[type="password"]::-ms-reveal,
-input[type="password"]::-ms-clear {
-  display: none;
-  width: 0;
-  height: 0;
-}
-
-/* Tentativa amigável para engines WebKit/Chromium que exibam botões nativos */
+input[type="password"]::-ms-clear { display:none; width:0; height:0; }
 input[type="password"]::-webkit-credentials-auto-fill-button,
-input[type="password"]::-webkit-textfield-decoration-container {
-  display: none;
-  visibility: hidden;
-  pointer-events: none;
-}
+input[type="password"]::-webkit-textfield-decoration-container { display:none; visibility:hidden; pointer-events:none; }

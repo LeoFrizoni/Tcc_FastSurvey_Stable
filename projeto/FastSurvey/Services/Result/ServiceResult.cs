@@ -1,4 +1,4 @@
-﻿namespace FASTSURVEY.Services.Result;
+namespace FASTSURVEY.Services.Result;
 
 public record ServiceError(string Code, string Message);
 

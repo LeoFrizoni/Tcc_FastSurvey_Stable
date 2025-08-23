@@ -27,6 +27,18 @@ public partial class Pesquisas
 
     public string Qrcodeurl { get; set; }
 
+    public bool Temlimitadortempo { get; set; }
+
+    public DateTime? Datafechamento { get; set; }
+
+    public bool Isinterativa { get; set; }
+
+    public bool PermiteRespostasAnonimas { get; set; }
+
+    public int? LimiteRespostas { get; set; }
+
+    public bool Ativa { get; set; }
+
     public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
     public virtual Login Login { get; set; }
@@ -34,6 +46,8 @@ public partial class Pesquisas
     public virtual Pastas Pasta { get; set; }
 
     public virtual ICollection<Perguntas> Perguntas { get; set; } = new List<Perguntas>();
+
+    public virtual ICollection<SessoesInterativas> SessoesInterativas { get; set; } = new List<SessoesInterativas>();
 
     public virtual Tipopesquisa Tipopesquisa { get; set; }
 }

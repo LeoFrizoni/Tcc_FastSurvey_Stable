@@ -1,11 +1,11 @@
-﻿// FASTSURVEY/Api/Controllers/PesquisasController.cs
+// FASTSURVEY/Api/Controllers/PesquisasController.cs
 #nullable enable
 using FASTSURVEY.Dtos.Pesquisas;
 using FASTSURVEY.Services.Pesquisa;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace FASTSURVEY.Api.Controllers
+namespace FASTSURVEY.Controllers
 {
     [ApiController]
     [Route("api/[controller]")] // /api/pesquisas
@@ -42,14 +42,14 @@ namespace FASTSURVEY.Api.Controllers
             return Ok(page);
         }
 
-        // ===== Endpoint específico usado pelo Home.jsx =====
+        // ===== Endpoint espec�fico usado pelo Home.jsx =====
         // GET: api/pesquisas/usuario/{loginId}
         [HttpGet("usuario/{loginId:int}")]
         [ProducesResponseType(typeof(IEnumerable<PesquisaListItemResponse>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<PesquisaListItemResponse>>> ListarPorUsuario(
             [FromRoute] int loginId, CancellationToken ct)
         {
-            if (loginId <= 0) return BadRequest("loginId inválido.");
+            if (loginId <= 0) return BadRequest("loginId inv�lido.");
             var list = await _service.ListarPorLoginAsync(loginId, ct);
             return Ok(list);
         }
@@ -93,7 +93,7 @@ namespace FASTSURVEY.Api.Controllers
             return NoContent();
         }
 
-        // ===== Endpoint específico usado pelo Home.jsx =====
+        // ===== Endpoint espec�fico usado pelo Home.jsx =====
         // PATCH: api/pesquisas/{id}/mover-pasta  body: { pastaId: 123 | null }
         public record MoverPastaRequest(int? PastaId);
 

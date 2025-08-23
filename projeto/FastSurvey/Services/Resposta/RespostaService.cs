@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Respostas;
+using FASTSURVEY.Dtos.Respostas;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using RespostaModel = SISTEMA_FASTSURVEY.MODEL.Models.Respostas;
@@ -19,9 +19,9 @@ namespace FASTSURVEY.Services.Resposta
                 .AnyAsync(p => p.Perguntaid == req.PerguntaId, ct);
 
             if (!perguntaExiste)
-                throw new InvalidOperationException("Pergunta não encontrada.");
+                throw new InvalidOperationException("Pergunta n�o encontrada.");
 
-            // valida pertencimento à pesquisa, se enviado
+            // valida pertencimento � pesquisa, se enviado
             if (req.PesquisaId.HasValue)
             {
                 var pertence = await _ctx.Perguntas
@@ -29,7 +29,7 @@ namespace FASTSURVEY.Services.Resposta
                     .AnyAsync(p => p.Perguntaid == req.PerguntaId && p.Pesquisaid == req.PesquisaId.Value, ct);
 
                 if (!pertence)
-                    throw new InvalidOperationException("A pergunta informada não pertence à pesquisa enviada.");
+                    throw new InvalidOperationException("A pergunta informada n�o pertence � pesquisa enviada.");
             }
 
             var entity = new RespostaModel
@@ -48,14 +48,14 @@ namespace FASTSURVEY.Services.Resposta
         public async Task<RespostaModel> CriarOpcoesAsync(CriarRespostaOpcoesRequest req, CancellationToken ct = default)
         {
             if (req.OpcoesSelecionadas is null || req.OpcoesSelecionadas.Count == 0)
-                throw new InvalidOperationException("Envie ao menos uma opção selecionada.");
+                throw new InvalidOperationException("Envie ao menos uma op��o selecionada.");
 
             var pergunta = await _ctx.Perguntas
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
 
             if (pergunta is null)
-                throw new InvalidOperationException("Pergunta não encontrada.");
+                throw new InvalidOperationException("Pergunta n�o encontrada.");
 
             if (req.PesquisaId.HasValue)
             {
@@ -64,7 +64,7 @@ namespace FASTSURVEY.Services.Resposta
                     .AnyAsync(p => p.Perguntaid == req.PerguntaId && p.Pesquisaid == req.PesquisaId.Value, ct);
 
                 if (!pertence)
-                    throw new InvalidOperationException("A pergunta informada não pertence à pesquisa enviada.");
+                    throw new InvalidOperationException("A pergunta informada n�o pertence � pesquisa enviada.");
             }
 
             var opcoes = await _ctx.Opcoespergunta
@@ -72,10 +72,10 @@ namespace FASTSURVEY.Services.Resposta
                 .ToListAsync(ct);
 
             if (opcoes.Count != req.OpcoesSelecionadas.Count)
-                throw new InvalidOperationException("Uma ou mais opções não foram encontradas.");
+                throw new InvalidOperationException("Uma ou mais op��es n�o foram encontradas.");
 
             if (opcoes.Any(o => o.Perguntaid != req.PerguntaId))
-                throw new InvalidOperationException("Foram enviadas opções que não pertencem a essa pergunta.");
+                throw new InvalidOperationException("Foram enviadas op��es que n�o pertencem a essa pergunta.");
 
             var entity = new RespostaModel
             {

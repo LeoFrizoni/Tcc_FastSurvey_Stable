@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
+/// <summary>
+/// Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador
+/// </summary>
 public partial class Tipousuario
 {
     public int Tipousuarioid { get; set; }

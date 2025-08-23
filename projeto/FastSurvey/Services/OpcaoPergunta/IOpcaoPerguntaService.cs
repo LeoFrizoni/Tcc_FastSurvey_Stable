@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Services.Result;
 
 // Alias para casar com a classe gerada pelo scaffold (tabela opcoespergunta)

@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Respostas;
+using FASTSURVEY.Dtos.Respostas;
 using FASTSURVEY.Services.Resposta;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

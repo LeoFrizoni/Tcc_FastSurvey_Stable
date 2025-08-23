@@ -17,16 +17,44 @@ CREATE TABLE IF NOT EXISTS public.anexos
     CONSTRAINT anexos_pkey PRIMARY KEY (anexoid)
 );
 
+CREATE TABLE IF NOT EXISTS public.externallogins
+(
+    externalloginid serial NOT NULL,
+    loginid integer NOT NULL,
+    provider character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    provideruserid character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    criadoem timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT externallogins_pkey PRIMARY KEY (externalloginid),
+    CONSTRAINT uq_provider_user UNIQUE (provider, provideruserid)
+);
+
 CREATE TABLE IF NOT EXISTS public.login
 (
     loginid serial NOT NULL,
     usuario character varying(255) COLLATE pg_catalog."default" NOT NULL,
     email character varying(100) COLLATE pg_catalog."default" NOT NULL,
     senha character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    dataregistro timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    tipousuarioid integer,
+    dataregistro timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    tipousuarioid integer DEFAULT 13,
     tipousuariotexto character varying(50) COLLATE pg_catalog."default",
-    CONSTRAINT login_pkey PRIMARY KEY (loginid)
+    emailconfirmado boolean NOT NULL DEFAULT false,
+    CONSTRAINT login_pkey PRIMARY KEY (loginid),
+    CONSTRAINT uq_login_email UNIQUE (email)
+);
+
+CREATE TABLE IF NOT EXISTS public.loginavatar
+(
+    avatarid serial NOT NULL,
+    loginid integer NOT NULL,
+    storageurl text COLLATE pg_catalog."default",
+    nomeoriginal character varying(255) COLLATE pg_catalog."default",
+    contenttype character varying(150) COLLATE pg_catalog."default",
+    tamanhobytes bigint,
+    criadoem timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizadoem timestamp with time zone,
+    versao integer NOT NULL DEFAULT 0,
+    CONSTRAINT loginavatar_pkey PRIMARY KEY (avatarid),
+    CONSTRAINT uq_loginavatar_loginid UNIQUE (loginid)
 );
 
 CREATE TABLE IF NOT EXISTS public.opcoespergunta
@@ -35,7 +63,19 @@ CREATE TABLE IF NOT EXISTS public.opcoespergunta
     perguntaid integer NOT NULL,
     texto character varying(200) COLLATE pg_catalog."default" NOT NULL,
     correta boolean NOT NULL DEFAULT false,
+    ordem integer NOT NULL DEFAULT 0,
+    ativa boolean NOT NULL DEFAULT true,
     CONSTRAINT opcoespergunta_pkey PRIMARY KEY (opcaoid)
+);
+
+CREATE TABLE IF NOT EXISTS public.participantes_sessao
+(
+    participante_id serial NOT NULL,
+    sessao_id character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    nome_participante character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    entrou_em timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    saiu_em timestamp with time zone,
+    CONSTRAINT participantes_sessao_pkey PRIMARY KEY (participante_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.pastas
@@ -43,7 +83,8 @@ CREATE TABLE IF NOT EXISTS public.pastas
     pastaid serial NOT NULL,
     nome character varying(100) COLLATE pg_catalog."default" NOT NULL,
     loginid integer,
-    CONSTRAINT pastas_pkey PRIMARY KEY (pastaid)
+    CONSTRAINT pastas_pkey PRIMARY KEY (pastaid),
+    CONSTRAINT uq_pastas_loginid_nome UNIQUE (loginid, nome)
 );
 
 CREATE TABLE IF NOT EXISTS public.perguntas
@@ -54,6 +95,7 @@ CREATE TABLE IF NOT EXISTS public.perguntas
     texto text COLLATE pg_catalog."default" NOT NULL,
     temgabarito boolean NOT NULL DEFAULT false,
     permitemultiplaselecao boolean NOT NULL DEFAULT false,
+    ordem integer NOT NULL DEFAULT 0,
     CONSTRAINT perguntas_pkey PRIMARY KEY (perguntaid)
 );
 
@@ -64,10 +106,17 @@ CREATE TABLE IF NOT EXISTS public.pesquisas
     tipopesquisaid integer NOT NULL,
     titulo character varying(100) COLLATE pg_catalog."default" NOT NULL,
     descricao character varying(500) COLLATE pg_catalog."default" NOT NULL,
-    "TemplateJson" text COLLATE pg_catalog."default",
+    templatejson text COLLATE pg_catalog."default" DEFAULT '[]'::text,
     pastaid integer,
-    datacriacao timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    dataatualizacao timestamp without time zone,
+    datacriacao timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dataatualizacao timestamp with time zone,
+    qrcodeurl text COLLATE pg_catalog."default",
+    temlimitadortempo boolean NOT NULL DEFAULT false,
+    datafechamento timestamp with time zone,
+    isinterativa boolean NOT NULL DEFAULT false,
+    permite_respostas_anonimas boolean NOT NULL DEFAULT true,
+    limite_respostas integer,
+    ativa boolean NOT NULL DEFAULT true,
     CONSTRAINT pesquisas_pkey PRIMARY KEY (pesquisaid)
 );
 
@@ -76,7 +125,10 @@ CREATE TABLE IF NOT EXISTS public.respostas
     respostaid serial NOT NULL,
     perguntaid integer NOT NULL,
     texto text COLLATE pg_catalog."default" NOT NULL,
-    dataresposta timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dataresposta timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sessao_id character varying(50) COLLATE pg_catalog."default",
+    resposta_anonima boolean NOT NULL DEFAULT false,
+    participante_id integer,
     CONSTRAINT respostas_pkey PRIMARY KEY (respostaid)
 );
 
@@ -94,6 +146,19 @@ CREATE TABLE IF NOT EXISTS public.respostas_opcoes
     CONSTRAINT respostas_opcoes_pkey PRIMARY KEY (respostaid, opcaoid)
 );
 
+CREATE TABLE IF NOT EXISTS public.sessoes_interativas
+(
+    sessao_id character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    pesquisa_id integer NOT NULL,
+    codigo_acesso character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    criada_em timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    iniciada_em timestamp with time zone,
+    finalizada_em timestamp with time zone,
+    ativa boolean NOT NULL DEFAULT true,
+    CONSTRAINT sessoes_interativas_pkey PRIMARY KEY (sessao_id),
+    CONSTRAINT uq_sessoes_codigo UNIQUE (codigo_acesso)
+);
+
 CREATE TABLE IF NOT EXISTS public.tipopergunta
 (
     tipoperguntaid serial NOT NULL,
@@ -101,6 +166,9 @@ CREATE TABLE IF NOT EXISTS public.tipopergunta
     desabilitado boolean NOT NULL DEFAULT false,
     CONSTRAINT tipopergunta_pkey PRIMARY KEY (tipoperguntaid)
 );
+
+COMMENT ON TABLE public.tipopergunta
+    IS 'Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha';
 
 CREATE TABLE IF NOT EXISTS public.tipopesquisa
 (
@@ -110,50 +178,89 @@ CREATE TABLE IF NOT EXISTS public.tipopesquisa
     CONSTRAINT tipopesquisa_pkey PRIMARY KEY (tipopesquisaid)
 );
 
+COMMENT ON TABLE public.tipopesquisa
+    IS 'Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste';
+
 CREATE TABLE IF NOT EXISTS public.tipousuario
 (
-    usuarioid serial NOT NULL,
+    tipousuarioid serial NOT NULL,
     tipousuario character varying(50) COLLATE pg_catalog."default",
-    CONSTRAINT usuarios_pkey PRIMARY KEY (usuarioid)
+    CONSTRAINT tipousuario_pkey PRIMARY KEY (tipousuarioid)
 );
+
+COMMENT ON TABLE public.tipousuario
+    IS 'Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador';
 
 CREATE TABLE IF NOT EXISTS public.tokens
 (
     tokenid serial NOT NULL,
-    token character varying(6) COLLATE pg_catalog."default" NOT NULL,
-    dataregistro timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    dataexpirado timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT tokens_pkey PRIMARY KEY (tokenid)
+    token character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    dataregistro timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    dataexpirado timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP + '24:00:00'::interval),
+    loginid integer,
+    finalidade character varying(30) COLLATE pg_catalog."default",
+    usadoem timestamp with time zone,
+    CONSTRAINT tokens_pkey PRIMARY KEY (tokenid),
+    CONSTRAINT uq_tokens_token UNIQUE (token)
 );
 
 ALTER TABLE IF EXISTS public.anexos
     ADD CONSTRAINT anexos_perguntaid_fkey FOREIGN KEY (perguntaid)
     REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_anexos_perguntaid
+    ON public.anexos(perguntaid);
 
 
 ALTER TABLE IF EXISTS public.anexos
     ADD CONSTRAINT anexos_pesquisaid_fkey FOREIGN KEY (pesquisaid)
     REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_anexos_pesquisaid
+    ON public.anexos(pesquisaid);
+
+
+ALTER TABLE IF EXISTS public.externallogins
+    ADD CONSTRAINT fk_externallogins_loginid FOREIGN KEY (loginid)
+    REFERENCES public.login (loginid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_externallogins_loginid
+    ON public.externallogins(loginid);
 
 
 ALTER TABLE IF EXISTS public.login
     ADD CONSTRAINT fk_login_tipousuarioid FOREIGN KEY (tipousuarioid)
-    REFERENCES public.tipousuario (usuarioid) MATCH SIMPLE
+    REFERENCES public.tipousuario (tipousuarioid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+
+
+ALTER TABLE IF EXISTS public.loginavatar
+    ADD CONSTRAINT fk_loginavatar_loginid FOREIGN KEY (loginid)
+    REFERENCES public.login (loginid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS uq_loginavatar_loginid
+    ON public.loginavatar(loginid);
 
 
 ALTER TABLE IF EXISTS public.opcoespergunta
     ADD CONSTRAINT opcoespergunta_perguntaid_fkey FOREIGN KEY (perguntaid)
     REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_opcoespergunta_perguntaid
     ON public.opcoespergunta(perguntaid);
+
+
+ALTER TABLE IF EXISTS public.participantes_sessao
+    ADD CONSTRAINT fk_participantes_sessao FOREIGN KEY (sessao_id)
+    REFERENCES public.sessoes_interativas (sessao_id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
 
 
 ALTER TABLE IF EXISTS public.pastas
@@ -167,7 +274,9 @@ ALTER TABLE IF EXISTS public.perguntas
     ADD CONSTRAINT perguntas_pesquisaid_fkey FOREIGN KEY (pesquisaid)
     REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_perguntas_pesquisaid
+    ON public.perguntas(pesquisaid);
 
 
 ALTER TABLE IF EXISTS public.perguntas
@@ -175,6 +284,8 @@ ALTER TABLE IF EXISTS public.perguntas
     REFERENCES public.tipopergunta (tipoperguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_perguntas_tipoperguntaid
+    ON public.perguntas(tipoperguntaid);
 
 
 ALTER TABLE IF EXISTS public.pesquisas
@@ -182,6 +293,8 @@ ALTER TABLE IF EXISTS public.pesquisas
     REFERENCES public.login (loginid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_pesquisas_loginid
+    ON public.pesquisas(loginid);
 
 
 ALTER TABLE IF EXISTS public.pesquisas
@@ -189,6 +302,8 @@ ALTER TABLE IF EXISTS public.pesquisas
     REFERENCES public.pastas (pastaid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_pesquisas_pastaid
+    ON public.pesquisas(pastaid);
 
 
 ALTER TABLE IF EXISTS public.pesquisas
@@ -196,13 +311,22 @@ ALTER TABLE IF EXISTS public.pesquisas
     REFERENCES public.tipopesquisa (tipopesquisaid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_pesquisas_tipopesquisa
+    ON public.pesquisas(tipopesquisaid);
+
+
+ALTER TABLE IF EXISTS public.respostas
+    ADD CONSTRAINT fk_respostas_participante FOREIGN KEY (participante_id)
+    REFERENCES public.participantes_sessao (participante_id) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE SET NULL;
 
 
 ALTER TABLE IF EXISTS public.respostas
     ADD CONSTRAINT respostas_perguntaid_fkey FOREIGN KEY (perguntaid)
     REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
     ON UPDATE NO ACTION
-    ON DELETE NO ACTION;
+    ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_respostas_perguntaid
     ON public.respostas(perguntaid);
 
@@ -212,6 +336,8 @@ ALTER TABLE IF EXISTS public.respostas_anexos
     REFERENCES public.anexos (anexoid) MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
+CREATE INDEX IF NOT EXISTS idx_respostas_anexos_anexoid
+    ON public.respostas_anexos(anexoid);
 
 
 ALTER TABLE IF EXISTS public.respostas_anexos
@@ -237,5 +363,19 @@ ALTER TABLE IF EXISTS public.respostas_opcoes
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_respostasopcoes_respostaid
     ON public.respostas_opcoes(respostaid);
+
+
+ALTER TABLE IF EXISTS public.sessoes_interativas
+    ADD CONSTRAINT fk_sessoes_pesquisa FOREIGN KEY (pesquisa_id)
+    REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
+
+
+ALTER TABLE IF EXISTS public.tokens
+    ADD CONSTRAINT fk_tokens_loginid FOREIGN KEY (loginid)
+    REFERENCES public.login (loginid) MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
 
 END;

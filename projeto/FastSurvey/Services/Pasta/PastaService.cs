@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Dtos.Pastas;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -32,7 +32,7 @@ namespace FASTSURVEY.Services.Pasta
         {
             var nome = (req.Nome ?? string.Empty).Trim();
             if (string.IsNullOrWhiteSpace(nome))
-                throw new ArgumentException("Nome inválido.");
+                throw new ArgumentException("Nome inv�lido.");
             if (nome.Length > 60)
                 throw new ArgumentException("Nome excede 60 caracteres.");
 
@@ -40,7 +40,7 @@ namespace FASTSURVEY.Services.Pasta
             var existe = await _ctx.Set<PastaEntity>()
                                    .AnyAsync(p => p.Loginid == req.LoginId && p.Nome == nome, ct);
             if (existe)
-                throw new InvalidOperationException("Já existe uma pasta com esse nome para este usuário.");
+                throw new InvalidOperationException("J� existe uma pasta com esse nome para este usu�rio.");
 
             var entity = new PastaEntity { Loginid = req.LoginId, Nome = nome };
             _ctx.Set<PastaEntity>().Add(entity);

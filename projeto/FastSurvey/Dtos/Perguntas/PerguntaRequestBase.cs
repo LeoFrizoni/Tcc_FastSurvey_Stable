@@ -1,22 +1,25 @@
 ﻿// FASTSURVEY/Dtos/Perguntas/Base/PerguntaBaseRequests.cs
 using System.ComponentModel.DataAnnotations;
 
-namespace FASTSURVEY.Dtos.Perguntas.Base
+namespace FASTSURVEY.Dtos.Perguntas
 {
-    public abstract class PerguntaCreateRequestBase
+    public class PerguntaRequestBase
     {
-        [Required] public int PesquisaId { get; set; }
-        [Required, StringLength(280)] public string Texto { get; set; } = "";
-        public bool Obrigatoria { get; set; } = false;
+        public int PesquisaId { get; set; }
+        public int TipoPerguntaId { get; set; }
+        public string Texto { get; set; } = string.Empty;
+        public bool TemGabarito { get; set; } = false;
         public int Ordem { get; set; } = 0;
     }
 
-    public abstract class PerguntaUpdateRequestBase
+    public class CriarPerguntaRequest : PerguntaRequestBase
     {
-        [Required] public int PerguntaId { get; set; }
-        [Required] public int PesquisaId { get; set; }
-        [Required, StringLength(280)] public string Texto { get; set; } = "";
-        public bool Obrigatoria { get; set; } = false;
-        public int Ordem { get; set; } = 0;
+        public bool PermiteMultiplaSelecao { get; set; } = false;
+    }
+
+    public class AtualizarPerguntaRequestBase : PerguntaRequestBase
+    {
+        public int PerguntaId { get; set; }
+        public new int Ordem { get; set; } = 0;
     }
 }

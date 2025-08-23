@@ -3,8 +3,8 @@ namespace FASTSURVEY.Dtos.Tipos
 {
     public class TipoUsuarioDto
     {
-        public int tipousuarioid { get; set; }
-        public string tipousuario { get; set; } = string.Empty;
-        public bool desabilitado { get; set; }
+        public int TipoUsuarioId { get; set; }
+        public string TipoUsuario { get; set; } = string.Empty;
+        public bool Desabilitado { get; set; }
     }
 }

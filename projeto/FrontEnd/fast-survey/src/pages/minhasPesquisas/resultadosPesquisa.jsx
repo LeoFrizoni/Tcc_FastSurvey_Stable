@@ -10,6 +10,27 @@ import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+/* ================== Config API / Auth ================== */
+const API = 'http://localhost:5062/api';
+const API_BASE = API.replace(/\/api$/,''); // -> http://localhost:5062
+
+function getToken() {
+  const keys = ['token', 'authToken', 'accessToken', 'jwt', 'Authorization'];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v) return v.replace(/^Bearer\s+/i, '');
+  }
+  return null;
+}
+
+const api = axios.create({ baseURL: API });
+api.interceptors.request.use((config) => {
+  const tk = getToken();
+  if (tk) config.headers.Authorization = `Bearer ${tk}`;
+  return config;
+});
+
+/* =============== Helpers de estilo/layout =============== */
 function normalizeTipo(tipo) {
   return String(tipo || '')
     .normalize('NFD')
@@ -72,7 +93,23 @@ function buildBlocoInlineStyle(estilo) {
   };
 }
 
-function ActionsAside({ onResponder, onQrCode, onExportarPDF }) {
+function resolveImgSrcFromJSON(img){
+  if (!img) return null;
+  const guess = img.previewUrl || img.url || (img.nome ? `${API_BASE}/Uploads/${img.nome}${img.extensao || ''}` : null);
+  return guess || null;
+}
+
+function getTipoPesquisaLabel(p){
+  const direct = p?.tipoPesquisa?.descricao || p?.TipoPesquisa?.descricao;
+  if (direct) return direct;
+  const id = p?.tipoPesquisaId ?? p?.tipoPesquisaID ?? p?.tipopesquisaid;
+  if (id === 1) return 'Pública';
+  if (id === 2) return 'Privada';
+  return 'Indefinido';
+}
+
+/* =================== Componentes menores =================== */
+function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar }) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       <h3 className={styles.actionsTitle}>Ações</h3>
@@ -85,34 +122,44 @@ function ActionsAside({ onResponder, onQrCode, onExportarPDF }) {
       <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>
         Exportar PDF
       </button>
+      <button className={styles.secondaryBtn} type="button" onClick={onEditar}>
+        Editar Pesquisa
+      </button>
       <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
     </aside>
   );
 }
 
-function GaleriaResultados({ imagens }) {
-  if (!Array.isArray(imagens) || imagens.length === 0) return null;
+function GaleriaResultados({ imagensJSON, anexosImg }) {
+  const itens = [
+    ...(Array.isArray(imagensJSON)
+      ? imagensJSON.map((img, i) => ({
+          src: resolveImgSrcFromJSON(img),
+          alt: img?.nome || img?.file?.name || `imagem-${i}`,
+        }))
+      : []),
+    ...(Array.isArray(anexosImg) ? anexosImg : []),
+  ].filter(it => !!it.src);
+
+  if (itens.length === 0) return null;
+
   return (
     <div className={styles.previewRow}>
-      {imagens.map((img, i) => {
-        const src = img.previewUrl;
-        const label = img.nome || img.file?.name || `imagem-${i}`;
-        return src ? (
-          <figure key={i} className={styles.thumb}>
-            <img src={src} alt={label} loading="lazy" />
-          </figure>
-        ) : (
-          <span key={i} className={styles.fileChip}>{label}</span>
-        );
-      })}
+      {itens.map((it, i) => (
+        <figure key={i} className={styles.thumb}>
+          <img src={it.src} alt={it.alt} loading="lazy" />
+        </figure>
+      ))}
     </div>
   );
 }
 
+/* =================== Página principal =================== */
 const ResultadosPesquisa = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [pesquisa, setPesquisa] = useState(null);
+  const [anexos, setAnexos] = useState([]);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -123,8 +170,7 @@ const ResultadosPesquisa = () => {
       setCarregando(true);
       setErro('');
       try {
-        const response = await axios.get(`http://localhost:5062/api/pesquisas/${id}`);
-        const data = response.data;
+        const { data } = await api.get(`/pesquisas/${id}`);
         if (data.templateJson) {
           try {
             const blocos = JSON.parse(data.templateJson);
@@ -135,16 +181,54 @@ const ResultadosPesquisa = () => {
         } else {
           setPesquisa(data);
         }
-      } catch {
-        setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+      } catch (e) {
+        if (axios.isAxiosError(e) && e.response?.status === 401) {
+          setErro('Não autorizado. Faça login para continuar.');
+          setTimeout(() => navigate('/login'), 1200);
+        } else if (axios.isAxiosError(e) && e.response?.status === 404) {
+          setErro('Pesquisa não encontrada.');
+        } else {
+          setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+        }
       } finally {
         setCarregando(false);
       }
     }
+
+    async function carregarAnexos() {
+      try {
+        const { data } = await api.get(`/Anexos/pesquisa/${id}`);
+        setAnexos(Array.isArray(data) ? data : []);
+      } catch {
+        setAnexos([]);
+      }
+    }
+
     buscarPesquisa();
-  }, [id]);
+    carregarAnexos();
+  }, [id, navigate]);
 
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
+
+  // Mapa: perguntaId -> [{src, alt}]
+  const imagensPorPergunta = useMemo(() => {
+    const map = new Map();
+    (anexos || []).forEach(ax => {
+      const isImg =
+        (ax.contenttype || '').startsWith('image') ||
+        /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(ax.nome || ax.nomeoriginal || '');
+      if (!isImg) return;
+      const pid = ax.perguntaid ?? ax.perguntaId;
+      if (!pid) return;
+      const arr = map.get(pid) || [];
+      arr.push({
+        src: `${API_BASE}/Uploads/${ax.nome}`,
+        alt: ax.nomeoriginal || ax.nome,
+      });
+      map.set(pid, arr);
+    });
+    return map;
+  }, [anexos]);
 
   async function exportarPDF() {
     const node = pdfRef.current;
@@ -226,6 +310,10 @@ const ResultadosPesquisa = () => {
           <div className={styles.errorBox} role="alert">
             <h2>Ops!</h2>
             <p>{erro || 'Não foi possível carregar esta pesquisa.'}</p>
+            <div className={styles.errorActions}>
+              <button className={styles.secondaryBtn} onClick={() => navigate('/login')}>Ir para o login</button>
+              <button className={styles.secondaryBtn} onClick={() => navigate('/')}>Voltar para Home</button>
+            </div>
           </div>
         </div>
       </>
@@ -247,12 +335,12 @@ const ResultadosPesquisa = () => {
     pesquisa?.criadoEm;
 
   const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
+  const tipoPesquisaDesc = getTipoPesquisaLabel(pesquisa);
 
   return (
     <>
       <TopNavbar />
       <main className={styles.page}>
-        {/* GRID: coluna esquerda (conteúdo/PDF) + coluna direita (painel) */}
         <div className={styles.grid}>
           {/* ===== Coluna esquerda — entra no PDF ===== */}
           <section ref={pdfRef} className={styles.exportArea}>
@@ -261,7 +349,7 @@ const ResultadosPesquisa = () => {
               <InformacoesPesquisa
                 titulo={pesquisa.titulo}
                 descricao={pesquisa.descricao}
-                tipoPesquisa={pesquisa.tipoPesquisa?.descricao || 'Indefinido'}
+                tipoPesquisa={tipoPesquisaDesc}
               />
             </section>
 
@@ -280,12 +368,18 @@ const ResultadosPesquisa = () => {
                         <span className={styles.qIndex} aria-hidden> {index + 1}. </span>
                         <h4 className={styles.qText}>{bloco.texto}</h4>
                       </div>
-                      <GaleriaResultados imagens={bloco.imagens} />
+
+                      <GaleriaResultados
+                        imagensJSON={bloco.imagens}
+                        anexosImg={imagensPorPergunta.get(key)}
+                      />
+
                       {tipo === 'discursiva' && (
                         <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
                           Resposta do usuário...
                         </div>
                       )}
+
                       {(tipo === 'objetiva' || tipo === 'multipla') && Array.isArray(bloco.opcoes) && (
                         <ul className={styles.optionsList}>
                           {bloco.opcoes.map((op, i) => {
@@ -298,6 +392,7 @@ const ResultadosPesquisa = () => {
                           })}
                         </ul>
                       )}
+
                       {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
                         <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
                       )}
@@ -313,6 +408,7 @@ const ResultadosPesquisa = () => {
             onResponder={() => navigate(`/responder/${id}`)}
             onQrCode={() => setMostrarModalQr(true)}
             onExportarPDF={exportarPDF}
+            onEditar={() => navigate(`/editarPesquisa/${id}`)}
           />
         </div>
 

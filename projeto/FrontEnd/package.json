@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "react-easy-crop": "^5.5.0",
     "react-google-login": "^5.2.2"
   }
 }

@@ -8,9 +8,31 @@ import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import styles from './responderPesquisa.module.css';
+import '../../components/layouts/global.css';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+/* ================== Config API / Auth ================== */
+const API = 'http://localhost:5062/api';
+const API_BASE = API.replace(/\/api$/,''); // http://localhost:5062
+
+function getToken() {
+  const keys = ['token','authToken','accessToken','jwt','Authorization'];
+  for (const k of keys) {
+    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
+    if (v) return v.replace(/^Bearer\s+/i,'');
+  }
+  return null;
+}
+
+const api = axios.create({ baseURL: API });
+api.interceptors.request.use((cfg) => {
+  const tk = getToken();
+  if (tk) cfg.headers.Authorization = `Bearer ${tk}`;
+  return cfg;
+});
+
+/* =============== Helpers de estilo/layout =============== */
 const normalizeTipo = (tipo) =>
   String(tipo || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -45,6 +67,22 @@ function buildBlocoInlineStyle(estilo) {
   };
 }
 
+function resolveImgSrcFromJSON(img){
+  if (!img) return null;
+  const guess = img.previewUrl || img.url || (img.nome ? `${API_BASE}/Uploads/${img.nome}${img.extensao || ''}` : null);
+  return guess || null;
+}
+
+function getTipoPesquisaLabel(p){
+  const direct = p?.tipoPesquisa?.descricao || p?.TipoPesquisa?.descricao;
+  if (direct) return direct;
+  const id = p?.tipoPesquisaId ?? p?.tipoPesquisaID ?? p?.tipopesquisaid;
+  if (id === 1) return 'Pública';
+  if (id === 2) return 'Privada';
+  return '—';
+}
+
+/* =================== UI menores =================== */
 function ActionsPanel({ onEnviar, onExportar, disableActions, totalRespostas }) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
@@ -65,33 +103,39 @@ function ActionsPanel({ onEnviar, onExportar, disableActions, totalRespostas }) 
   );
 }
 
-function GaleriaPergunta({ imagens }) {
-  if (!Array.isArray(imagens) || imagens.length === 0) return null;
+function GaleriaPergunta({ imagensJSON, anexosImg }) {
+  const itens = [
+    ...(Array.isArray(imagensJSON)
+      ? imagensJSON.map((img, i) => ({
+          src: resolveImgSrcFromJSON(img),
+          alt: img?.nome || img?.file?.name || `imagem-${i}`,
+        }))
+      : []),
+    ...(Array.isArray(anexosImg) ? anexosImg : []),
+  ].filter(it => !!it.src);
+
+  if (itens.length === 0) return null;
+
   return (
     <div className={styles.previewRow}>
-      {imagens.map((img, i) => {
-        const src = img.previewUrl;
-        const label = img.nome || img.file?.name || `imagem-${i}`;
-        return src ? (
-          <div key={i} className={styles.thumb}>
-            <img src={src} alt={label} loading="lazy" />
-          </div>
-        ) : (
-          <span key={i} className={styles.fileChip}>{label}</span>
-        );
-      })}
+      {itens.map((it, i) => (
+        <div key={i} className={styles.thumb}>
+          <img src={it.src} alt={it.alt} loading="lazy" />
+        </div>
+      ))}
     </div>
   );
 }
 
+/* =================== Página principal =================== */
 const ResponderPesquisa = () => {
   const { id } = useParams();
   const [pesquisa, setPesquisa] = useState(null);
+  const [anexos, setAnexos] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
-  const [anexos, setAnexos] = useState([]);
 
   const pdfRef = useRef(null);
 
@@ -109,18 +153,9 @@ const ResponderPesquisa = () => {
       setCarregando(true);
       setErro('');
       try {
-        const res = await axios.get(`http://localhost:5062/api/pesquisas/${id}`);
-        const data = res.data;
-        if (data.templateJson) {
-          try {
-            const blocos = JSON.parse(data.templateJson);
-            setPesquisa({ ...data, blocos });
-          } catch {
-            setPesquisa(data);
-          }
-        } else {
-          setPesquisa(data);
-        }
+        const { data } = await api.get(`/pesquisas/${id}`);
+        const blocos = data.templateJson ? JSON.parse(data.templateJson) : [];
+        setPesquisa({ ...data, blocos });
       } catch {
         setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
       } finally {
@@ -129,8 +164,8 @@ const ResponderPesquisa = () => {
     }
     async function carregarAnexos() {
       try {
-        const res = await axios.get(`http://localhost:5062/api/anexos/pesquisa/${id}`);
-        setAnexos(res.data || []);
+        const { data } = await api.get(`/Anexos/pesquisa/${id}`);
+        setAnexos(Array.isArray(data) ? data : []);
       } catch {
         setAnexos([]);
       }
@@ -141,6 +176,27 @@ const ResponderPesquisa = () => {
 
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
 
+  // Mapa: perguntaId -> [{src, alt}]
+  const imagensPorPergunta = useMemo(() => {
+    const map = new Map();
+    (anexos || []).forEach(ax => {
+      const isImg =
+        (ax.contenttype || '').startsWith('image') ||
+        /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(ax.nome || ax.nomeoriginal || '');
+      if (!isImg) return;
+      const pid = ax.perguntaid ?? ax.perguntaId;
+      if (!pid) return;
+      const arr = map.get(pid) || [];
+      arr.push({
+        src: `${API_BASE}/Uploads/${ax.nome}`,
+        alt: ax.nomeoriginal || ax.nome,
+      });
+      map.set(pid, arr);
+    });
+    return map;
+  }, [anexos]);
+
+  /* =============== Handlers de resposta =============== */
   const handleCheckboxChange = useCallback((perguntaId, opcaoValor) => {
     setRespostas(prev => {
       const anteriores = Array.isArray(prev[perguntaId]?.valor) ? prev[perguntaId].valor : [];
@@ -159,6 +215,7 @@ const ResponderPesquisa = () => {
     setRespostas(prev => ({ ...prev, [perguntaId]: { tipo: 'discursiva', valor: String(valor) } }));
   }, []);
 
+  /* =============== Exportar PDF =============== */
   const exportarPDF = async () => {
     const container = pdfRef.current;
     if (!container) return;
@@ -208,6 +265,7 @@ const ResponderPesquisa = () => {
     }
   };
 
+  /* =============== Enviar respostas =============== */
   const enviarRespostas = async () => {
     if (!blocos.length) {
       toast.warn('Não há perguntas para enviar.', { position: 'top-center', autoClose: 3000 });
@@ -247,11 +305,11 @@ const ResponderPesquisa = () => {
       setEnviando(true);
       for (const item of payload) {
         if (item.tipo === 'discursiva') {
-          await axios.post('http://localhost:5062/api/Respostas/discursiva', {
+          await api.post(`/Respostas/discursiva`, {
             PerguntaId: item.perguntaId, Texto: item.texto, LoginId: loginId, PesquisaId: Number(id)
           });
         } else {
-          await axios.post('http://localhost:5062/api/Respostas/opcoes', {
+          await api.post(`/Respostas/opcoes`, {
             PerguntaId: item.perguntaId, OpcoesSelecionadas: item.opcoes, LoginId: loginId, PesquisaId: Number(id)
           });
         }
@@ -316,6 +374,7 @@ const ResponderPesquisa = () => {
     pesquisa?.criadoEm;
 
   const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
+  const tipoPesquisaDesc = getTipoPesquisaLabel(pesquisa);
 
   return (
     <>
@@ -323,7 +382,6 @@ const ResponderPesquisa = () => {
         <TopNavbar />
         <ToastContainer />
         <main className={styles.page}>
-          {/* GRID: coluna esquerda (conteúdo/PDF) + coluna direita (painel) */}
           <div className={styles.grid}>
             {/* ===== Coluna esquerda — entra no PDF ===== */}
             <section ref={pdfRef} className={styles.exportArea}>
@@ -333,28 +391,8 @@ const ResponderPesquisa = () => {
                   <InformacoesPesquisa
                     titulo={pesquisa.titulo}
                     descricao={pesquisa.descricao}
-                    tipoPesquisa={pesquisa?.tipoPesquisa?.descricao ?? '—'}
+                    tipoPesquisa={tipoPesquisaDesc}
                   />
-                  {anexos.length > 0 && (
-                    <div className={styles.attachments}>
-                      <h3>Anexos da Pesquisa</h3>
-                      <ul>
-                        {anexos.map(anexo => (
-                          <li key={anexo.anexoid}>
-                            <a
-                              className={styles.attachmentLink}
-                              href={`http://localhost:5062/Uploads/${anexo.nome}${anexo.extensao}`}
-                              download
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              📎 {anexo.nome}{anexo.extensao}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </section>
               </div>
 
@@ -372,7 +410,12 @@ const ResponderPesquisa = () => {
                           <span className={styles.qIndex} aria-hidden>{index + 1}.</span>
                           <h4 className={styles.qText}>{b.texto}</h4>
                         </div>
-                        <GaleriaPergunta imagens={b.imagens} />
+
+                        <GaleriaPergunta
+                          imagensJSON={b.imagens}
+                          anexosImg={imagensPorPergunta.get(perguntaId)}
+                        />
+
                         {tipo === 'discursiva' && (
                           <div className={styles.field}>
                             <label htmlFor={`${baseId}-txt`} className="sr-only">Resposta</label>
@@ -385,6 +428,7 @@ const ResponderPesquisa = () => {
                             />
                           </div>
                         )}
+
                         {tipo === 'objetiva' && Array.isArray(b.opcoes) && (
                           <div className={styles.optionsCol}>
                             {b.opcoes.map((op, idx) => {
@@ -409,6 +453,7 @@ const ResponderPesquisa = () => {
                             })}
                           </div>
                         )}
+
                         {tipo === 'multipla' && Array.isArray(b.opcoes) && (
                           <div className={styles.optionsCol}>
                             {b.opcoes.map((op, idx) => {
@@ -432,6 +477,7 @@ const ResponderPesquisa = () => {
                             })}
                           </div>
                         )}
+
                         {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (
                           <div className={styles.fieldNote}>(Tipo de bloco não identificado)</div>
                         )}

@@ -1,6 +1,7 @@
 import React, { useMemo } from "react";
 import { Trash2, Plus } from "lucide-react";
 import "./pergunta.css";
+import '../layouts/global.css';
 
 function applyBlockStyle(estilo = {}, override = {}) {
   const { corFundo, corTexto, fonte, padding, largura, alinhamento, borda, sombra, bordaRadius, margemInferior } = estilo || {};

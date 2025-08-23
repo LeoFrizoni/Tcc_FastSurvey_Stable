@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Tipos;
+using FASTSURVEY.Dtos.Tipos;
 using FASTSURVEY.Services.Tipos;
 using Microsoft.AspNetCore.Mvc;
 
@@ -19,14 +19,14 @@ namespace FASTSURVEY.Controllers
             var lista = await _service.ListarAsync(incluirDesabilitados: false, ct);
             var dtos = lista.Select(x => new TipoPerguntaDto
             {
-                tipoperguntaid = x.Tipoperguntaid,
-                tipopergunta = x.Tipopergunta1 ?? string.Empty,
-                desabilitado = x.Desabilitado
+                TipoPerguntaId = x.Tipoperguntaid,
+                TipoPergunta = x.Tipopergunta1 ?? string.Empty,
+                Desabilitado = x.Desabilitado
             });
             return Ok(dtos);
         }
 
-        /// <summary>Lista todos (inclui desabilitados) — via querystring ?incluirDesabilitados=true.</summary>
+        /// <summary>Lista todos (inclui desabilitados) – via querystring ?incluirDesabilitados=true.</summary>
         [HttpGet]
         [ProducesResponseType(typeof(IEnumerable<TipoPerguntaDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<IEnumerable<TipoPerguntaDto>>> Get([FromQuery] bool incluirDesabilitados, CancellationToken ct)
@@ -34,9 +34,9 @@ namespace FASTSURVEY.Controllers
             var lista = await _service.ListarAsync(incluirDesabilitados, ct);
             var dtos = lista.Select(x => new TipoPerguntaDto
             {
-                tipoperguntaid = x.Tipoperguntaid,
-                tipopergunta = x.Tipopergunta1 ?? string.Empty,
-                desabilitado = x.Desabilitado
+                TipoPerguntaId = x.Tipoperguntaid,
+                TipoPergunta = x.Tipopergunta1 ?? string.Empty,
+                Desabilitado = x.Desabilitado
             });
             return Ok(dtos);
         }

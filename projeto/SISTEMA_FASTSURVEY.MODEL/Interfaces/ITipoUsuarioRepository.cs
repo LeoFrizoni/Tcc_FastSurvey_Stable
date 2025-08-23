@@ -1,9 +1,10 @@
 ﻿#nullable enable
 using SISTEMA_FASTSURVEY.MODEL.Models;
+using SISTEMA_FASTSURVEY.MODEL.Interfaces;
 
-namespace FASTSURVEY.Services.Tipos
+namespace SISTEMA_FASTSURVEY.MODEL.Repositories
 {
-    public interface ITipoUsuarioService
+    public interface ITipoUsuarioRepository : IRepository<Tipousuario>
     {
         Task<List<Tipousuario>> ListarAsync(bool incluirDesabilitados = false, CancellationToken ct = default);
     }

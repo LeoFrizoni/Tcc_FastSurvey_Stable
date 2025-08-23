@@ -1,4 +1,4 @@
-﻿// FASTSURVEY/Services/Anexo/IAnexoService.cs
+// FASTSURVEY/Services/Anexo/IAnexoService.cs
 using FASTSURVEY.Dtos.Anexos;
 using FASTSURVEY.Services.Result;
 

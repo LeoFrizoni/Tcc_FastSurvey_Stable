@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 

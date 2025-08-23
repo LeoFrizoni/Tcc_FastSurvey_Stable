@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
+/// <summary>
+/// Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha
+/// </summary>
 public partial class Tipopergunta
 {
     public int Tipoperguntaid { get; set; }

@@ -1,6 +1,6 @@
 ﻿// FASTSURVEY/Dtos/Perguntas/Base/PerguntaResponses.cs
-using FASTSURVEY.Dtos.Perguntas.Base;
 using FASTSURVEY.Dtos.Opcoes;
+using FASTSURVEY.Dtos.Tipos;
 using System.Collections.Generic;
 
 namespace FASTSURVEY.Dtos.Perguntas

@@ -1,4 +1,4 @@
-﻿using FASTSURVEY.Dtos.Anexos;
+using FASTSURVEY.Dtos.Anexos;
 using FASTSURVEY.Services;          // ToActionResult
 using FASTSURVEY.Services.Anexo;
 using FASTSURVEY.Services.Result;

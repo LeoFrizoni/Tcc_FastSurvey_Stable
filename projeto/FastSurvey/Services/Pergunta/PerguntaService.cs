@@ -1,9 +1,10 @@
-﻿using FASTSURVEY.Dtos.Opcoes;
+using FASTSURVEY.Dtos.Opcoes;
 using FASTSURVEY.Dtos.Perguntas;
 using FASTSURVEY.Dtos.Perguntas.Base;
 using FASTSURVEY.Dtos.Perguntas.Discursiva;
 using FASTSURVEY.Dtos.Perguntas.Multipla;
 using FASTSURVEY.Dtos.Perguntas.Objetiva;
+using FASTSURVEY.Dtos.Tipos;
 using FASTSURVEY.Services.Result;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -27,6 +28,40 @@ namespace FASTSURVEY.Services.Pergunta
         private const int TIPO_MULTIPLA = 3;
 
         public PerguntaService(FastSurveyContext ctx) => _ctx = ctx;
+
+        // -------------------- CREATE SIMPLES --------------------
+
+        public async Task<ServiceResult<PerguntaResponse>> CriarAsync(CriarPerguntaRequest req, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(req.Texto))
+                return ServiceFail<PerguntaResponse>("Texto da pergunta � obrigat�rio.");
+
+            var entity = new PerguntaEntity
+            {
+                Pesquisaid = req.PesquisaId,
+                Tipoperguntaid = req.TipoPerguntaId,
+                Texto = req.Texto,
+                Temgabarito = req.TemGabarito,
+                Permitemultiplaselecao = req.PermiteMultiplaSelecao,
+                Ordem = req.Ordem
+            };
+
+            _ctx.Perguntas.Add(entity);
+            await _ctx.SaveChangesAsync(ct);
+
+            var response = new PerguntaResponse
+            {
+                PerguntaId = entity.Perguntaid,
+                PesquisaId = entity.Pesquisaid,
+                Tipo = new FASTSURVEY.Dtos.Tipos.TipoPerguntaDto { TipoPerguntaId = entity.Tipoperguntaid },
+                Texto = entity.Texto,
+                TemGabarito = entity.Temgabarito,
+                PermiteMultiplaSelecao = entity.Permitemultiplaselecao,
+                Ordem = entity.Ordem
+            };
+
+            return ServiceOk(response);
+        }
 
         // -------------------- CREATE --------------------
 
@@ -54,7 +89,7 @@ namespace FASTSURVEY.Services.Pergunta
             CriarPerguntaObjetivaRequest req, CancellationToken ct = default)
         {
             if (req.Opcoes == null || req.Opcoes.Count < 2)
-                return ServiceFail<PerguntaResponse>("Pergunta objetiva exige pelo menos 2 opções.");
+                return ServiceFail<PerguntaResponse>("Pergunta objetiva exige pelo menos 2 op��es.");
 
             var entity = new PerguntaEntity
             {
@@ -87,7 +122,7 @@ namespace FASTSURVEY.Services.Pergunta
                 {
                     var correta = entity.Opcoespergunta.FirstOrDefault(x => x.Opcaoid == req.OpcaoCorretaId.Value);
                     if (correta == null)
-                        return ServiceFail<PerguntaResponse>("OpcaoCorretaId não pertence à pergunta.");
+                        return ServiceFail<PerguntaResponse>("OpcaoCorretaId n�o pertence � pergunta.");
 
                     foreach (var o in entity.Opcoespergunta)
                         o.Correta = (o.Opcaoid == correta.Opcaoid);
@@ -115,7 +150,7 @@ namespace FASTSURVEY.Services.Pergunta
             CriarPerguntaMultiplaRequest req, CancellationToken ct = default)
         {
             if (req.Opcoes == null || req.Opcoes.Count < 2)
-                return ServiceFail<PerguntaResponse>("Pergunta de múltipla escolha exige pelo menos 2 opções.");
+                return ServiceFail<PerguntaResponse>("Pergunta de m�ltipla escolha exige pelo menos 2 op��es.");
 
             var entity = new PerguntaEntity
             {
@@ -171,8 +206,8 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
 
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta não encontrada.");
-            if (entity.Tipoperguntaid != TIPO_DISCURSIVA) return ServiceFail<PerguntaResponse>("Tipo não é Discursiva.");
+            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
+            if (entity.Tipoperguntaid != TIPO_DISCURSIVA) return ServiceFail<PerguntaResponse>("Tipo n�o � Discursiva.");
 
             entity.Texto = req.Texto;
             entity.Ordem = req.Ordem;
@@ -190,8 +225,8 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
 
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta não encontrada.");
-            if (entity.Tipoperguntaid != TIPO_OBJETIVA) return ServiceFail<PerguntaResponse>("Tipo não é Objetiva.");
+            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
+            if (entity.Tipoperguntaid != TIPO_OBJETIVA) return ServiceFail<PerguntaResponse>("Tipo n�o � Objetiva.");
 
             entity.Texto = req.Texto;
             entity.Ordem = req.Ordem;
@@ -205,7 +240,7 @@ namespace FASTSURVEY.Services.Pergunta
 
                 var correta = entity.Opcoespergunta.FirstOrDefault(o => o.Opcaoid == req.OpcaoCorretaId.Value);
                 if (correta == null)
-                    return ServiceFail<PerguntaResponse>("OpcaoCorretaId inválida para esta pergunta.");
+                    return ServiceFail<PerguntaResponse>("OpcaoCorretaId inv�lida para esta pergunta.");
 
                 foreach (var o in entity.Opcoespergunta)
                     o.Correta = (o.Opcaoid == correta.Opcaoid);
@@ -226,8 +261,8 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
 
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta não encontrada.");
-            if (entity.Tipoperguntaid != TIPO_MULTIPLA) return ServiceFail<PerguntaResponse>("Tipo não é Múltipla.");
+            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
+            if (entity.Tipoperguntaid != TIPO_MULTIPLA) return ServiceFail<PerguntaResponse>("Tipo n�o � M�ltipla.");
 
             entity.Texto = req.Texto;
             entity.Ordem = req.Ordem;
@@ -254,7 +289,7 @@ namespace FASTSURVEY.Services.Pergunta
         public async Task<ServiceResult<bool>> ExcluirAsync(int perguntaId, CancellationToken ct = default)
         {
             var entity = await _ctx.Perguntas.FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
-            if (entity == null) return ServiceFail<bool>("Pergunta não encontrada.");
+            if (entity == null) return ServiceFail<bool>("Pergunta n�o encontrada.");
 
             _ctx.Perguntas.Remove(entity);
             await _ctx.SaveChangesAsync(ct);
@@ -269,7 +304,7 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
 
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta não encontrada.");
+            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
             return ServiceOk(await MapPerguntaToResponse(entity, ct));
         }
 
@@ -298,7 +333,7 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
 
-            if (entity == null) return ServiceFail<bool>("Pergunta não encontrada.");
+            if (entity == null) return ServiceFail<bool>("Pergunta n�o encontrada.");
 
             var set = (opcaoIds ?? Enumerable.Empty<int>()).ToHashSet();
 
@@ -344,7 +379,7 @@ namespace FASTSURVEY.Services.Pergunta
             return ServiceOk(true);
         }
 
-        // -------------------- OPÇÕES --------------------
+        // -------------------- OP��ES --------------------
 
         public async Task<ServiceResult<OpcaoPerguntaResponse>> AdicionarOpcaoAsync(
             int perguntaId, OpcaoPerguntaRequest req, CancellationToken ct = default)
@@ -353,7 +388,7 @@ namespace FASTSURVEY.Services.Pergunta
                 .Include(p => p.Opcoespergunta)
                 .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
 
-            if (pergunta == null) return ServiceFail<OpcaoPerguntaResponse>("Pergunta não encontrada.");
+            if (pergunta == null) return ServiceFail<OpcaoPerguntaResponse>("Pergunta n�o encontrada.");
 
             var opc = new OpcaoEntity
             {
@@ -384,7 +419,7 @@ namespace FASTSURVEY.Services.Pergunta
             var opc = await _ctx.Set<OpcaoEntity>()
                 .FirstOrDefaultAsync(o => o.Opcaoid == req.OpcaoId, ct);
 
-            if (opc == null) return ServiceFail<OpcaoPerguntaResponse>("Opção não encontrada.");
+            if (opc == null) return ServiceFail<OpcaoPerguntaResponse>("Op��o n�o encontrada.");
 
             if (req.Texto != null) opc.Texto = req.Texto;
             if (req.Correta.HasValue) opc.Correta = req.Correta.Value;
@@ -408,7 +443,7 @@ namespace FASTSURVEY.Services.Pergunta
             int opcaoId, bool softDelete = true, CancellationToken ct = default)
         {
             var opc = await _ctx.Set<OpcaoEntity>().FirstOrDefaultAsync(o => o.Opcaoid == opcaoId, ct);
-            if (opc == null) return ServiceFail<bool>("Opção não encontrada.");
+            if (opc == null) return ServiceFail<bool>("Op��o n�o encontrada.");
 
             _ctx.Remove(opc);
             await _ctx.SaveChangesAsync(ct);
@@ -420,7 +455,7 @@ namespace FASTSURVEY.Services.Pergunta
             int perguntaId, IReadOnlyList<int> opcaoIdsNaOrdem, CancellationToken ct = default)
         {
             return Task.FromResult(ServiceFail<bool>(
-                "Reordenação de opções não suportada: o modelo 'Opcoespergunta' não possui coluna de ordenação."));
+                "Reordena��o de op��es n�o suportada: o modelo 'Opcoespergunta' n�o possui coluna de ordena��o."));
         }
 
         // -------------------- HELPERS --------------------
@@ -432,19 +467,19 @@ namespace FASTSURVEY.Services.Pergunta
 
             var tipo = p.Tipoperguntaid switch
             {
-                TIPO_DISCURSIVA => TipoPerguntaDto.Discursiva,
-                TIPO_OBJETIVA => TipoPerguntaDto.Objetiva,
-                TIPO_MULTIPLA => TipoPerguntaDto.MultiplaEscolha,
-                _ => TipoPerguntaDto.Discursiva
+                TIPO_DISCURSIVA => "Discursiva",
+                TIPO_OBJETIVA => "Objetiva",
+                TIPO_MULTIPLA => "Multipla Escolha",
+                _ => "Discursiva"
             };
 
             var resp = new PerguntaResponse
             {
                 PerguntaId = p.Perguntaid,
                 PesquisaId = p.Pesquisaid,
-                Tipo = tipo,
+                Tipo = new FASTSURVEY.Dtos.Tipos.TipoPerguntaDto { TipoPerguntaId = p.Tipoperguntaid, TipoPergunta = tipo },
                 Texto = p.Texto,
-                Obrigatoria = false, // model não tem esse campo
+                Obrigatoria = false, // model n�o tem esse campo
                 Ordem = p.Ordem,
                 TemGabarito = p.Temgabarito,
                 PermiteMultiplaSelecao = p.Permitemultiplaselecao,
@@ -462,12 +497,12 @@ namespace FASTSURVEY.Services.Pergunta
                     .ToList()
             };
 
-            if (tipo == TipoPerguntaDto.Objetiva)
+            if (p.Tipoperguntaid == TIPO_OBJETIVA)
             {
                 var correta = p.Opcoespergunta?.FirstOrDefault(o => o.Correta);
                 resp.OpcaoCorretaId = correta?.Opcaoid;
             }
-            else if (tipo == TipoPerguntaDto.MultiplaEscolha)
+            else if (p.Tipoperguntaid == TIPO_MULTIPLA)
             {
                 resp.OpcoesCorretasIds = p.Opcoespergunta?.Where(o => o.Correta).Select(o => o.Opcaoid).ToList();
             }

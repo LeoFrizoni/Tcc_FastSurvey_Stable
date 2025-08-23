@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using FASTSURVEY.Services.Result;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -22,15 +22,15 @@ namespace FASTSURVEY.Services.Opcoes
             bool? ativa = null,
             CancellationToken ct = default)
         {
-            // Confere existência da pergunta
+            // Confere exist�ncia da pergunta
             var perguntaExiste = await _ctx.Set<PerguntaModel>()
                 .AsNoTracking()
                 .AnyAsync(p => p.Perguntaid == perguntaId, ct);
 
             if (!perguntaExiste)
-                return ServiceResult<OpcaoPergunta>.Fail("PERGUNTA_NAO_ENCONTRADA", "Pergunta não encontrada.");
+                return ServiceResult<OpcaoPergunta>.Fail("PERGUNTA_NAO_ENCONTRADA", "Pergunta n�o encontrada.");
 
-            // Se ordem não for informada, usa a próxima ordem disponível
+            // Se ordem n�o for informada, usa a pr�xima ordem dispon�vel
             int proximaOrdem = (await _ctx.Set<OpcaoPergunta>()
                                     .Where(o => o.Perguntaid == perguntaId)
                                     .MaxAsync(o => (int?)o.Ordem, ct) ?? 0) + 1;
@@ -57,26 +57,26 @@ namespace FASTSURVEY.Services.Opcoes
                 .FirstOrDefaultAsync(o => o.Opcaoid == opcaoId, ct);
 
             if (entity is null)
-                return ServiceResult<OpcaoPergunta>.Fail("OPCAO_NAO_ENCONTRADA", "Opção não encontrada.");
+                return ServiceResult<OpcaoPergunta>.Fail("OPCAO_NAO_ENCONTRADA", "Op��o n�o encontrada.");
 
             return ServiceResult<OpcaoPergunta>.Ok(entity);
         }
 
         public async Task<ServiceResult<List<OpcaoPergunta>>> ListarPorPerguntaAsync(int perguntaId, CancellationToken ct = default)
         {
-            // Valida pergunta (opcional; mantém mensagem mais clara)
+            // Valida pergunta (opcional; mant�m mensagem mais clara)
             var perguntaExiste = await _ctx.Set<PerguntaModel>()
                 .AsNoTracking()
                 .AnyAsync(p => p.Perguntaid == perguntaId, ct);
 
             if (!perguntaExiste)
-                return ServiceResult<List<OpcaoPergunta>>.Fail("PERGUNTA_NAO_ENCONTRADA", "Pergunta não encontrada.");
+                return ServiceResult<List<OpcaoPergunta>>.Fail("PERGUNTA_NAO_ENCONTRADA", "Pergunta n�o encontrada.");
 
             var list = await _ctx.Set<OpcaoPergunta>()
                 .AsNoTracking()
                 .Where(o => o.Perguntaid == perguntaId)
                 .OrderBy(o => o.Ordem)
-                .ThenBy(o => o.Opcaoid) // desempate estável
+                .ThenBy(o => o.Opcaoid) // desempate est�vel
                 .ToListAsync(ct);
 
             return ServiceResult<List<OpcaoPergunta>>.Ok(list);
@@ -91,7 +91,7 @@ namespace FASTSURVEY.Services.Opcoes
                 .FirstOrDefaultAsync(o => o.Opcaoid == opcaoId, ct);
 
             if (entity is null)
-                return ServiceResult<OpcaoPergunta>.Fail("OPCAO_NAO_ENCONTRADA", "Opção não encontrada.");
+                return ServiceResult<OpcaoPergunta>.Fail("OPCAO_NAO_ENCONTRADA", "Op��o n�o encontrada.");
 
             applyUpdates?.Invoke(entity);
             await _ctx.SaveChangesAsync(ct);
@@ -105,7 +105,7 @@ namespace FASTSURVEY.Services.Opcoes
                 .FirstOrDefaultAsync(o => o.Opcaoid == opcaoId, ct);
 
             if (entity is null)
-                return ServiceResult<bool>.Fail("OPCAO_NAO_ENCONTRADA", "Opção não encontrada.");
+                return ServiceResult<bool>.Fail("OPCAO_NAO_ENCONTRADA", "Op��o n�o encontrada.");
 
             // Hard delete (se quiser soft delete, troque para: entity.Ativa = false)
             _ctx.Set<OpcaoPergunta>().Remove(entity);

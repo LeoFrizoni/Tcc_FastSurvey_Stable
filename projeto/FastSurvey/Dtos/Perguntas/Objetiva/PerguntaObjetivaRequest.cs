@@ -2,21 +2,19 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using FASTSURVEY.Dtos.Opcoes;
-using FASTSURVEY.Dtos.Perguntas.Base;
-
 namespace FASTSURVEY.Dtos.Perguntas.Objetiva
 {
-    public class CriarPerguntaObjetivaRequest : PerguntaCreateRequestBase
+    public class CriarPerguntaObjetivaRequest : FASTSURVEY.Dtos.Perguntas.CriarPerguntaRequest
     {
         [Required] public List<OpcaoPerguntaRequest> Opcoes { get; set; } = new List<OpcaoPerguntaRequest>();
-        public bool TemGabarito { get; set; } = false;
+        public new bool TemGabarito { get; set; } = false;
         public int? OpcaoCorretaId { get; set; } // se TemGabarito = true
     }
 
-    public class AtualizarPerguntaObjetivaRequest : PerguntaUpdateRequestBase
+    public class AtualizarPerguntaObjetivaRequest : FASTSURVEY.Dtos.Perguntas.AtualizarPerguntaRequestBase
     {
         [Required] public List<OpcaoPerguntaRequest> Opcoes { get; set; } = new List<OpcaoPerguntaRequest>();
-        public bool TemGabarito { get; set; } = false;
+        public new bool TemGabarito { get; set; } = false;
         public int? OpcaoCorretaId { get; set; }
     }
 }
