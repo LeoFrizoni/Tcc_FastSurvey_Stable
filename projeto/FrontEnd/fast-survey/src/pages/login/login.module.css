@@ -114,9 +114,9 @@
 /* Link + esqueci senha */
 .forgotRow{
   width:100%;
-  margin:6px 0 0;
+  margin:20px 0 0;
   display:flex;
-  justify-content:flex-end;
+  justify-content:center;
 }
 .linkBtn{
   all: unset;
@@ -235,17 +235,54 @@
 .sepLine{ flex:1; height:1px; background:#e6e6f0; }
 .sep > span{ color:#666; font-size:12px; }
 
-/* === Google button slots (mantém altura enquanto carrega) === */
-.googleWrap{ width:100%; display:flex; justify-content:center; margin:4px 0 8px; }
-.googleBtnSlot{ min-height:44px; display:flex; justify-content:center; align-items:center; }
-.googleHint{ text-align:center; font-size:12px; color:#999; margin-top:6px; }
+/* Google button slots */
+.googleWrap{
+  width:100%;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:4px 0 8px;
+  min-height:44px;
+  flex-direction: column;
+  position: relative;
+}
+.googleBtnSlot{
+  min-width:280px;
+  min-height:44px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  border-radius: 8px;
+  padding: 8px;
+  background: transparent;
+  position: relative;
+}
+.googleBtnSlot:empty {
+  background: #f0f0f0;
+  color: #666;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.googleBtnSlot:empty::before {
+  content: "Carregando botão Google...";
+}
+.googleHint{ 
+  text-align:center; 
+  font-size:12px; 
+  color:#999; 
+  margin-top:6px; 
+}
 
 /* === Linha de ações no cadastro === */
 .actionsRow{
   display:flex;
   align-items:center;
   gap:14px;
-  margin-top:10px;
+  margin-top:20px;
+  width:100%;
+  flex-wrap:wrap;
 }
 .btnLink{
   all:unset;
@@ -253,8 +290,33 @@
   font-weight:600;
   cursor:pointer;
   font-size:13px;
+  white-space:nowrap;
+  flex-shrink:0;
 }
 .btnLink:hover{ text-decoration:underline; }
+
+/* Botão Cadastrar - igual ao botão Entrar */
+.actionsRow button:first-child{
+  background:linear-gradient(90deg,#7A3CED 60%,#6f3de3 100%);
+  color:#fff;
+  font-size:14px;
+  padding:12px 45px;
+  border:none;
+  border-radius:8px;
+  font-weight:600;
+  letter-spacing:.5px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:background .3s ease;
+  flex:1;
+}
+.actionsRow button:first-child:hover{
+  background:linear-gradient(90deg,#6f3de3 60%,#7A3CED 100%);
+}
+.actionsRow button:first-child:disabled{
+  opacity:0.7;
+  cursor:not-allowed;
+}
 
 /* --- responsividade --- */
 @media (max-width:768px){

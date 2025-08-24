@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import "./modalCriarPesquisa.css";
-
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5062";
+import styles from "./modal-criar-pesquisa.module.css";
+import { API_BASE_URL } from "../../config";
 
 export default function ModalCriarPesquisa({ onConfirm }) {
   const [titulo, setTitulo] = useState("");
@@ -21,7 +20,7 @@ export default function ModalCriarPesquisa({ onConfirm }) {
     async function carregarTipos() {
       try {
         setCarregandoTipos(true);
-        const url = `${API_BASE}/api/TipoPesquisa/ListarTipoPesquisa`;
+        const url = `${API_BASE_URL}/api/TipoPesquisa/ListarTipoPesquisa`;
         const res = await axios.get(url, { signal: controller.signal });
         setTipos(res?.data ?? []);
       } catch (err) {
@@ -92,11 +91,11 @@ export default function ModalCriarPesquisa({ onConfirm }) {
   };
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-criar" role="dialog" aria-modal="true" aria-labelledby="titulo-modal">
+    <div className={styles["modal-overlay"]}>
+      <div className={styles["modal-criar"]} role="dialog" aria-modal="true" aria-labelledby="titulo-modal">
         <h2 id="titulo-modal">Nova Pesquisa</h2>
 
-        <div className="form-group">
+        <div className={styles["form-group"]}>
           <label htmlFor="titulo">Título</label>
           <input
             id="titulo"
@@ -106,10 +105,10 @@ export default function ModalCriarPesquisa({ onConfirm }) {
             placeholder="Digite o título da pesquisa"
             style={erros.titulo ? { borderColor: "#e74c3c" } : {}}
           />
-          {erros.titulo && <span className="erro">{erros.titulo}</span>}
+          {erros.titulo && <span className={styles.erro}>{erros.titulo}</span>}
         </div>
 
-        <div className="form-group">
+        <div className={styles["form-group"]}>
           <label htmlFor="descricao">Descrição</label>
           <textarea
             id="descricao"
@@ -117,11 +116,11 @@ export default function ModalCriarPesquisa({ onConfirm }) {
             onChange={(e) => setDescricao(e.target.value)}
             placeholder="Descreva a pesquisa brevemente"
             style={erros.descricao ? { borderColor: "#e74c3c" } : {}}
-          />
-          {erros.descricao && <span className="erro">{erros.descricao}</span>}
-        </div>
+                      />
+            {erros.descricao && <span className={styles.erro}>{erros.descricao}</span>}
+          </div>
 
-        <div className="form-group">
+          <div className={styles["form-group"]}>
           <label htmlFor="tipo">Tipo de Pesquisa</label>
           <select
             id="tipo"
@@ -135,12 +134,12 @@ export default function ModalCriarPesquisa({ onConfirm }) {
               <option key={t.id} value={t.id}>{t.nome}</option>
             ))}
           </select>
-          {erros.tipo && <span className="erro">{erros.tipo}</span>}
+          {erros.tipo && <span className={styles.erro}>{erros.tipo}</span>}
         </div>
 
-        <div className="form-group">
+        <div className={styles["form-group"]}>
           <label>Disponibilidade</label>
-          <div className="radio-row">
+          <div className={styles["radio-row"]}>
             <label>
               <input
                 type="radio"
@@ -165,7 +164,7 @@ export default function ModalCriarPesquisa({ onConfirm }) {
         </div>
 
         {expiracaoModo === "com_tempo" && (
-          <div className="form-group">
+          <div className={styles["form-group"]}>
             <label htmlFor="horas">Validade (em horas)</label>
             <input
               id="horas"
@@ -176,7 +175,7 @@ export default function ModalCriarPesquisa({ onConfirm }) {
               placeholder="Ex.: 24"
               style={erros.horasValidade ? { borderColor: "#e74c3c" } : {}}
             />
-            {erros.horasValidade && <span className="erro">{erros.horasValidade}</span>}
+            {erros.horasValidade && <span className={styles.erro}>{erros.horasValidade}</span>}
           </div>
         )}
 

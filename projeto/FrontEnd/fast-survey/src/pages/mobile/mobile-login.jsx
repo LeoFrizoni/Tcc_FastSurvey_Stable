@@ -1,9 +1,9 @@
 import React from 'react';
-import './mobileLogin.css';
+import styles from './mobile-login.module.css';
 
 export default function MobileLogin() {
   return (
-    <div className="mobile-login-wrapper">
+    <div className={styles["mobile-login-wrapper"]}>
       <h1>Login Mobile</h1>
       {/* Conteúdo mobile aqui */}
     </div>

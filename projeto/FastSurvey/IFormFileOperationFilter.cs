@@ -7,24 +7,31 @@ namespace FASTSURVEY
     {
         public void Apply(OpenApiOperation operation, OperationFilterContext context)
         {
-            var fileParams = context.MethodInfo.GetParameters()
+            var fileParams = context
+                .MethodInfo.GetParameters()
                 .Where(p => p.ParameterType == typeof(Microsoft.AspNetCore.Http.IFormFile));
             if (fileParams.Any())
             {
                 operation.RequestBody = new OpenApiRequestBody
                 {
-                    Content = {
+                    Content =
+                    {
                         ["multipart/form-data"] = new OpenApiMediaType
                         {
                             Schema = new OpenApiSchema
                             {
                                 Type = "object",
-                                Properties = {
-                                    [fileParams.First().Name] = new OpenApiSchema { Type = "string", Format = "binary" }
-                                }
-                            }
-                        }
-                    }
+                                Properties =
+                                {
+                                    [fileParams.First().Name] = new OpenApiSchema
+                                    {
+                                        Type = "string",
+                                        Format = "binary",
+                                    },
+                                },
+                            },
+                        },
+                    },
                 };
             }
         }

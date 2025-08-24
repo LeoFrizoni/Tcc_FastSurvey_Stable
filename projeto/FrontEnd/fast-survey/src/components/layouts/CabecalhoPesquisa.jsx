@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback } from "react";
-import "../perguntas/pergunta.css";
+import styles from "../perguntas/pergunta.module.css";
 
 function formatarDataBR(data) {
   if (!data) return "—";
@@ -24,7 +24,7 @@ const CabecalhoPesquisa = ({ autor, data, selecionado, style, onClick, "data-tes
 
   return (
     <div
-      className={`bloco-pergunta${selecionado ? " selecionado" : ""}`}
+      className={`${styles["bloco-pergunta"]}${selecionado ? ` ${styles.selecionado}` : ""}`}
       role="button"
       tabIndex={0}
       aria-pressed={!!selecionado}
@@ -47,7 +47,7 @@ const CabecalhoPesquisa = ({ autor, data, selecionado, style, onClick, "data-tes
       onKeyDown={handleKeyDown}
     >
       <div
-        className="cabecalho-pergunta"
+        className={styles["cabecalho-pergunta"]}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.1rem" }}
       >
         <h4 style={{ margin: 0, fontWeight: 700, color: "#2d3875", fontSize: "1.25rem", letterSpacing: "0.5px" }}>

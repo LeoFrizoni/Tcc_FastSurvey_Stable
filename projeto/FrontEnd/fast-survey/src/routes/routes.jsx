@@ -6,24 +6,24 @@ import PrivateRoute from '../components/utilities/PrivateRoute';
 const Login = lazy(() => import('../pages/login/login'));
 const HomePage = lazy(() => import('../pages/home/home'));
 const Perfil = lazy(() => import('../pages/perfil/perfil'));
-const SobreNos = lazy(() => import('../pages/sobrenos/SobreNos'));
+const SobreNos = lazy(() => import('../pages/sobrenos/sobre-nos'));
 const CriarPesquisa = lazy(() => import('../pages/createPesquisa/createPesquisa'));
 const ResultadoPesquisa = lazy(() => import('../pages/minhasPesquisas/resultadosPesquisa'));
 const EditarPesquisa = lazy(() => import('../pages/minhasPesquisas/editarPesquisa'));
-const Admin = lazy(() => import('../pages/admin/Admin'));
-const ResponderPesquisa = lazy(() => import('../pages/responderPesquisa/ResponderPesquisa'));
+const Admin = lazy(() => import('../pages/admin/admin'));
+const ResponderPesquisa = lazy(() => import('../pages/responderPesquisa/responder-pesquisa'));
 
 // Mobile Components
-const MobileLogin = lazy(() => import('../pages/mobile/MobileLogin'));
-const MobileHome = lazy(() => import('../pages/mobile/MobileHome'));
-const MobilePerfil = lazy(() => import('../pages/mobile/MobilePerfil'));
-const MobileSobreNos = lazy(() => import('../pages/mobile/MobileSobreNos'));
-const MobileCreatePesquisa = lazy(() => import('../pages/mobile/MobileCreatePesquisa'));
-const MobileResultadosPesquisa = lazy(() => import('../pages/mobile/MobileResultadosPesquisa'));
-const MobileEditarPesquisa = lazy(() => import('../pages/mobile/MobileEditarPesquisa'));
-const MobileAdmin = lazy(() => import('../pages/mobile/MobileAdmin'));
-const MobileResponderPesquisa = lazy(() => import('../pages/mobile/MobileResponderPesquisa'));
-const MobileMinhasPesquisas = lazy(() => import('../pages/mobile/MobileMinhasPesquisas'));
+const MobileLogin = lazy(() => import('../pages/mobile/mobile-login'));
+const MobileHome = lazy(() => import('../pages/mobile/mobile-home'));
+const MobilePerfil = lazy(() => import('../pages/mobile/mobile-perfil'));
+const MobileSobreNos = lazy(() => import('../pages/mobile/mobile-sobre-nos'));
+const MobileCreatePesquisa = lazy(() => import('../pages/mobile/mobile-create-pesquisa'));
+const MobileResultadosPesquisa = lazy(() => import('../pages/mobile/mobile-resultados-pesquisa'));
+const MobileEditarPesquisa = lazy(() => import('../pages/mobile/mobile-editar-pesquisa'));
+const MobileAdmin = lazy(() => import('../pages/mobile/mobile-admin'));
+const MobileResponderPesquisa = lazy(() => import('../pages/mobile/mobile-responder-pesquisa'));
+const MobileMinhasPesquisas = lazy(() => import('../pages/mobile/mobile-minhas-pesquisas'));
 
 const PrivateRouteAdmin = ({ children }) => {
   const tipoUsuarioId = parseInt(localStorage.getItem('tipousuarioid'), 10);

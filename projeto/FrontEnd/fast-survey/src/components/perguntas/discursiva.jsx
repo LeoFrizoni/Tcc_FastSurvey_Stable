@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Trash2 } from "lucide-react";
-import "./pergunta.css";
+import styles from "./pergunta.module.css";
 
 /** Util: aplica TemplateJson + style externo */
 function applyBlockStyle(estilo = {}, override = {}) {
@@ -65,7 +65,7 @@ const DiscursivaBase = ({
 
   return (
     <div
-      className={`bloco-pergunta ${b.selecionado ? "selecionado" : ""}`}
+      className={`${styles["bloco-pergunta"]} ${b.selecionado ? styles.selecionado : ""}`}
       style={estiloContainer}
       onMouseDown={handleMouseDownContainer}
       onClick={(e) => {
@@ -78,22 +78,22 @@ const DiscursivaBase = ({
         value={b.texto ?? ""}
         onChange={(e) => onChangeTexto(b.id, e.target.value)}
         placeholder="Digite sua pergunta aqui..."
-        className="input-pergunta"
+        className={styles["input-pergunta"]}
         onClick={(e) => e.stopPropagation()}
       />
 
       {/* PREVIEW ENTRE INPUT E RESPOSTA */}
       {imagens.length > 0 && (
-        <div className={`galeria-imagens ${unica ? "centralizada" : ""}`}>
+        <div className={`${styles["galeria-imagens"]} ${unica ? styles.centralizada : ""}`}>
           {imagens.map((img, i) => {
             const src = pickImgSrc(img);
             const alt = pickImgAlt(img, i);
             return (
-              <div key={i} className={`thumb-imagem ${unica ? "grande" : ""}`}>
-                {src ? <img src={src} alt={alt} /> : <span className="thumb-placeholder">{alt}</span>}
+              <div key={i} className={`${styles["thumb-imagem"]} ${unica ? styles.grande : ""}`}>
+                {src ? <img src={src} alt={alt} /> : <span className={styles["thumb-placeholder"]}>{alt}</span>}
                 <button
                   type="button"
-                  className="btn-remover-img"
+                  className={styles["btn-remover-img"]}
                   title="Remover imagem"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -110,8 +110,8 @@ const DiscursivaBase = ({
       )}
 
       {/* Exemplo de resposta (para futura IA) */}
-      <div className="grupo-config" onClick={(e) => e.stopPropagation()}>
-        <label className="label-inline" htmlFor={`exemplo-${b.id}`}>
+              <div className={styles["grupo-config"]} onClick={(e) => e.stopPropagation()}>
+                  <label className={styles["label-inline"]} htmlFor={`exemplo-${b.id}`}>
           Exemplo de resposta (para IA no futuro)
         </label>
         <textarea
@@ -119,7 +119,7 @@ const DiscursivaBase = ({
           value={b.respostaExemplo || ""}
           onChange={(e) => onChangeRespostaExemplo(b.id, e.target.value)}
           placeholder="Escreva aqui um exemplo de boa resposta..."
-          className="input-exemplo"
+                      className={styles["input-exemplo"]}
           rows={3}
         />
       </div>
@@ -127,7 +127,7 @@ const DiscursivaBase = ({
       <textarea
         disabled
         placeholder="Resposta do usuário..."
-        className="resposta-simulada"
+        className={styles["resposta-simulada"]}
         onClick={(e) => e.stopPropagation()}
       />
     </div>

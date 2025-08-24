@@ -1,0 +1,13 @@
+/* Variáveis de cor padrão FastSurvey */
+:root {
+	--bg-main: #FFFFFF;
+	--bg-secondary: #F5F5F5;
+	--text-main: #1A1A1A;
+	--text-secondary: #6B6B6B;
+	--purple-main: #9254F5;
+	--purple-hover: #7C3AED;
+	--blue-main: #5D9FFE;
+	--blue-hover: #3B82F6;
+	--border: #E0E0E0;
+}
+.mobile-admin-wrapper { padding: 24px; font-size: 1.2rem; background: var(--bg-secondary); }

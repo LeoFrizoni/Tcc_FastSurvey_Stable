@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { Trash2, Plus } from "lucide-react";
-import "./pergunta.css";
+import styles from "./pergunta.module.css";
 import '../layouts/global.css';
 
 function applyBlockStyle(estilo = {}, override = {}) {
@@ -72,7 +72,7 @@ const ObjetivaBase = ({
 
   return (
     <div
-      className={`bloco-pergunta ${b.selecionado ? "selecionado" : ""}`}
+      className={`${styles["bloco-pergunta"]} ${b.selecionado ? styles.selecionado : ""}`}
       style={estiloContainer}
       onMouseDown={handleMouseDownContainer}
       onClick={(e) => {
@@ -85,22 +85,22 @@ const ObjetivaBase = ({
         value={b.texto ?? ""}
         onChange={(e) => onChangeTexto(b.id, e.target.value)}
         placeholder="Digite sua pergunta aqui..."
-        className="input-pergunta"
+        className={styles["input-pergunta"]}
         onClick={(e) => e.stopPropagation()}
       />
 
       {/* PREVIEW ENTRE INPUT E OPÇÕES */}
       {imagens.length > 0 && (
-        <div className={`galeria-imagens ${unica ? "centralizada" : ""}`}>
+        <div className={`${styles["galeria-imagens"]} ${unica ? styles.centralizada : ""}`}>
           {imagens.map((img, i) => {
             const src = pickImgSrc(img);
             const alt = pickImgAlt(img, i);
             return (
-              <div key={i} className={`thumb-imagem ${unica ? "grande" : ""}`}>
-                {src ? <img src={src} alt={alt} /> : <span className="thumb-placeholder">{alt}</span>}
+              <div key={i} className={`${styles["thumb-imagem"]} ${unica ? styles.grande : ""}`}>
+                {src ? <img src={src} alt={alt} /> : <span className={styles["thumb-placeholder"]}>{alt}</span>}
                 <button
                   type="button"
-                  className="btn-remover-img"
+                  className={styles["btn-remover-img"]}
                   title="Remover imagem"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -117,8 +117,8 @@ const ObjetivaBase = ({
       )}
 
       {/* Config da pergunta */}
-      <div className="grupo-config" onClick={(e) => e.stopPropagation()}>
-        <label className="switch">
+              <div className={styles["grupo-config"]} onClick={(e) => e.stopPropagation()}>
+                  <label className={styles.switch}>
           <input
             type="checkbox"
             checked={!!b.temGabarito}
@@ -131,19 +131,19 @@ const ObjetivaBase = ({
       {opcoes.map((opcao, index) => {
         const valor = getOpcaoTexto(opcao);
         return (
-          <div key={index} className="opcao-input" onClick={(e) => e.stopPropagation()}>
-            <input type="radio" disabled className="radio-simulador" />
+          <div key={index} className={styles["opcao-input"]} onClick={(e) => e.stopPropagation()}>
+                          <input type="radio" disabled className={styles["radio-simulador"]} />
 
             <input
               type="text"
               value={valor}
               onChange={(e) => atualizarOpcao(index, e.target.value)}
               placeholder={`Opção ${index + 1}`}
-              className="input-opcao"
+              className={styles["input-opcao"]}
             />
 
             {b.temGabarito && (
-              <label className="marcar-correta">
+              <label className={styles["marcar-correta"]}>
                 <input
                   type="radio"
                   name={`gabarito-objetiva-${b.id}`}
@@ -156,7 +156,7 @@ const ObjetivaBase = ({
 
             <button
               type="button"
-              className="btn-remover"
+              className={styles["btn-remover"]}
               onClick={() => removerOpcao(index)}
               title="Remover opção"
               aria-label={`Remover opção ${index + 1}`}
@@ -169,7 +169,7 @@ const ObjetivaBase = ({
 
       <button
         type="button"
-        className="adicionar-opcao-btn"
+        className={styles["adicionar-opcao-btn"]}
         onClick={(e) => {
           e.stopPropagation();
           onChangeOpcoes(b.id, [...opcoes, ""]);

@@ -6,6 +6,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import ModalQRCode from '../../components/layouts/ModalQrCode';
+import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
 import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -109,23 +110,47 @@ function getTipoPesquisaLabel(p){
 }
 
 /* =================== Componentes menores =================== */
-function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar }) {
+function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, abaAtiva, setAbaAtiva, pesquisaId }) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
-      <h3 className={styles.actionsTitle}>Ações</h3>
-      <button className={styles.primaryBtn} type="button" onClick={onResponder}>
-        Responder pesquisa
-      </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
-        Mostrar QR Code
-      </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>
-        Exportar PDF
-      </button>
-      <button className={styles.secondaryBtn} type="button" onClick={onEditar}>
-        Editar Pesquisa
-      </button>
-      <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
+      {/* Abas */}
+      <div className={styles.tabsContainer}>
+        <button
+          className={`${styles.tabButton} ${abaAtiva === 'pesquisa' ? styles.tabActive : ''}`}
+          onClick={() => setAbaAtiva('pesquisa')}
+        >
+          Pesquisa
+        </button>
+        <button
+          className={`${styles.tabButton} ${abaAtiva === 'graficos' ? styles.tabActive : ''}`}
+          onClick={() => setAbaAtiva('graficos')}
+        >
+          Gráficos
+        </button>
+      </div>
+
+      {abaAtiva === 'pesquisa' && (
+        <>
+          <h3 className={styles.actionsTitle}>Ações</h3>
+          <button className={styles.primaryBtn} type="button" onClick={onResponder}>
+            Responder pesquisa
+          </button>
+          <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
+            Mostrar QR Code
+          </button>
+          <button className={styles.secondaryBtn} type="button" onClick={onExportarPDF}>
+            Exportar PDF
+          </button>
+          <button className={styles.secondaryBtn} type="button" onClick={onEditar}>
+            Editar Pesquisa
+          </button>
+          <p className={styles.smallInfo}>O PDF respeita o layout e quebra em múltiplas páginas.</p>
+        </>
+      )}
+
+      {abaAtiva === 'graficos' && (
+        <ResultadosCompletos pesquisaId={pesquisaId} />
+      )}
     </aside>
   );
 }
@@ -162,6 +187,7 @@ const ResultadosPesquisa = () => {
   const [anexos, setAnexos] = useState([]);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
   const [carregando, setCarregando] = useState(true);
+  const [abaAtiva, setAbaAtiva] = useState('pesquisa'); // 'pesquisa' ou 'graficos'
   const [erro, setErro] = useState('');
   const pdfRef = useRef(null);
 
@@ -409,6 +435,9 @@ const ResultadosPesquisa = () => {
             onQrCode={() => setMostrarModalQr(true)}
             onExportarPDF={exportarPDF}
             onEditar={() => navigate(`/editarPesquisa/${id}`)}
+            abaAtiva={abaAtiva}
+            setAbaAtiva={setAbaAtiva}
+            pesquisaId={id}
           />
         </div>
 

@@ -89,6 +89,50 @@ html, body {
   top: 0;
 }
 
+/* ====== DIFERENCIAIS ====== */
+.diferenciais-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.diferencial-card {
+  background: #fff;
+  border: 2px solid #e9d5ff;
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.08);
+}
+
+.diferencial-card:hover {
+  transform: translateY(-4px);
+  border-color: #7c3aed;
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.15);
+}
+
+.diferencial-icon {
+  color: #7c3aed;
+  margin-bottom: 1rem;
+}
+
+.diferencial-card h3 {
+  color: #6d28d9;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 0.8rem 0;
+}
+
+.diferencial-card p {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+  text-align: center;
+}
+
 .sobre-nos-container .secao h1,
 .sobre-nos-container .secao h2 {
   display: flex;
@@ -231,9 +275,26 @@ html, body {
 
 .modalBody {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.membroDescricao {
+  color: #666;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin: 0;
+  padding: 12px;
+  background: #f8f9ff;
+  border-radius: 8px;
+  border-left: 3px solid #7c3aed;
+}
+
+.modalLinks {
+  display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 10px;
 }
 .linkBtn {
   display: inline-flex;

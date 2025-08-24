@@ -1,9 +1,9 @@
 // src/api.js
 import axios from 'axios';
-import { API_URL, API_TIMEOUT, DEFAULT_HEADERS } from './config';
+import { API_BASE_URL, API_TIMEOUT, DEFAULT_HEADERS } from '../config';
 
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: API_BASE_URL,
   timeout: API_TIMEOUT,
   headers: DEFAULT_HEADERS,
 });

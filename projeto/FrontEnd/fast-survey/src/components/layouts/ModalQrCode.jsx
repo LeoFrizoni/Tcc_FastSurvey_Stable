@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { QRCodeCanvas } from "qrcode.react";
-import "./modalQrCode.css";
+import styles from "./modal-qr-code.module.css";
 
 const ModalQRCode = ({ isOpen, onClose, qrUrl }) => {
   const qrRef = useRef(null);
@@ -18,8 +18,8 @@ const ModalQRCode = ({ isOpen, onClose, qrUrl }) => {
   };
 
   return (
-    <div className="qr-modal-overlay">
-      <div className="qr-modal-content" role="dialog" aria-modal="true">
+    <div className={styles["qr-modal-overlay"]}>
+      <div className={styles["qr-modal-content"]} role="dialog" aria-modal="true">
         <h2>QR Code da Pesquisa</h2>
 
         <div ref={qrRef} aria-label="QR code gerado">
@@ -33,8 +33,8 @@ const ModalQRCode = ({ isOpen, onClose, qrUrl }) => {
         </p>
 
         <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-          <button onClick={handleDownload} className="btn-download">Baixar PNG</button>
-          <button onClick={onClose} className="btn-fechar">Fechar</button>
+          <button onClick={handleDownload} className={styles["btn-download"]}>Baixar PNG</button>
+          <button onClick={onClose} className={styles["btn-fechar"]}>Fechar</button>
         </div>
       </div>
     </div>

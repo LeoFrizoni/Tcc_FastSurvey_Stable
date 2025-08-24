@@ -25,8 +25,7 @@ import {
 import styles from "./createPesquisa.module.css";
 import CabecalhoPesquisa from "../../components/layouts/CabecalhoPesquisa";
 import InformacoesPesquisa from "../../components/layouts/InformacoesPesquisa";
-
-const API_BASE = "http://localhost:5062";
+import { API_BASE_URL } from "../../config";
 
 /** Util: detectar se o alvo é um elemento editável */
 const isEditableTarget = (el) =>
@@ -184,7 +183,7 @@ const CriarPesquisa = () => {
     const loginId = localStorage.getItem("userId");
     if (loginId) {
       axios
-        .get(`${API_BASE}/api/login/${loginId}`)
+        .get(`${API_BASE_URL}/api/login/${loginId}`)
         .then((res) => setAutorNome(res.data.usuario || "Usuário"))
         .catch(() => setAutorNome("Usuário"));
     }
@@ -192,7 +191,7 @@ const CriarPesquisa = () => {
 
   useEffect(() => {
     axios
-      .get(`${API_BASE}/api/tipopesquisa/ListarTipoPesquisa`)
+      .get(`${API_BASE_URL}/api/tipopesquisa/ListarTipoPesquisa`)
       .then((res) => setTiposPesquisa(res.data))
       .catch(() => setTiposPesquisa([]));
   }, []);
@@ -388,7 +387,7 @@ const CriarPesquisa = () => {
         const fd = new FormData();
         fd.append("anexo", b.arquivo, b.arquivo.name);
         fd.append("PesquisaId", String(pesquisaId));
-        return axios.post(`${API_BASE}/api/anexos`, fd);
+        return axios.post(`${API_BASE_URL}/api/anexos`, fd);
       });
 
       const results = await Promise.allSettled(uploads);
@@ -401,16 +400,16 @@ const CriarPesquisa = () => {
 
   const fetchPerguntasDaPesquisa = useCallback(async (pesquisaId) => {
     const resp = await axios.get(
-      `${API_BASE}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`
+      `${API_BASE_URL}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`
     );
     return resp.data?.perguntas ?? [];
   }, []);
 
   const fetchOpcoesDaPergunta = useCallback(async (perguntaId) => {
     try {
-      const resp = await axios.get(
-        `${API_BASE}/api/OpcoesPergunta/Pergunta/${perguntaId}`
-      );
+              const resp = await axios.get(
+          `${API_BASE_URL}/api/OpcoesPergunta/Pergunta/${perguntaId}`
+        );
       return Array.isArray(resp.data) ? resp.data : [];
     } catch {
       return [];
@@ -455,7 +454,7 @@ const CriarPesquisa = () => {
           fd.append("anexo", file, file.name);
           fd.append("PerguntaId", String(perguntaId));
           fd.append("PesquisaId", String(pesquisaId)); // opcional
-          uploads.push(axios.post(`${API_BASE}/api/anexos`, fd));
+          uploads.push(axios.post(`${API_BASE_URL}/api/anexos`, fd));
         }
       }
 
@@ -479,36 +478,37 @@ const CriarPesquisa = () => {
         .map((o) => (typeof o === "string" ? o.trim() : o))
         .filter((o) => Boolean(o) && (typeof o === "string" ? o.trim().length > 0 : true));
 
-    const perguntasDiscursivas = blocos
-      .filter((b) => b.tipo === "discursiva")
-      .map((b, idx) => ({
-        texto: b.texto,
-        resposta: "",
-        pesquisaId: 2147483647,
-        perguntaId: 2147483647 + idx,
-        id: 0,
-      }));
+    
+     const perguntasDiscursivas = blocos
+       .filter((b) => b.tipo === "discursiva")
+       .map((b, idx) => ({
+         texto: b.texto,
+         resposta: "",
+         pesquisaId: 2147483647,
+         perguntaId: 2147483647 + idx,
+         id: 0,
+       }));
 
-    const perguntasObjetivas = blocos
-      .filter((b) => b.tipo === "objetiva")
-      .map((b, idxPergunta) => {
-        const ops = limparOpcoes(b.opcoes);
-        return {
-          texto: b.texto,
-          tipo: "objetiva",
-          temGabarito: !!b.temGabarito,
-          permitirMultiplaSelecao: false,
-          pesquisaId: 2147483647,
-          perguntaId: 2147483647 + idxPergunta,
-          id: 0,
-          opcoes: ops.map((o, idx) => ({
-            texto: o,
-            correta: !!b.temGabarito && b.corretaIndex === idx,
-            perguntaId: 2147483647 + idxPergunta,
-            id: 0,
-          })),
-        };
-      });
+     const perguntasObjetivas = blocos
+       .filter((b) => b.tipo === "objetiva")
+       .map((b, idxPergunta) => {
+         const ops = limparOpcoes(b.opcoes);
+         return {
+           texto: b.texto,
+           tipo: "objetiva",
+           temGabarito: !!b.temGabarito,
+           permitirMultiplaSelecao: false,
+           pesquisaId: 2147483647,
+           perguntaId: 2147483647 + idxPergunta,
+           id: 0,
+           opcoes: ops.map((o, idx) => ({
+             texto: o,
+             correta: !!b.temGabarito && b.corretaIndex === idx,
+             perguntaId: 2147483647 + idxPergunta,
+             id: 0,
+           })),
+         };
+    });
 
     const perguntasMultiplaEscolha = blocos
       .filter((b) => b.tipo === "multipla")
@@ -623,7 +623,7 @@ const CriarPesquisa = () => {
         }
 
         try {
-          await axios.put(`${API_BASE}/api/Perguntas/${perguntaId}/gabarito`, dto);
+          await axios.put(`${API_BASE_URL}/api/Perguntas/${perguntaId}/gabarito`, dto);
         } catch (e) {
           console.error("Falha ao definir gabarito da pergunta", perguntaId, e);
           toast.warn(`Não foi possível definir gabarito de uma pergunta (#${perguntaId}).`, {
@@ -643,7 +643,7 @@ const CriarPesquisa = () => {
         const pesquisaVM = montarPesquisaVM();
         console.log("[LOG] Estado dos blocos antes do envio:", JSON.stringify(blocos, null, 2));
         console.log("[LOG] JSON da pesquisa a ser enviado:", JSON.stringify(pesquisaVM, null, 2));
-        const response = await axios.post(`${API_BASE}/api/pesquisas`, pesquisaVM);
+        const response = await axios.post(`${API_BASE_URL}/api/pesquisas`, pesquisaVM);
         const id = response.data?.pesquisaid ?? response.data?.pesquisa?.pesquisaid;
         if (!id) {
           toast.error("Não foi possível obter o ID da pesquisa criada.", {

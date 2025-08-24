@@ -1,9 +1,9 @@
 import React from 'react';
-import './mobileResponderPesquisa.css';
+import styles from './mobile-responder-pesquisa.module.css';
 
 export default function MobileResponderPesquisa() {
   return (
-    <div className="mobile-responder-wrapper">
+    <div className={styles["mobile-responder-wrapper"]}>
       <h1>Responder Pesquisa Mobile</h1>
       {/* Conteúdo mobile aqui */}
     </div>

@@ -389,6 +389,11 @@
   border-top:1px dashed var(--border);
 }
 .meta{ color:#6b7280; font-size:12px; }
+.cardActions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
 .more{ display:inline-flex; align-items:center; gap:6px; color:var(--brand); font-weight:800; font-size:12px; }
 
 /* ===== Modal Nova Pasta ===== */

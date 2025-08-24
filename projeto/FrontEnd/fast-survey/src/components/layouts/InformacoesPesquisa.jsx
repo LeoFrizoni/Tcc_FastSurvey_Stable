@@ -1,5 +1,5 @@
 import React from "react";
-import "./InformacoesPesquisa.css";
+import styles from "./informacoes-pesquisa.module.css";
 
 const InformacoesPesquisa = ({ titulo, descricao, tipoPesquisa }) => {
   const tituloSafe = titulo?.trim() || "Sem título";
@@ -7,10 +7,10 @@ const InformacoesPesquisa = ({ titulo, descricao, tipoPesquisa }) => {
   const tipoSafe = tipoPesquisa?.toString()?.trim() || "—";
 
   return (
-    <div className="info-pesquisa-container">
-      <h2 className="info-pesquisa-titulo">{tituloSafe}</h2>
-      <p className="info-pesquisa-descricao">{descricaoSafe}</p>
-      <span className="info-pesquisa-tipo">
+    <div className={styles["info-pesquisa-container"]}>
+      <h2 className={styles["info-pesquisa-titulo"]}>{tituloSafe}</h2>
+      <p className={styles["info-pesquisa-descricao"]}>{descricaoSafe}</p>
+      <span className={styles["info-pesquisa-tipo"]}>
         Tipo: <strong>{tipoSafe}</strong>
       </span>
     </div>

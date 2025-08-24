@@ -9,8 +9,7 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './home.module.css';
-
-const API_BASE = 'http://localhost:5062';
+import { API_BASE_URL } from '../../config';
 
 /* ===================== Helpers ===================== */
 const readLocalMap = (key) => {
@@ -113,6 +112,10 @@ const HomePage = () => {
   // Modal: Excluir pasta
   const [isExcluirOpen, setIsExcluirOpen] = useState(false);
 
+  // Modal: Excluir pesquisa
+  const [isExcluirPesquisaOpen, setIsExcluirPesquisaOpen] = useState(false);
+  const [pesquisaAlvo, setPesquisaAlvo] = useState(null);
+
   // loginId seguro (aceita 'loginId' ou 'userId')
   const loginId = useMemo(() => {
     const v = localStorage.getItem('loginId') ?? localStorage.getItem('userId');
@@ -170,9 +173,9 @@ const HomePage = () => {
       try {
         // Buscar tipos + pesquisas + pastas em paralelo
         const [tiposRes, pesqRes, pastasRes] = await Promise.allSettled([
-          axios.get(`${API_BASE}/api/tipos/pesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_BASE}/api/pesquisas/usuario/${loginId}`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_BASE}/api/pastas`, { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } })
+                  axios.get(`${API_BASE_URL}/api/tipos/pesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_BASE_URL}/api/pastas`, { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } })
         ]);
 
         // Tipos
@@ -239,7 +242,7 @@ const HomePage = () => {
 
     try {
       const { data } = await axios.post(
-        `${API_BASE}/api/pastas`,
+        `${API_BASE_URL}/api/pastas`,
         { nome, loginid: loginId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -285,7 +288,7 @@ const HomePage = () => {
 
     try {
       await axios.patch(
-        `${API_BASE}/api/pesquisas/${pesquisaId}/mover-pasta`,
+        `${API_BASE_URL}/api/pesquisas/${pesquisaId}/mover-pasta`,
         { pastaId: destinoId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -433,7 +436,7 @@ const HomePage = () => {
 
     try {
       await axios.put(
-        `${API_BASE}/api/pastas/${pastaAlvo.pastaId}/nome`,
+        `${API_BASE_URL}/api/pastas/${pastaAlvo.pastaId}/nome`,
         { novoNome },
         { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
       );
@@ -469,7 +472,7 @@ const HomePage = () => {
     if (!pastaAlvo) return;
     try {
       await axios.delete(
-        `${API_BASE}/api/pastas/${pastaAlvo.pastaId}`,
+        `${API_BASE_URL}/api/pastas/${pastaAlvo.pastaId}`,
         { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } }
       );
       setPastas((prev) => prev.filter((x) => x.pastaId !== pastaAlvo.pastaId));
@@ -489,6 +492,32 @@ const HomePage = () => {
     } finally {
       setIsExcluirOpen(false);
       setPastaAlvo(null);
+    }
+  };
+
+  // Funções para exclusão de pesquisa
+  const abrirExcluirPesquisa = (pesquisa) => {
+    setPesquisaAlvo(pesquisa);
+    setIsExcluirPesquisaOpen(true);
+  };
+
+  const confirmarExcluirPesquisa = async () => {
+    if (!pesquisaAlvo) return;
+    try {
+      const pesquisaId = getPid(pesquisaAlvo);
+      await axios.delete(
+        `${API_BASE_URL}/api/pesquisas/${pesquisaId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setPesquisas((prev) => prev.filter((p) => getPid(p) !== pesquisaId));
+      toast.success('Pesquisa excluída com sucesso!');
+    } catch (err) {
+      console.error('Falha ao excluir pesquisa:', err);
+      toast.error('Falha ao excluir a pesquisa.');
+    } finally {
+      setIsExcluirPesquisaOpen(false);
+      setPesquisaAlvo(null);
     }
   };
 
@@ -698,9 +727,18 @@ const HomePage = () => {
                       <span className={styles.meta}>
                         {new Date(p.dataCriacao || p.criadoEm || p.datacriacao || Date.now()).toLocaleDateString('pt-BR')}
                       </span>
-                      <span className={styles.more}>
-                        Abrir <ChevronRight size={16} />
-                      </span>
+                      <div className={styles.cardActions}>
+                        <button
+                          className={`${styles.iconBtn} ${styles.navDanger}`}
+                          title="Excluir pesquisa"
+                          onClick={(e) => { e.stopPropagation(); abrirExcluirPesquisa(p); }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <span className={styles.more}>
+                          Abrir <ChevronRight size={16} />
+                        </span>
+                      </div>
                     </div>
                   </article>
                 );
@@ -838,6 +876,42 @@ const HomePage = () => {
               </button>
               <button className={`${styles.btnPrimary} ${styles.navDanger}`} onClick={confirmarExcluir}>
                 Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Excluir Pesquisa */}
+      {isExcluirPesquisaOpen && (
+        <div className={styles.modalOverlay} onMouseDown={() => setIsExcluirPesquisaOpen(false)}>
+          <div
+            className={styles.modalCard}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="excluir-pesquisa-title"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h3 id="excluir-pesquisa-title">Excluir pesquisa</h3>
+              <button aria-label="Fechar" className={styles.iconBtn} onClick={() => setIsExcluirPesquisaOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className={styles.modalBody}>
+              <p>Tem certeza que deseja excluir a pesquisa <b>"{pesquisaAlvo?.titulo}"</b>?</p>
+              <small className={styles.helpText}>
+                Esta ação não pode ser desfeita. Todas as respostas e dados da pesquisa serão perdidos permanentemente.
+              </small>
+            </div>
+
+            <div className={styles.modalFooter}>
+              <button className={styles.btnGhost} onClick={() => setIsExcluirPesquisaOpen(false)}>
+                Cancelar
+              </button>
+              <button className={`${styles.btnPrimary} ${styles.navDanger}`} onClick={confirmarExcluirPesquisa}>
+                Excluir permanentemente
               </button>
             </div>
           </div>

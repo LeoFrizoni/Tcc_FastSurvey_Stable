@@ -5,6 +5,7 @@ import axios from "axios";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Eye, EyeOff } from "lucide-react";
+import GoogleLoginButton from "../../components/GoogleLoginButton";
 
 /* ===================== Config API (CRA) ===================== */
 const API_BASE =
@@ -66,10 +67,6 @@ export default function Login() {
   const [forgotEmail, setForgotEmail] = useState("");
   const [loadingForgot, setLoadingForgot] = useState(false);
 
-  // Google
-  const [gisReady, setGisReady] = useState(false);
-  const googleBtnSignInRef = useRef(null);
-
   const navigate = useNavigate();
   const validarSenhaForte = (s) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(s);
 
@@ -85,55 +82,7 @@ export default function Login() {
     return () => api.interceptors.request.eject(reqI);
   }, []);
 
-  /* Carrega script do Google Identity Services */
-  useEffect(() => {
-    if (!GOOGLE_CLIENT_ID) return;
-    const existing = document.getElementById("google-gis");
-    if (existing) {
-      setGisReady(true);
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://accounts.google.com/gsi/client";
-    s.async = true;
-    s.defer = true;
-    s.id = "google-gis";
-    s.onload = () => setGisReady(true);
-    s.onerror = () => toast.error("Não foi possível carregar o Google Sign-In.");
-    document.head.appendChild(s);
-  }, []);
 
-  /* Renderiza o botão do Google apenas no LOGIN */
-  useEffect(() => {
-    if (!gisReady || !GOOGLE_CLIENT_ID || !window.google) return;
-    try {
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredentialResponse,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-
-      const opts = {
-        theme: "outline",
-        size: "large",
-        type: "standard",
-        text: "signin_with",
-        shape: "pill",
-        width: 280,
-        logo_alignment: "left",
-      };
-
-      if (googleBtnSignInRef.current) {
-        googleBtnSignInRef.current.innerHTML = "";
-        window.google.accounts.id.renderButton(googleBtnSignInRef.current, opts);
-      }
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error("GIS init error", e);
-      toast.error("Falha ao inicializar Google Sign-In.");
-    }
-  }, [gisReady]);
 
   async function handleGoogleCredentialResponse(response) {
     const id_token = response?.credential;
@@ -414,12 +363,10 @@ export default function Login() {
 
             {/* Google no login */}
             <div className={styles.googleWrap}>
-              <div ref={googleBtnSignInRef} className={styles.googleBtnSlot} />
-              {!GOOGLE_CLIENT_ID && (
-                <p className={styles.googleHint}>
-                  (Defina REACT_APP_GOOGLE_CLIENT_ID para ativar o botão do Google)
-                </p>
-              )}
+              <GoogleLoginButton
+                onSuccess={handleGoogleCredentialResponse}
+                onError={() => toast.error("Falha ao autenticar com Google.")}
+              />
             </div>
 
             {/* Esqueci minha senha */}

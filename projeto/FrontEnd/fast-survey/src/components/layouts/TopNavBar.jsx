@@ -1,16 +1,16 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import "./topnavbar.css";
+import styles from "./top-nav-bar.module.css";
 import { ArrowLeft } from "lucide-react";
 
 const TopNavbar = () => {
   const navigate = useNavigate();
 
   return (
-    <header className="top-navbar" role="banner">
-      <h1 className="logo-title">FastSurvey</h1>
+    <header className={styles["top-navbar"]} role="banner">
+      <h1 className={styles["logo-title"]}>FastSurvey</h1>
       <button
-        className="back-home"
+        className={styles["back-home"]}
         onClick={() => navigate("/home")}
         aria-label="Voltar para Home"
       >
