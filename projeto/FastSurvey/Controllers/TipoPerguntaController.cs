@@ -1,4 +1,7 @@
-using FASTSURVEY.Dtos.Tipos;
+// FASTSURVEY/Controllers/TipoPerguntaController.cs
+#nullable enable
+using System.Threading;
+using System.Threading.Tasks;
 using FASTSURVEY.Services.Tipos;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,36 +12,42 @@ namespace FASTSURVEY.Controllers
     public class TipoPerguntaController : ControllerBase
     {
         private readonly ITipoPerguntaService _service;
-        public TipoPerguntaController(ITipoPerguntaService service) => _service = service;
 
-        /// <summary>Lista tipos de pergunta ativos.</summary>
-        [HttpGet("Listar")]
-        [ProducesResponseType(typeof(IEnumerable<TipoPerguntaDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<TipoPerguntaDto>>> Listar(CancellationToken ct)
+        public TipoPerguntaController(ITipoPerguntaService service)
         {
-            var lista = await _service.ListarAsync(incluirDesabilitados: false, ct);
-            var dtos = lista.Select(x => new TipoPerguntaDto
-            {
-                TipoPerguntaId = x.Tipoperguntaid,
-                TipoPergunta = x.Tipopergunta1 ?? string.Empty,
-                Desabilitado = x.Desabilitado
-            });
-            return Ok(dtos);
+            _service = service;
         }
 
-        /// <summary>Lista todos (inclui desabilitados) – via querystring ?incluirDesabilitados=true.</summary>
+        /// <summary>
+        /// Lista tipos de pergunta. Quando incluirDesabilitados=false (padrão), retorna apenas ativos.
+        /// </summary>
+        /// <param name="incluirDesabilitados">Se true, inclui também os desabilitados.</param>
         [HttpGet]
-        [ProducesResponseType(typeof(IEnumerable<TipoPerguntaDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<IEnumerable<TipoPerguntaDto>>> Get([FromQuery] bool incluirDesabilitados, CancellationToken ct)
+        [ProducesResponseType(
+            typeof(IReadOnlyList<FASTSURVEY.Dtos.Tipos.TipoPerguntaCatalogDto>),
+            200
+        )]
+        public async Task<IActionResult> Listar(
+            [FromQuery] bool incluirDesabilitados = false,
+            CancellationToken ct = default
+        )
         {
-            var lista = await _service.ListarAsync(incluirDesabilitados, ct);
-            var dtos = lista.Select(x => new TipoPerguntaDto
-            {
-                TipoPerguntaId = x.Tipoperguntaid,
-                TipoPergunta = x.Tipopergunta1 ?? string.Empty,
-                Desabilitado = x.Desabilitado
-            });
-            return Ok(dtos);
+            var data = await _service.ListarAsync(incluirDesabilitados, ct);
+            return Ok(data);
+        }
+
+        /// <summary>
+        /// Atalhos para apenas ativos (equivalente a incluirDesabilitados=false).
+        /// </summary>
+        [HttpGet("ativos")]
+        [ProducesResponseType(
+            typeof(IReadOnlyList<FASTSURVEY.Dtos.Tipos.TipoPerguntaCatalogDto>),
+            200
+        )]
+        public async Task<IActionResult> ListarApenasAtivos(CancellationToken ct = default)
+        {
+            var data = await _service.ListarAsync(incluirDesabilitados: false, ct);
+            return Ok(data);
         }
     }
 }

@@ -1,10 +1,10 @@
+#nullable enable
 using FASTSURVEY.Dtos.Anexos;
 using FASTSURVEY.Services.Result;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
-using System.Text.RegularExpressions;
+// Alias para evitar conflito de nomes
 using AnexoEntity = SISTEMA_FASTSURVEY.MODEL.Models.Anexos;
-using PerguntaEntity = SISTEMA_FASTSURVEY.MODEL.Models.Perguntas;
 
 namespace FASTSURVEY.Services.Anexo
 {
@@ -14,41 +14,65 @@ namespace FASTSURVEY.Services.Anexo
 
         public AnexoService(FastSurveyContext ctx) => _ctx = ctx;
 
-        public async Task<ServiceResult<AnexoResponse>> UploadAsync(AnexoUploadRequest req, CancellationToken ct = default)
+        public async Task<ServiceResult<AnexoResponse>> UploadAsync(
+            AnexoUploadRequest req,
+            CancellationToken ct = default
+        )
         {
             try
             {
                 if (req.PesquisaId is null && req.PerguntaId is null)
-                    return ServiceResult<AnexoResponse>.Fail("BadRequest", "Informe PesquisaId ou PerguntaId.");
+                    return ServiceResult<AnexoResponse>.Fail(
+                        "BadRequest",
+                        "Informe PesquisaId ou PerguntaId."
+                    );
 
                 int? pesquisaIdFinal = req.PesquisaId;
 
                 if (req.PesquisaId is not null)
                 {
-                    var existsPesquisa = await _ctx.Pesquisas.AnyAsync(p => p.Pesquisaid == req.PesquisaId.Value, ct);
+                    var existsPesquisa = await _ctx.Pesquisas.AnyAsync(
+                        p => p.PesquisaId == req.PesquisaId.Value,
+                        ct
+                    );
                     if (!existsPesquisa)
-                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pesquisa n�o encontrada.");
+                        return ServiceResult<AnexoResponse>.Fail(
+                            "NotFound",
+                            "Pesquisa não encontrada."
+                        );
                 }
 
                 if (req.PerguntaId is not null)
                 {
-                    var pergunta = await _ctx.Perguntas
-                        .AsNoTracking()
-                        .Where(p => p.Perguntaid == req.PerguntaId.Value)
-                        .Select(p => new { p.Perguntaid, p.Pesquisaid })
+                    var pergunta = await _ctx
+                        .Perguntas.AsNoTracking()
+                        .Where(p => p.PerguntaId == req.PerguntaId.Value)
+                        .Select(p => new { p.PerguntaId, p.PesquisaId })
                         .FirstOrDefaultAsync(ct);
 
                     if (pergunta is null)
-                        return ServiceResult<AnexoResponse>.Fail("NotFound", "Pergunta n�o encontrada.");
+                        return ServiceResult<AnexoResponse>.Fail(
+                            "NotFound",
+                            "Pergunta não encontrada."
+                        );
+
+                    if (req.PesquisaId is not null && req.PesquisaId.Value != pergunta.PesquisaId)
+                        return ServiceResult<AnexoResponse>.Fail(
+                            "BadRequest",
+                            "Pergunta não pertence à Pesquisa informada."
+                        );
 
                     if (pesquisaIdFinal is null)
-                        pesquisaIdFinal = pergunta.Pesquisaid;
+                        pesquisaIdFinal = pergunta.PesquisaId;
                 }
 
                 if (pesquisaIdFinal is null)
-                    return ServiceResult<AnexoResponse>.Fail("BadRequest", "N�o foi poss�vel determinar a PesquisaId para o anexo.");
+                    return ServiceResult<AnexoResponse>.Fail(
+                        "BadRequest",
+                        "Não foi possível determinar a PesquisaId para o anexo."
+                    );
 
-                // L� bytes do arquivo
+                // Lê bytes do arquivo
                 byte[] bytes;
                 using (var ms = new MemoryStream())
                 {
@@ -61,19 +85,19 @@ namespace FASTSURVEY.Services.Anexo
                 var ext = Path.GetExtension(originalName)?.TrimStart('.').ToLowerInvariant() ?? "";
                 var safeExt = string.IsNullOrWhiteSpace(ext) ? "" : ext;
 
-                // Nome interno simples e �nico
+                // Nome interno simples e único
                 var internalName = $"{Guid.NewGuid():N}{(safeExt != "" ? "." + safeExt : "")}";
 
                 var entity = new AnexoEntity
                 {
-                    Pesquisaid = pesquisaIdFinal.Value,
-                    Perguntaid = req.PerguntaId,
+                    PesquisaId = pesquisaIdFinal.Value,
+                    PerguntaId = req.PerguntaId,
                     Nome = internalName,
-                    Nomeoriginal = originalName,
+                    NomeOriginal = originalName,
                     Extensao = safeExt,
-                    Contenttype = req.Arquivo.ContentType,
-                    Tamanhobytes = bytes.LongLength,
-                    Base64data = base64
+                    ContentType = req.Arquivo.ContentType,
+                    TamanhoBytes = bytes.LongLength,
+                    Base64Data = base64,
                 };
 
                 _ctx.Anexos.Add(entity);
@@ -83,35 +107,50 @@ namespace FASTSURVEY.Services.Anexo
             }
             catch (Exception ex)
             {
-                return ServiceResult<AnexoResponse>.Fail("Error", "Falha ao salvar anexo: " + ex.Message);
+                return ServiceResult<AnexoResponse>.Fail(
+                    "Error",
+                    "Falha ao salvar anexo: " + ex.Message
+                );
             }
         }
 
-        public async Task<ServiceResult<AnexoResponse>> GetByIdAsync(int id, CancellationToken ct = default)
+        public async Task<ServiceResult<AnexoResponse>> GetByIdAsync(
+            int id,
+            CancellationToken ct = default
+        )
         {
-            var entity = await _ctx.Anexos.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Anexoid == id, ct);
+            var entity = await _ctx
+                .Anexos.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.AnexoId == id, ct);
 
             if (entity is null)
-                return ServiceResult<AnexoResponse>.Fail("NotFound", "Anexo n�o encontrado.");
+                return ServiceResult<AnexoResponse>.Fail("NotFound", "Anexo não encontrado.");
 
             return ServiceResult<AnexoResponse>.Ok(ToResponse(entity));
         }
 
-        public async Task<ServiceResult<List<AnexoResponse>>> ListByPesquisaAsync(int pesquisaId, CancellationToken ct = default)
+        public async Task<ServiceResult<List<AnexoResponse>>> ListByPesquisaAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        )
         {
-            var list = await _ctx.Anexos.AsNoTracking()
-                .Where(a => a.Pesquisaid == pesquisaId)
+            var list = await _ctx
+                .Anexos.AsNoTracking()
+                .Where(a => a.PesquisaId == pesquisaId)
                 .Select(a => ToResponse(a))
                 .ToListAsync(ct);
 
             return ServiceResult<List<AnexoResponse>>.Ok(list);
         }
 
-        public async Task<ServiceResult<List<AnexoResponse>>> ListByPerguntaAsync(int perguntaId, CancellationToken ct = default)
+        public async Task<ServiceResult<List<AnexoResponse>>> ListByPerguntaAsync(
+            int perguntaId,
+            CancellationToken ct = default
+        )
         {
-            var list = await _ctx.Anexos.AsNoTracking()
-                .Where(a => a.Perguntaid == perguntaId)
+            var list = await _ctx
+                .Anexos.AsNoTracking()
+                .Where(a => a.PerguntaId == perguntaId)
                 .Select(a => ToResponse(a))
                 .ToListAsync(ct);
 
@@ -120,52 +159,76 @@ namespace FASTSURVEY.Services.Anexo
 
         public async Task<ServiceResult<bool>> DeleteAsync(int id, CancellationToken ct = default)
         {
-            var entity = await _ctx.Anexos.FirstOrDefaultAsync(a => a.Anexoid == id, ct);
+            var entity = await _ctx.Anexos.FirstOrDefaultAsync(a => a.AnexoId == id, ct);
             if (entity is null)
-                return ServiceResult<bool>.Fail("NotFound", "Anexo n�o encontrado.");
-
-            // Se quiser bloquear remo��o quando houver resposta que referencie o anexo, valide aqui.
+                return ServiceResult<bool>.Fail("NotFound", "Anexo não encontrado.");
 
             _ctx.Anexos.Remove(entity);
             await _ctx.SaveChangesAsync(ct);
             return ServiceResult<bool>.Ok(true);
         }
 
-        public async Task<ServiceResult<(byte[] Bytes, string ContentType, string FileName)>> DownloadAsync(int id, CancellationToken ct = default)
+        public async Task<
+            ServiceResult<(byte[] Bytes, string ContentType, string FileName)>
+        > DownloadAsync(int id, CancellationToken ct = default)
         {
-            var entity = await _ctx.Anexos.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.Anexoid == id, ct);
+            var entity = await _ctx
+                .Anexos.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.AnexoId == id, ct);
 
             if (entity is null)
-                return ServiceResult<(byte[], string, string)>.Fail("NotFound", "Anexo n�o encontrado.");
+                return ServiceResult<(byte[] Bytes, string ContentType, string FileName)>.Fail(
+                    "NotFound",
+                    "Anexo não encontrado."
+                );
 
-            if (string.IsNullOrWhiteSpace(entity.Base64data))
-                return ServiceResult<(byte[], string, string)>.Fail("BadRequest", "Anexo sem dados armazenados.");
+            if (string.IsNullOrWhiteSpace(entity.Base64Data))
+                return ServiceResult<(byte[] Bytes, string ContentType, string FileName)>.Fail(
+                    "Error",
+                    "Dados do anexo ausentes."
+                );
 
-            byte[] bytes;
-            try { bytes = Convert.FromBase64String(entity.Base64data); }
-            catch { return ServiceResult<(byte[], string, string)>.Fail("Error", "Dados do anexo corrompidos."); }
-
-            var fileName = string.IsNullOrWhiteSpace(entity.Nomeoriginal) ? (entity.Nome ?? $"anexo_{id}") : entity.Nomeoriginal;
-            var contentType = string.IsNullOrWhiteSpace(entity.Contenttype) ? "application/octet-stream" : entity.Contenttype;
-
-            return ServiceResult<(byte[], string, string)>.Ok((bytes, contentType, fileName));
-        }
-
-        private static AnexoResponse ToResponse(AnexoEntity a)
-        {
-            // Se quiser DataCriacao real, crie a coluna no DB.
-            return new AnexoResponse
+            try
             {
-                Id = a.Anexoid,
-                PesquisaId = a.Pesquisaid,
-                PerguntaId = a.Perguntaid,
-                Nome = a.Nomeoriginal ?? a.Nome ?? $"anexo_{a.Anexoid}",
-                Url = $"/api/anexos/{a.Anexoid}/download",
-                ContentType = a.Contenttype,
-                TamanhoBytes = a.Tamanhobytes
-                // Note: AnexoResponse doesn't have DataCriacao property
-            };
+                var bytes = Convert.FromBase64String(entity.Base64Data);
+                var fileName = !string.IsNullOrWhiteSpace(entity.NomeOriginal)
+                    ? entity.NomeOriginal
+                    : entity.Nome;
+                var contentType = string.IsNullOrWhiteSpace(entity.ContentType)
+                    ? "application/octet-stream"
+                    : entity.ContentType;
+
+                return ServiceResult<(byte[] Bytes, string ContentType, string FileName)>.Ok(
+                    (bytes, contentType, fileName)
+                );
+            }
+            catch (FormatException)
+            {
+                return ServiceResult<(byte[] Bytes, string ContentType, string FileName)>.Fail(
+                    "Error",
+                    "Base64 inválida para o anexo."
+                );
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<(byte[] Bytes, string ContentType, string FileName)>.Fail(
+                    "Error",
+                    "Falha ao converter dados do anexo: " + ex.Message
+                );
+            }
         }
+
+        private static AnexoResponse ToResponse(AnexoEntity a) =>
+            new()
+            {
+                AnexoId = a.AnexoId,
+                PesquisaId = a.PesquisaId,
+                PerguntaId = a.PerguntaId,
+                Nome = a.Nome,
+                NomeOriginal = a.NomeOriginal,
+                Extensao = a.Extensao,
+                ContentType = a.ContentType,
+                TamanhoBytes = a.TamanhoBytes,
+            };
     }
 }

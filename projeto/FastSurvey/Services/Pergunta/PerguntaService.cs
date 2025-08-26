@@ -1,20 +1,16 @@
-using FASTSURVEY.Dtos.Opcoes;
-using FASTSURVEY.Dtos.Perguntas;
-using FASTSURVEY.Dtos.Perguntas.Base;
-using FASTSURVEY.Dtos.Perguntas.Discursiva;
-using FASTSURVEY.Dtos.Perguntas.Multipla;
-using FASTSURVEY.Dtos.Perguntas.Objetiva;
-using FASTSURVEY.Dtos.Tipos;
-using FASTSURVEY.Services.Result;
-using Microsoft.EntityFrameworkCore;
-using SISTEMA_FASTSURVEY.MODEL.Models;
+// FASTSURVEY/Services/Pergunta/PerguntaService.cs
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using OpcaoEntity = SISTEMA_FASTSURVEY.MODEL.Models.Opcoespergunta;
-// Aliases pros tipos do scaffold (pluralizados)
+using FASTSURVEY.Dtos.Opcoes; // OpcaoPerguntaRequest, OpcaoPerguntaUpdateRequest, OpcaoPerguntaResponse
+using FASTSURVEY.Dtos.Perguntas; // CriarPerguntaRequest, AtualizarPerguntaRequest, PerguntaResponse, TipoPerguntaDto
+using FASTSURVEY.Services.Result; // ServiceResult<T>
+using Microsoft.EntityFrameworkCore;
+using SISTEMA_FASTSURVEY.MODEL.Models;
+using OpcaoEntity = SISTEMA_FASTSURVEY.MODEL.Models.OpcoesPergunta;
 using PerguntaEntity = SISTEMA_FASTSURVEY.MODEL.Models.Perguntas;
 
 namespace FASTSURVEY.Services.Pergunta
@@ -29,488 +25,450 @@ namespace FASTSURVEY.Services.Pergunta
 
         public PerguntaService(FastSurveyContext ctx) => _ctx = ctx;
 
-        // -------------------- CREATE SIMPLES --------------------
-
-        public async Task<ServiceResult<PerguntaResponse>> CriarAsync(CriarPerguntaRequest req, CancellationToken ct = default)
+        // =============== CREATE ===============
+        public async Task<ServiceResult<PerguntaResponse>> CriarAsync(
+            CriarPerguntaRequest req,
+            CancellationToken ct = default
+        )
         {
             if (string.IsNullOrWhiteSpace(req.Texto))
-                return ServiceFail<PerguntaResponse>("Texto da pergunta � obrigat�rio.");
+                return Fail<PerguntaResponse>("Texto da pergunta é obrigatório.");
 
-            var entity = new PerguntaEntity
+            var tipoId = req.Tipo switch
             {
-                Pesquisaid = req.PesquisaId,
-                Tipoperguntaid = req.TipoPerguntaId,
-                Texto = req.Texto,
-                Temgabarito = req.TemGabarito,
-                Permitemultiplaselecao = req.PermiteMultiplaSelecao,
-                Ordem = req.Ordem
+                TipoPerguntaDto.Discursiva => TIPO_DISCURSIVA,
+                TipoPerguntaDto.Objetiva => TIPO_OBJETIVA,
+                TipoPerguntaDto.MultiplaEscolha => TIPO_MULTIPLA,
+                _ => TIPO_DISCURSIVA,
             };
 
-            _ctx.Perguntas.Add(entity);
-            await _ctx.SaveChangesAsync(ct);
-
-            var response = new PerguntaResponse
+            // Validações por tipo
+            if (req.Tipo == TipoPerguntaDto.Objetiva)
             {
-                PerguntaId = entity.Perguntaid,
-                PesquisaId = entity.Pesquisaid,
-                Tipo = new FASTSURVEY.Dtos.Tipos.TipoPerguntaDto { TipoPerguntaId = entity.Tipoperguntaid },
-                Texto = entity.Texto,
-                TemGabarito = entity.Temgabarito,
-                PermiteMultiplaSelecao = entity.Permitemultiplaselecao,
-                Ordem = entity.Ordem
-            };
-
-            return ServiceOk(response);
-        }
-
-        // -------------------- CREATE --------------------
-
-        public async Task<ServiceResult<PerguntaResponse>> CriarDiscursivaAsync(
-            CriarPerguntaDiscursivaRequest req, CancellationToken ct = default)
-        {
-            var entity = new PerguntaEntity
+                if (req.Opcoes is null || req.Opcoes.Count < 2)
+                    return Fail<PerguntaResponse>("Objetiva exige ao menos 2 opções.");
+                req.PermiteMultiplasSelecao = false;
+                if (req.TemGabarito && !req.OpcaoCorretaId.HasValue)
+                    return Fail<PerguntaResponse>("Objetiva com gabarito requer OpcaoCorretaId.");
+            }
+            else if (req.Tipo == TipoPerguntaDto.MultiplaEscolha)
             {
-                Pesquisaid = req.PesquisaId,
-                Tipoperguntaid = TIPO_DISCURSIVA,
-                Texto = req.Texto,
-                Temgabarito = false,
-                Permitemultiplaselecao = false,
-                Ordem = req.Ordem
-            };
-
-            _ctx.Perguntas.Add(entity);
-            await _ctx.SaveChangesAsync(ct);
-
-            var resp = await MapPerguntaToResponse(entity, ct);
-            return ServiceOk(resp);
-        }
-
-        public async Task<ServiceResult<PerguntaResponse>> CriarObjetivaAsync(
-            CriarPerguntaObjetivaRequest req, CancellationToken ct = default)
-        {
-            if (req.Opcoes == null || req.Opcoes.Count < 2)
-                return ServiceFail<PerguntaResponse>("Pergunta objetiva exige pelo menos 2 op��es.");
-
-            var entity = new PerguntaEntity
+                if (req.Opcoes is null || req.Opcoes.Count < 2)
+                    return Fail<PerguntaResponse>("Múltipla exige ao menos 2 opções.");
+                if (
+                    req.TemGabarito
+                    && (req.OpcoesCorretasIds is null || req.OpcoesCorretasIds.Count == 0)
+                )
+                    return Fail<PerguntaResponse>(
+                        "Múltipla com gabarito requer ao menos 1 opção correta."
+                    );
+            }
+            else // Discursiva
             {
-                Pesquisaid = req.PesquisaId,
-                Tipoperguntaid = TIPO_OBJETIVA,
-                Texto = req.Texto,
-                Temgabarito = req.TemGabarito,
-                Permitemultiplaselecao = false,
-                Ordem = req.Ordem
-            };
-
-            foreach (var o in req.Opcoes)
-            {
-                entity.Opcoespergunta.Add(new OpcaoEntity
-                {
-                    Pergunta = entity, // EF seta Perguntaid
-                    Texto = o.Texto,
-                    Correta = o.Correta ?? false
-                });
+                req.Opcoes = null;
+                req.TemGabarito = false;
+                req.PermiteMultiplasSelecao = false;
+                req.OpcaoCorretaId = null;
+                req.OpcoesCorretasIds = null;
             }
 
+            var entity = new PerguntaEntity
+            {
+                PesquisaId = req.PesquisaId,
+                TipoPerguntaId = tipoId,
+                Texto = req.Texto,
+                TemGabarito = req.TemGabarito,
+                PermiteMultiplasSelecao = req.PermiteMultiplasSelecao ?? false,
+                Ordem = req.Ordem,
+            };
+
             _ctx.Perguntas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
 
-            await _ctx.Entry(entity).Collection(p => p.Opcoespergunta).LoadAsync(ct);
-
-            if (req.TemGabarito)
+            // Opções (se houver)
+            if (req.Opcoes != null && req.Opcoes.Count > 0)
             {
-                if (req.OpcaoCorretaId.HasValue)
+                foreach (var o in req.Opcoes)
                 {
-                    var correta = entity.Opcoespergunta.FirstOrDefault(x => x.Opcaoid == req.OpcaoCorretaId.Value);
-                    if (correta == null)
-                        return ServiceFail<PerguntaResponse>("OpcaoCorretaId n�o pertence � pergunta.");
+                    entity.OpcoesPergunta.Add(
+                        new OpcaoEntity
+                        {
+                            PerguntaId = entity.PerguntaId,
+                            Texto = o.Texto,
+                            Ordem = o.Ordem,
+                            Correta = o.Correta ?? false,
+                            Ativa = true,
+                        }
+                    );
+                }
+                await _ctx.SaveChangesAsync(ct);
 
-                    foreach (var o in entity.Opcoespergunta)
-                        o.Correta = (o.Opcaoid == correta.Opcaoid);
+                await _ctx.Entry(entity).Collection(p => p.OpcoesPergunta).LoadAsync(ct);
+
+                if (
+                    req.Tipo == TipoPerguntaDto.Objetiva
+                    && req.TemGabarito
+                    && req.OpcaoCorretaId.HasValue
+                )
+                {
+                    foreach (var o in entity.OpcoesPergunta)
+                        o.Correta = false;
+                    var correta = entity.OpcoesPergunta.FirstOrDefault(x =>
+                        x.OpcaoId == req.OpcaoCorretaId.Value
+                    );
+                    if (correta != null)
+                        correta.Correta = true;
+                }
+                else if (req.Tipo == TipoPerguntaDto.MultiplaEscolha)
+                {
+                    var set = (req.OpcoesCorretasIds ?? new List<int>()).ToHashSet();
+                    foreach (var o in entity.OpcoesPergunta)
+                        o.Correta = set.Contains(o.OpcaoId);
+                }
+
+                await _ctx.SaveChangesAsync(ct);
+            }
+
+            var resp = await MapPerguntaToResponse(entity, ct);
+            return Ok(resp);
+        }
+
+        // =============== UPDATE ===============
+        public async Task<ServiceResult<PerguntaResponse>> AtualizarAsync(
+            AtualizarPerguntaRequest req,
+            CancellationToken ct = default
+        )
+        {
+            var entity = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PerguntaId == req.PerguntaId, ct);
+
+            if (entity == null)
+                return Fail<PerguntaResponse>("Pergunta não encontrada.");
+
+            var tipoAtual = entity.TipoPerguntaId;
+            var tipoReq = req.Tipo switch
+            {
+                TipoPerguntaDto.Discursiva => TIPO_DISCURSIVA,
+                TipoPerguntaDto.Objetiva => TIPO_OBJETIVA,
+                TipoPerguntaDto.MultiplaEscolha => TIPO_MULTIPLA,
+                _ => tipoAtual,
+            };
+            if (tipoReq != tipoAtual)
+                return Fail<PerguntaResponse>(
+                    "Alterar o tipo de pergunta não é permitido. Exclua e crie novamente."
+                );
+
+            entity.Texto = req.Texto;
+            entity.Ordem = req.Ordem;
+            entity.TemGabarito = req.TemGabarito;
+            entity.PermiteMultiplasSelecao =
+                req.PermiteMultiplasSelecao ?? entity.PermiteMultiplasSelecao;
+
+            if (tipoAtual == TIPO_DISCURSIVA)
+            {
+                entity.TemGabarito = false;
+                entity.PermiteMultiplasSelecao = false;
+                foreach (var o in entity.OpcoesPergunta)
+                    o.Correta = false;
+            }
+            else if (tipoAtual == TIPO_OBJETIVA)
+            {
+                entity.PermiteMultiplasSelecao = false;
+                if (req.TemGabarito)
+                {
+                    foreach (var o in entity.OpcoesPergunta)
+                        o.Correta = false;
+                    if (req.OpcaoCorretaId.HasValue)
+                    {
+                        var correta = entity.OpcoesPergunta.FirstOrDefault(o =>
+                            o.OpcaoId == req.OpcaoCorretaId.Value
+                        );
+                        if (correta != null)
+                            correta.Correta = true;
+                    }
                 }
                 else
                 {
-                    var qtdCorretas = entity.Opcoespergunta.Count(o => o.Correta);
-                    if (qtdCorretas != 1)
-                        return ServiceFail<PerguntaResponse>("Objetiva com gabarito deve ter exatamente 1 correta.");
+                    foreach (var o in entity.OpcoesPergunta)
+                        o.Correta = false;
                 }
-
-                await _ctx.SaveChangesAsync(ct);
             }
-            else
+            else // Múltipla
             {
-                foreach (var o in entity.Opcoespergunta) o.Correta = false;
-                await _ctx.SaveChangesAsync(ct);
+                var set = (req.OpcoesCorretasIds ?? new List<int>()).ToHashSet();
+                foreach (var o in entity.OpcoesPergunta)
+                    o.Correta = req.TemGabarito && set.Contains(o.OpcaoId);
             }
 
+            await _ctx.SaveChangesAsync(ct);
             var resp = await MapPerguntaToResponse(entity, ct);
-            return ServiceOk(resp);
+            return Ok(resp);
         }
 
-        public async Task<ServiceResult<PerguntaResponse>> CriarMultiplaAsync(
-            CriarPerguntaMultiplaRequest req, CancellationToken ct = default)
+        // =============== DELETE ===============
+        public async Task<ServiceResult<bool>> ExcluirAsync(
+            int perguntaId,
+            CancellationToken ct = default
+        )
         {
-            if (req.Opcoes == null || req.Opcoes.Count < 2)
-                return ServiceFail<PerguntaResponse>("Pergunta de m�ltipla escolha exige pelo menos 2 op��es.");
-
-            var entity = new PerguntaEntity
-            {
-                Pesquisaid = req.PesquisaId,
-                Tipoperguntaid = TIPO_MULTIPLA,
-                Texto = req.Texto,
-                Temgabarito = req.TemGabarito,
-                Permitemultiplaselecao = req.PermiteMultiplaSelecao,
-                Ordem = req.Ordem
-            };
-
-            foreach (var o in req.Opcoes)
-            {
-                entity.Opcoespergunta.Add(new OpcaoEntity
-                {
-                    Pergunta = entity,
-                    Texto = o.Texto,
-                    Correta = o.Correta ?? false
-                });
-            }
-
-            _ctx.Perguntas.Add(entity);
-            await _ctx.SaveChangesAsync(ct);
-
-            await _ctx.Entry(entity).Collection(p => p.Opcoespergunta).LoadAsync(ct);
-
-            if (req.TemGabarito)
-            {
-                if (req.OpcoesCorretasIds != null && req.OpcoesCorretasIds.Count > 0)
-                {
-                    var setCorretas = req.OpcoesCorretasIds.ToHashSet();
-                    foreach (var o in entity.Opcoespergunta)
-                        o.Correta = setCorretas.Contains(o.Opcaoid);
-                }
-                await _ctx.SaveChangesAsync(ct);
-            }
-            else
-            {
-                foreach (var o in entity.Opcoespergunta) o.Correta = false;
-                await _ctx.SaveChangesAsync(ct);
-            }
-
-            var resp = await MapPerguntaToResponse(entity, ct);
-            return ServiceOk(resp);
-        }
-
-        // -------------------- UPDATE --------------------
-
-        public async Task<ServiceResult<PerguntaResponse>> AtualizarDiscursivaAsync(
-            AtualizarPerguntaDiscursivaRequest req, CancellationToken ct = default)
-        {
-            var entity = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
-
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
-            if (entity.Tipoperguntaid != TIPO_DISCURSIVA) return ServiceFail<PerguntaResponse>("Tipo n�o � Discursiva.");
-
-            entity.Texto = req.Texto;
-            entity.Ordem = req.Ordem;
-            entity.Temgabarito = false;
-            entity.Permitemultiplaselecao = false;
-
-            await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(await MapPerguntaToResponse(entity, ct));
-        }
-
-        public async Task<ServiceResult<PerguntaResponse>> AtualizarObjetivaAsync(
-            AtualizarPerguntaObjetivaRequest req, CancellationToken ct = default)
-        {
-            var entity = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
-
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
-            if (entity.Tipoperguntaid != TIPO_OBJETIVA) return ServiceFail<PerguntaResponse>("Tipo n�o � Objetiva.");
-
-            entity.Texto = req.Texto;
-            entity.Ordem = req.Ordem;
-            entity.Temgabarito = req.TemGabarito;
-            entity.Permitemultiplaselecao = false;
-
-            if (req.TemGabarito)
-            {
-                if (!req.OpcaoCorretaId.HasValue)
-                    return ServiceFail<PerguntaResponse>("Para Objetiva com gabarito, informe OpcaoCorretaId.");
-
-                var correta = entity.Opcoespergunta.FirstOrDefault(o => o.Opcaoid == req.OpcaoCorretaId.Value);
-                if (correta == null)
-                    return ServiceFail<PerguntaResponse>("OpcaoCorretaId inv�lida para esta pergunta.");
-
-                foreach (var o in entity.Opcoespergunta)
-                    o.Correta = (o.Opcaoid == correta.Opcaoid);
-            }
-            else
-            {
-                foreach (var o in entity.Opcoespergunta) o.Correta = false;
-            }
-
-            await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(await MapPerguntaToResponse(entity, ct));
-        }
-
-        public async Task<ServiceResult<PerguntaResponse>> AtualizarMultiplaAsync(
-            AtualizarPerguntaMultiplaRequest req, CancellationToken ct = default)
-        {
-            var entity = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == req.PerguntaId, ct);
-
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
-            if (entity.Tipoperguntaid != TIPO_MULTIPLA) return ServiceFail<PerguntaResponse>("Tipo n�o � M�ltipla.");
-
-            entity.Texto = req.Texto;
-            entity.Ordem = req.Ordem;
-            entity.Temgabarito = req.TemGabarito;
-            entity.Permitemultiplaselecao = req.PermiteMultiplaSelecao;
-
-            if (req.TemGabarito)
-            {
-                var corretas = (req.OpcoesCorretasIds ?? new List<int>()).ToHashSet();
-                foreach (var o in entity.Opcoespergunta)
-                    o.Correta = corretas.Contains(o.Opcaoid);
-            }
-            else
-            {
-                foreach (var o in entity.Opcoespergunta) o.Correta = false;
-            }
-
-            await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(await MapPerguntaToResponse(entity, ct));
-        }
-
-        // -------------------- DELETE --------------------
-
-        public async Task<ServiceResult<bool>> ExcluirAsync(int perguntaId, CancellationToken ct = default)
-        {
-            var entity = await _ctx.Perguntas.FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
-            if (entity == null) return ServiceFail<bool>("Pergunta n�o encontrada.");
+            var entity = await _ctx.Perguntas.FindAsync(perguntaId, ct);
+            if (entity == null)
+                return Fail<bool>("Pergunta não encontrada.");
 
             _ctx.Perguntas.Remove(entity);
             await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(true);
+            return Ok(true);
         }
 
-        // -------------------- GET --------------------
-
-        public async Task<ServiceResult<PerguntaResponse>> ObterPorIdAsync(int perguntaId, CancellationToken ct = default)
+        // =============== READ ===============
+        public async Task<ServiceResult<PerguntaResponse>> ObterPorIdAsync(
+            int perguntaId,
+            CancellationToken ct = default
+        )
         {
-            var entity = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
+            var entity = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PerguntaId == perguntaId, ct);
 
-            if (entity == null) return ServiceFail<PerguntaResponse>("Pergunta n�o encontrada.");
-            return ServiceOk(await MapPerguntaToResponse(entity, ct));
+            if (entity == null)
+                return Fail<PerguntaResponse>("Pergunta não encontrada.");
+            return Ok(await MapPerguntaToResponse(entity, ct));
         }
 
         public async Task<ServiceResult<IReadOnlyList<PerguntaResponse>>> ListarPorPesquisaAsync(
-            int pesquisaId, CancellationToken ct = default)
+            int pesquisaId,
+            CancellationToken ct = default
+        )
         {
-            var list = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .Where(p => p.Pesquisaid == pesquisaId)
+            var entities = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .Where(p => p.PesquisaId == pesquisaId)
                 .OrderBy(p => p.Ordem)
+                .ThenBy(p => p.PerguntaId)
                 .ToListAsync(ct);
 
-            var resp = new List<PerguntaResponse>(list.Count);
-            foreach (var p in list)
-                resp.Add(await MapPerguntaToResponse(p, ct));
+            var list = new List<PerguntaResponse>(entities.Count);
+            foreach (var e in entities)
+                list.Add(await MapPerguntaToResponse(e, ct));
 
-            return ServiceOk<IReadOnlyList<PerguntaResponse>>(resp);
+            return Ok<IReadOnlyList<PerguntaResponse>>(list);
         }
 
-        // -------------------- GABARITO --------------------
-
+        // =============== GABARITO ===============
         public async Task<ServiceResult<bool>> DefinirGabaritoAsync(
-            int perguntaId, IEnumerable<int> opcaoIds, bool permitirApenasUma, CancellationToken ct = default)
+            int perguntaId,
+            IEnumerable<int> opcaoIds,
+            bool permitirApenasUma,
+            CancellationToken ct = default
+        )
         {
-            var entity = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
-
-            if (entity == null) return ServiceFail<bool>("Pergunta n�o encontrada.");
+            var entity = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PerguntaId == perguntaId, ct);
+            if (entity == null)
+                return Fail<bool>("Pergunta não encontrada.");
 
             var set = (opcaoIds ?? Enumerable.Empty<int>()).ToHashSet();
 
             if (permitirApenasUma)
             {
-                if (set.Count != 1) return ServiceFail<bool>("Objetiva: deve haver exatamente 1 correta.");
-                foreach (var o in entity.Opcoespergunta)
-                    o.Correta = set.Contains(o.Opcaoid);
+                if (set.Count != 1)
+                    return Fail<bool>("Objetiva: deve haver exatamente 1 correta.");
+                foreach (var o in entity.OpcoesPergunta)
+                    o.Correta = set.Contains(o.OpcaoId);
             }
             else
             {
-                foreach (var o in entity.Opcoespergunta)
-                    o.Correta = set.Contains(o.Opcaoid);
+                foreach (var o in entity.OpcoesPergunta)
+                    o.Correta = set.Contains(o.OpcaoId);
             }
 
-            entity.Temgabarito = set.Count > 0;
-
+            entity.TemGabarito = set.Count > 0;
             await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(true);
+            return Ok(true);
         }
 
-        // -------------------- ORDEM --------------------
-
+        // =============== REORDENAR ===============
         public async Task<ServiceResult<bool>> ReordenarAsync(
-            int pesquisaId, IReadOnlyList<int> perguntaIdsNaOrdem, CancellationToken ct = default)
+            int pesquisaId,
+            IReadOnlyList<int> perguntaIdsNaOrdem,
+            CancellationToken ct = default
+        )
         {
-            if (perguntaIdsNaOrdem == null || perguntaIdsNaOrdem.Count == 0)
-                return ServiceFail<bool>("Lista de perguntas vazia.");
-
-            var perguntas = await _ctx.Perguntas
-                .Where(p => p.Pesquisaid == pesquisaId && perguntaIdsNaOrdem.Contains(p.Perguntaid))
+            var perguntas = await _ctx
+                .Perguntas.Where(p =>
+                    p.PesquisaId == pesquisaId && perguntaIdsNaOrdem.Contains(p.PerguntaId)
+                )
                 .ToListAsync(ct);
 
-            var posById = perguntaIdsNaOrdem
-                .Select((id, idx) => new { id, idx })
-                .ToDictionary(x => x.id, x => x.idx);
+            if (perguntas.Count != perguntaIdsNaOrdem.Count)
+                return Fail<bool>("Algumas perguntas não foram encontradas.");
 
-            foreach (var p in perguntas)
-                if (posById.TryGetValue(p.Perguntaid, out var idx))
-                    p.Ordem = idx;
+            for (int i = 0; i < perguntaIdsNaOrdem.Count; i++)
+            {
+                var pergunta = perguntas.First(p => p.PerguntaId == perguntaIdsNaOrdem[i]);
+                pergunta.Ordem = i + 1;
+            }
 
             await _ctx.SaveChangesAsync(ct);
-            return ServiceOk(true);
+            return Ok(true);
         }
 
-        // -------------------- OP��ES --------------------
-
+        // =============== OPÇÕES ===============
         public async Task<ServiceResult<OpcaoPerguntaResponse>> AdicionarOpcaoAsync(
-            int perguntaId, OpcaoPerguntaRequest req, CancellationToken ct = default)
+            int perguntaId,
+            OpcaoPerguntaRequest req,
+            CancellationToken ct = default
+        )
         {
-            var pergunta = await _ctx.Perguntas
-                .Include(p => p.Opcoespergunta)
-                .FirstOrDefaultAsync(p => p.Perguntaid == perguntaId, ct);
-
-            if (pergunta == null) return ServiceFail<OpcaoPerguntaResponse>("Pergunta n�o encontrada.");
+            var pergunta = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PerguntaId == perguntaId, ct);
+            if (pergunta == null)
+                return Fail<OpcaoPerguntaResponse>("Pergunta não encontrada.");
 
             var opc = new OpcaoEntity
             {
-                Perguntaid = perguntaId,
+                PerguntaId = perguntaId,
                 Texto = req.Texto,
-                Correta = req.Correta ?? false
+                Correta = req.Correta ?? false,
+                Ordem = req.Ordem,
             };
 
-            pergunta.Opcoespergunta.Add(opc);
+            pergunta.OpcoesPergunta.Add(opc);
             await _ctx.SaveChangesAsync(ct);
 
             var resp = new OpcaoPerguntaResponse
             {
-                OpcaoId = opc.Opcaoid,
-                PerguntaId = opc.Perguntaid,
+                OpcaoId = opc.OpcaoId,
+                PerguntaId = opc.PerguntaId,
                 Texto = opc.Texto,
-                Ordem = 0,
+                Ordem = opc.Ordem,
                 Ativa = true,
-                Correta = opc.Correta
+                Correta = opc.Correta,
             };
 
-            return ServiceOk(resp);
+            return Ok(resp);
         }
 
         public async Task<ServiceResult<OpcaoPerguntaResponse>> AtualizarOpcaoAsync(
-            OpcaoPerguntaUpdateRequest req, CancellationToken ct = default)
+            OpcaoPerguntaUpdateRequest req,
+            CancellationToken ct = default
+        )
         {
             var opc = await _ctx.Set<OpcaoEntity>()
-                .FirstOrDefaultAsync(o => o.Opcaoid == req.OpcaoId, ct);
+                .FirstOrDefaultAsync(o => o.OpcaoId == req.OpcaoId, ct);
+            if (opc == null)
+                return Fail<OpcaoPerguntaResponse>("Opção não encontrada.");
 
-            if (opc == null) return ServiceFail<OpcaoPerguntaResponse>("Op��o n�o encontrada.");
-
-            if (req.Texto != null) opc.Texto = req.Texto;
-            if (req.Correta.HasValue) opc.Correta = req.Correta.Value;
+            if (req.Texto != null)
+                opc.Texto = req.Texto;
+            if (req.Correta.HasValue)
+                opc.Correta = req.Correta.Value;
+            if (req.Ordem.HasValue)
+                opc.Ordem = req.Ordem.Value;
 
             await _ctx.SaveChangesAsync(ct);
 
             var resp = new OpcaoPerguntaResponse
             {
-                OpcaoId = opc.Opcaoid,
-                PerguntaId = opc.Perguntaid,
+                OpcaoId = opc.OpcaoId,
+                PerguntaId = opc.PerguntaId,
                 Texto = opc.Texto,
-                Ordem = 0,
+                Ordem = opc.Ordem,
                 Ativa = true,
-                Correta = opc.Correta
+                Correta = opc.Correta,
             };
 
-            return ServiceOk(resp);
+            return Ok(resp);
         }
 
         public async Task<ServiceResult<bool>> RemoverOpcaoAsync(
-            int opcaoId, bool softDelete = true, CancellationToken ct = default)
+            int opcaoId,
+            bool softDelete = true,
+            CancellationToken ct = default
+        )
         {
-            var opc = await _ctx.Set<OpcaoEntity>().FirstOrDefaultAsync(o => o.Opcaoid == opcaoId, ct);
-            if (opc == null) return ServiceFail<bool>("Op��o n�o encontrada.");
+            var opc = await _ctx.Set<OpcaoEntity>()
+                .FirstOrDefaultAsync(o => o.OpcaoId == opcaoId, ct);
+            if (opc == null)
+                return Fail<bool>("Opção não encontrada.");
 
             _ctx.Remove(opc);
             await _ctx.SaveChangesAsync(ct);
-
-            return ServiceOk(true);
+            return Ok(true);
         }
 
-        public Task<ServiceResult<bool>> ReordenarOpcoesAsync(
-            int perguntaId, IReadOnlyList<int> opcaoIdsNaOrdem, CancellationToken ct = default)
+        public async Task<ServiceResult<bool>> ReordenarOpcoesAsync(
+            int perguntaId,
+            IReadOnlyList<int> opcaoIdsNaOrdem,
+            CancellationToken ct = default
+        )
         {
-            return Task.FromResult(ServiceFail<bool>(
-                "Reordena��o de op��es n�o suportada: o modelo 'Opcoespergunta' n�o possui coluna de ordena��o."));
-        }
+            var pergunta = await _ctx
+                .Perguntas.Include(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PerguntaId == perguntaId, ct);
+            if (pergunta == null)
+                return Fail<bool>("Pergunta não encontrada.");
 
-        // -------------------- HELPERS --------------------
+            if (pergunta.OpcoesPergunta.Count != opcaoIdsNaOrdem.Count)
+                return Fail<bool>("Algumas opções não foram encontradas.");
 
-        private async Task<PerguntaResponse> MapPerguntaToResponse(PerguntaEntity p, CancellationToken ct)
-        {
-            if (_ctx.Entry(p).Collection(x => x.Opcoespergunta).IsLoaded == false)
-                await _ctx.Entry(p).Collection(x => x.Opcoespergunta).LoadAsync(ct);
-
-            var tipo = p.Tipoperguntaid switch
+            for (int i = 0; i < opcaoIdsNaOrdem.Count; i++)
             {
-                TIPO_DISCURSIVA => "Discursiva",
-                TIPO_OBJETIVA => "Objetiva",
-                TIPO_MULTIPLA => "Multipla Escolha",
-                _ => "Discursiva"
+                var opcao = pergunta.OpcoesPergunta.First(o => o.OpcaoId == opcaoIdsNaOrdem[i]);
+                opcao.Ordem = i + 1;
+            }
+
+            await _ctx.SaveChangesAsync(ct);
+            return Ok(true);
+        }
+
+        // =============== Helpers ===============
+        private async Task<PerguntaResponse> MapPerguntaToResponse(
+            PerguntaEntity p,
+            CancellationToken ct
+        )
+        {
+            if (!_ctx.Entry(p).Collection(x => x.OpcoesPergunta).IsLoaded)
+                await _ctx.Entry(p).Collection(x => x.OpcoesPergunta).LoadAsync(ct);
+
+            var tipo = p.TipoPerguntaId switch
+            {
+                TIPO_DISCURSIVA => TipoPerguntaDto.Discursiva,
+                TIPO_OBJETIVA => TipoPerguntaDto.Objetiva,
+                TIPO_MULTIPLA => TipoPerguntaDto.MultiplaEscolha,
+                _ => TipoPerguntaDto.Discursiva,
             };
 
-            var resp = new PerguntaResponse
+            return new PerguntaResponse
             {
-                PerguntaId = p.Perguntaid,
-                PesquisaId = p.Pesquisaid,
-                Tipo = new FASTSURVEY.Dtos.Tipos.TipoPerguntaDto { TipoPerguntaId = p.Tipoperguntaid, TipoPergunta = tipo },
+                PerguntaId = p.PerguntaId,
+                PesquisaId = p.PesquisaId,
+                Tipo = tipo,
                 Texto = p.Texto,
-                Obrigatoria = false, // model n�o tem esse campo
+                TemGabarito = p.TemGabarito,
+                PermiteMultiplasSelecao = p.PermiteMultiplasSelecao,
                 Ordem = p.Ordem,
-                TemGabarito = p.Temgabarito,
-                PermiteMultiplaSelecao = p.Permitemultiplaselecao,
-                Opcoes = p.Opcoespergunta?
-                    .OrderBy(o => o.Opcaoid)
+                Opcoes = p
+                    .OpcoesPergunta.OrderBy(o => o.Ordem)
+                    .ThenBy(o => o.OpcaoId)
                     .Select(o => new OpcaoPerguntaResponse
                     {
-                        OpcaoId = o.Opcaoid,
-                        PerguntaId = o.Perguntaid,
-                        Texto = o.Texto,
-                        Ordem = 0,
-                        Ativa = true,
-                        Correta = o.Correta
+                        OpcaoId = o.OpcaoId,
+                        PerguntaId = o.PerguntaId,
+                        Texto = o.Texto ?? string.Empty,
+                        Ordem = o.Ordem,
+                        Ativa = o.Ativa,
+                        Correta = o.Correta,
                     })
-                    .ToList()
+                    .ToList(),
             };
-
-            if (p.Tipoperguntaid == TIPO_OBJETIVA)
-            {
-                var correta = p.Opcoespergunta?.FirstOrDefault(o => o.Correta);
-                resp.OpcaoCorretaId = correta?.Opcaoid;
-            }
-            else if (p.Tipoperguntaid == TIPO_MULTIPLA)
-            {
-                resp.OpcoesCorretasIds = p.Opcoespergunta?.Where(o => o.Correta).Select(o => o.Opcaoid).ToList();
-            }
-
-            return resp;
         }
 
-        private ServiceResult<T> ServiceOk<T>(T data) => ServiceResult<T>.Ok(data);
-        private ServiceResult<T> ServiceFail<T>(string message) => ServiceResult<T>.Fail("Error", message);
+        private static ServiceResult<T> Ok<T>(T data) => ServiceResult<T>.Ok(data);
+
+        private static ServiceResult<T> Fail<T>(string m) => ServiceResult<T>.Fail("ERROR", m);
     }
 }

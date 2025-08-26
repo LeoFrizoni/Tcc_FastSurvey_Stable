@@ -1,0 +1,487 @@
+/* ===== TRANSITIONS & ANIMATIONS - FASTSURVEY ===== */
+
+/* ===== TRANSITIONS GLOBAIS ===== */
+
+/* Transições suaves para todos os elementos interativos */
+* {
+  transition: 
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Exceções para elementos que não devem ter transição */
+*:not(button):not(a):not(input):not(select):not(textarea) {
+  transition: none;
+}
+
+/* ===== ANIMAÇÕES DE ENTRADA ===== */
+
+/* Fade In */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Slide In from Left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slideInLeft {
+  animation: slideInLeft 0.4s ease-out;
+}
+
+/* Slide In from Right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slideInRight {
+  animation: slideInRight 0.4s ease-out;
+}
+
+/* Scale In */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.scaleIn {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE HOVER ===== */
+
+/* Hover Lift Effect */
+.hoverLift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hoverLift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+/* Hover Scale Effect */
+.hoverScale {
+  transition: transform 0.2s ease;
+}
+
+.hoverScale:hover {
+  transform: scale(1.05);
+}
+
+/* Hover Glow Effect */
+.hoverGlow {
+  transition: box-shadow 0.2s ease;
+}
+
+.hoverGlow:hover {
+  box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+}
+
+/* ===== ANIMAÇÕES DE LOADING ===== */
+
+/* Spinner */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+/* Pulse */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Shimmer Loading */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ===== ANIMAÇÕES DE NOTIFICAÇÃO ===== */
+
+/* Toast Slide In */
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toastSlideIn {
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+/* Success Bounce */
+@keyframes successBounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -8px, 0);
+  }
+  70% {
+    transform: translate3d(0, -4px, 0);
+  }
+  90% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
+.successBounce {
+  animation: successBounce 0.6s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE CARDS ===== */
+
+/* Card Stagger Animation */
+.cardStagger {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.cardStagger:nth-child(1) { animation-delay: 0.1s; }
+.cardStagger:nth-child(2) { animation-delay: 0.2s; }
+.cardStagger:nth-child(3) { animation-delay: 0.3s; }
+.cardStagger:nth-child(4) { animation-delay: 0.4s; }
+.cardStagger:nth-child(5) { animation-delay: 0.5s; }
+.cardStagger:nth-child(6) { animation-delay: 0.6s; }
+
+/* ===== ANIMAÇÕES DE MODAIS ===== */
+
+/* Modal Backdrop */
+@keyframes modalBackdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(4px);
+  }
+}
+
+.modalBackdrop {
+  animation: modalBackdrop 0.3s ease-out;
+}
+
+/* Modal Content */
+@keyframes modalContent {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modalContent {
+  animation: modalContent 0.3s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE BOTÕES ===== */
+
+/* Button Press Effect */
+.buttonPress {
+  transition: transform 0.1s ease;
+}
+
+.buttonPress:active {
+  transform: scale(0.95);
+}
+
+/* Button Loading State */
+@keyframes buttonLoading {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.buttonLoading {
+  background: linear-gradient(90deg, #7c3aed, #6246ea, #7c3aed);
+  background-size: 200% 200%;
+  animation: buttonLoading 1.5s ease infinite;
+}
+
+/* ===== ANIMAÇÕES DE FORMULÁRIOS ===== */
+
+/* Input Focus Animation */
+.inputFocus {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.inputFocus:focus {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
+}
+
+/* ===== ANIMAÇÕES DE NAVEGAÇÃO ===== */
+
+/* Page Transition */
+@keyframes pageTransition {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pageTransition {
+  animation: pageTransition 0.4s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE DRAG & DROP ===== */
+
+/* Drag Preview */
+@keyframes dragPreview {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(2deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.dragPreview {
+  animation: dragPreview 0.3s ease-out;
+}
+
+/* Drop Zone Highlight */
+@keyframes dropZoneHighlight {
+  0%, 100% {
+    border-color: rgba(124, 58, 237, 0.3);
+    background-color: rgba(124, 58, 237, 0.05);
+  }
+  50% {
+    border-color: rgba(124, 58, 237, 0.8);
+    background-color: rgba(124, 58, 237, 0.1);
+  }
+}
+
+.dropZoneHighlight {
+  animation: dropZoneHighlight 1s ease-in-out infinite;
+}
+
+/* ===== ANIMAÇÕES DE PROGRESS ===== */
+
+/* Progress Bar */
+@keyframes progressFill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+.progressFill {
+  animation: progressFill 0.8s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE GAMIFICAÇÃO ===== */
+
+/* Score Pop */
+@keyframes scorePop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.scorePop {
+  animation: scorePop 0.5s ease-out;
+}
+
+/* Correct Answer Flash */
+@keyframes correctFlash {
+  0%, 100% {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0.6);
+  }
+}
+
+.correctFlash {
+  animation: correctFlash 0.6s ease-out;
+}
+
+/* Wrong Answer Shake */
+@keyframes wrongShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.wrongShake {
+  animation: wrongShake 0.4s ease-out;
+}
+
+/* ===== ANIMAÇÕES DE RESPONSIVIDADE ===== */
+
+/* Mobile Menu Slide */
+@keyframes mobileMenuSlide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.mobileMenuSlide {
+  animation: mobileMenuSlide 0.3s ease-out;
+}
+
+/* ===== UTILITÁRIOS DE ANIMAÇÃO ===== */
+
+/* Delay Classes */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* Duration Classes */
+.duration-100 { animation-duration: 0.1s; }
+.duration-200 { animation-duration: 0.2s; }
+.duration-300 { animation-duration: 0.3s; }
+.duration-400 { animation-duration: 0.4s; }
+.duration-500 { animation-duration: 0.5s; }
+
+/* Easing Classes */
+.ease-in { animation-timing-function: ease-in; }
+.ease-out { animation-timing-function: ease-out; }
+.ease-in-out { animation-timing-function: ease-in-out; }
+.ease-bounce { animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.55); }
+
+/* ===== REDUCE MOTION ===== */
+
+/* Respeita preferência do usuário por menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .spinner {
+    animation: none;
+  }
+  
+  .pulse {
+    animation: none;
+  }
+  
+  .shimmer {
+    animation: none;
+  }
+}
+
+/* ===== PERFORMANCE OPTIMIZATIONS ===== */
+
+/* Usa transform e opacity para animações mais suaves */
+.smoothTransition {
+  will-change: transform, opacity;
+}
+
+/* Evita reflow durante animações */
+.noReflow {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}

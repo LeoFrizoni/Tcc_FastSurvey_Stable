@@ -1,3 +1,4 @@
+#nullable enable
 using FASTSURVEY.Dtos.Respostas;
 using FASTSURVEY.Services.Result;
 
@@ -5,11 +6,36 @@ namespace FASTSURVEY.Services.Resultados
 {
     public interface IResultadosService
     {
-        Task<ServiceResult<object>> ObterResultadosPesquisaAsync(EstatisticasPesquisaRequest request, CancellationToken ct = default);
-        Task<ServiceResult<object>> ObterEstatisticasPerguntaAsync(EstatisticasPerguntaRequest request, CancellationToken ct = default);
-        Task<ServiceResult<ExportResult>> ExportarResultadosAsync(EstatisticasPesquisaRequest request, CancellationToken ct = default);
-        Task<ServiceResult<object>> ObterGraficosAsync(int pesquisaId, CancellationToken ct = default);
-        Task<ServiceResult<DashboardData>> ObterDashboardAsync(int loginId, CancellationToken ct = default);
+        Task<ServiceResult<object>> ObterResultadosPesquisaAsync(
+            EstatisticasPesquisaRequest request,
+            CancellationToken ct = default
+        );
+
+        Task<ServiceResult<object>> ObterEstatisticasPerguntaAsync(
+            EstatisticasPerguntaRequest request,
+            CancellationToken ct = default
+        );
+
+        Task<ServiceResult<ExportResult>> ExportarResultadosAsync(
+            EstatisticasPesquisaRequest request,
+            CancellationToken ct = default
+        );
+
+        Task<ServiceResult<object>> ObterGraficosAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        );
+
+        Task<ServiceResult<DashboardData>> ObterDashboardAsync(
+            int loginId,
+            CancellationToken ct = default
+        );
+
+        /// <summary>Relatório detalhado (perguntas + estatísticas).</summary>
+        Task<ServiceResult<object>> ObterRelatorioCompletoAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        );
     }
 
     public class ExportResult
@@ -39,7 +65,7 @@ namespace FASTSURVEY.Services.Resultados
 
     public class EstatisticaMensal
     {
-        public string Mes { get; set; } = string.Empty;
+        public string Mes { get; set; } = string.Empty; // yyyy-MM
         public int PesquisasCriadas { get; set; }
         public int RespostasRecebidas { get; set; }
     }

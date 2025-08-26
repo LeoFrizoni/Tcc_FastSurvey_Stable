@@ -1,6 +1,6 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
 
 namespace FASTSURVEY.Dtos.Anexos
 {
@@ -29,8 +29,14 @@ namespace FASTSURVEY.Dtos.Anexos
 
         // Regras adicionais
         private const long MaxTamanhoBytes = 15 * 1024 * 1024; // 15 MB
-        private static readonly string[] TiposPermitidos =
-            { "image/png", "image/jpeg", "application/pdf" };
+        private static readonly HashSet<string> TiposPermitidos = new(
+            StringComparer.OrdinalIgnoreCase
+        )
+        {
+            "image/png",
+            "image/jpeg",
+            "application/pdf",
+        };
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
@@ -39,25 +45,30 @@ namespace FASTSURVEY.Dtos.Anexos
             {
                 yield return new ValidationResult(
                     "Informe PesquisaId ou PerguntaId.",
-                    new[] { nameof(PesquisaId), nameof(PerguntaId) });
+                    new[] { nameof(PesquisaId), nameof(PerguntaId) }
+                );
             }
 
             if (Arquivo is null || Arquivo.Length == 0)
             {
                 yield return new ValidationResult(
-                    "O arquivo enviado está vazio.", new[] { nameof(Arquivo) });
+                    "O arquivo enviado está vazio.",
+                    new[] { nameof(Arquivo) }
+                );
             }
             else
             {
                 if (Arquivo.Length > MaxTamanhoBytes)
                     yield return new ValidationResult(
                         $"Tamanho máximo permitido é {MaxTamanhoBytes / (1024 * 1024)} MB.",
-                        new[] { nameof(Arquivo) });
+                        new[] { nameof(Arquivo) }
+                    );
 
-                if (Array.IndexOf(TiposPermitidos, Arquivo.ContentType) < 0)
+                if (!TiposPermitidos.Contains(Arquivo.ContentType))
                     yield return new ValidationResult(
                         "Tipo de arquivo não permitido (use PNG, JPEG ou PDF).",
-                        new[] { nameof(Arquivo) });
+                        new[] { nameof(Arquivo) }
+                    );
             }
         }
     }

@@ -8,11 +8,11 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 /// <summary>
 /// Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste
 /// </summary>
-public partial class Tipopesquisa
+public partial class TipoPesquisa
 {
-    public int Tipopesquisaid { get; set; }
+    public int TipoPesquisaId { get; set; }
 
-    public string Tipopesquisa1 { get; set; }
+    public string TipoPesquisa1 { get; set; }
 
     public bool Desabilitado { get; set; }
 

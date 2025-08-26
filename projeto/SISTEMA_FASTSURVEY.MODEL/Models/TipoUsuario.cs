@@ -8,11 +8,11 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 /// <summary>
 /// Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador
 /// </summary>
-public partial class Tipousuario
+public partial class TipoUsuario
 {
-    public int Tipousuarioid { get; set; }
+    public int TipoUsuarioId { get; set; }
 
-    public string Tipousuario1 { get; set; }
+    public string TipoUsuario1 { get; set; }
 
     public virtual ICollection<Login> Login { get; set; } = new List<Login>();
 }

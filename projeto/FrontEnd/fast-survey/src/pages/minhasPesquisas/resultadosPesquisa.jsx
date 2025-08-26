@@ -7,6 +7,7 @@ import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import ModalQRCode from '../../components/layouts/ModalQrCode';
 import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
+import InteractiveSessionModal from '../../components/game/InteractiveSessionModal';
 import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -110,7 +111,7 @@ function getTipoPesquisaLabel(p){
 }
 
 /* =================== Componentes menores =================== */
-function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, abaAtiva, setAbaAtiva, pesquisaId }) {
+function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onInteractiveSession, abaAtiva, setAbaAtiva, pesquisaId }) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       {/* Abas */}
@@ -134,6 +135,9 @@ function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, abaAtiva
           <h3 className={styles.actionsTitle}>Ações</h3>
           <button className={styles.primaryBtn} type="button" onClick={onResponder}>
             Responder pesquisa
+          </button>
+          <button className={styles.interactiveBtn} type="button" onClick={onInteractiveSession}>
+            🎮 Iniciar Sessão Interativa
           </button>
           <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
             Mostrar QR Code
@@ -186,6 +190,7 @@ const ResultadosPesquisa = () => {
   const [pesquisa, setPesquisa] = useState(null);
   const [anexos, setAnexos] = useState([]);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
+  const [mostrarModalInterativa, setMostrarModalInterativa] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState('pesquisa'); // 'pesquisa' ou 'graficos'
   const [erro, setErro] = useState('');
@@ -354,6 +359,7 @@ const ResultadosPesquisa = () => {
     '—';
 
   const dataRaw =
+    pesquisa?.DataCriacao ??
     pesquisa?.dataCriacao ??
     pesquisa?.dataregistro ??
     pesquisa?.dataRegistro ??
@@ -435,6 +441,7 @@ const ResultadosPesquisa = () => {
             onQrCode={() => setMostrarModalQr(true)}
             onExportarPDF={exportarPDF}
             onEditar={() => navigate(`/editarPesquisa/${id}`)}
+            onInteractiveSession={() => setMostrarModalInterativa(true)}
             abaAtiva={abaAtiva}
             setAbaAtiva={setAbaAtiva}
             pesquisaId={id}
@@ -445,6 +452,13 @@ const ResultadosPesquisa = () => {
           isOpen={mostrarModalQr}
           onClose={() => setMostrarModalQr(false)}
           qrUrl={`${window.location.origin}/responder/${id}`}
+        />
+
+        <InteractiveSessionModal
+          isOpen={mostrarModalInterativa}
+          onClose={() => setMostrarModalInterativa(false)}
+          pesquisaId={id}
+          pesquisaTitulo={pesquisa?.titulo || 'Pesquisa'}
         />
       </main>
     </>

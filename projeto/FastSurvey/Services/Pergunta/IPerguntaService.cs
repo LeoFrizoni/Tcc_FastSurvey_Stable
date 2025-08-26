@@ -1,70 +1,73 @@
-using FASTSURVEY.Dtos.Perguntas;
-using FASTSURVEY.Dtos.Perguntas.Base;
-using FASTSURVEY.Dtos.Perguntas.Discursiva;
-using FASTSURVEY.Dtos.Perguntas.Objetiva;
-using FASTSURVEY.Dtos.Perguntas.Multipla;
-using FASTSURVEY.Dtos.Opcoes;
+#nullable enable
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using FASTSURVEY.Dtos.Opcoes;
+using FASTSURVEY.Dtos.Perguntas;
 using FASTSURVEY.Services.Result;
 
 namespace FASTSURVEY.Services.Pergunta
 {
     public interface IPerguntaService
     {
-        // -------------------- CREATE SIMPLES --------------------
-        Task<ServiceResult<PerguntaResponse>> CriarAsync(CriarPerguntaRequest req, CancellationToken ct = default);
+        // CREATE/UPDATE unificados
+        Task<ServiceResult<PerguntaResponse>> CriarAsync(
+            CriarPerguntaRequest req,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<PerguntaResponse>> AtualizarAsync(
+            AtualizarPerguntaRequest req,
+            CancellationToken ct = default
+        );
 
-        // -------------------- CREATE --------------------
-        Task<ServiceResult<PerguntaResponse>> CriarDiscursivaAsync(
-            CriarPerguntaDiscursivaRequest req, CancellationToken ct = default);
+        // DELETE
+        Task<ServiceResult<bool>> ExcluirAsync(int perguntaId, CancellationToken ct = default);
 
-        Task<ServiceResult<PerguntaResponse>> CriarObjetivaAsync(
-            CriarPerguntaObjetivaRequest req, CancellationToken ct = default);
-
-        Task<ServiceResult<PerguntaResponse>> CriarMultiplaAsync(
-            CriarPerguntaMultiplaRequest req, CancellationToken ct = default);
-
-        Task<ServiceResult<PerguntaResponse>> AtualizarDiscursivaAsync(
-            AtualizarPerguntaDiscursivaRequest req, CancellationToken ct = default);
-
-        Task<ServiceResult<PerguntaResponse>> AtualizarObjetivaAsync(
-            AtualizarPerguntaObjetivaRequest req, CancellationToken ct = default);
-
-        Task<ServiceResult<PerguntaResponse>> AtualizarMultiplaAsync(
-            AtualizarPerguntaMultiplaRequest req, CancellationToken ct = default);
-
-        Task<ServiceResult<bool>> ExcluirAsync(
-            int perguntaId, CancellationToken ct = default);
-
-        // -------------------- Consulta --------------------
+        // READ
         Task<ServiceResult<PerguntaResponse>> ObterPorIdAsync(
-            int perguntaId, CancellationToken ct = default);
-
+            int perguntaId,
+            CancellationToken ct = default
+        );
         Task<ServiceResult<IReadOnlyList<PerguntaResponse>>> ListarPorPesquisaAsync(
-            int pesquisaId, CancellationToken ct = default);
+            int pesquisaId,
+            CancellationToken ct = default
+        );
 
-        // -------------------- Gabarito --------------------
-        // permitirApenasUma = true para Objetiva, false para M�ltipla (N corretas)
+        // GABARITO
+        // permitirApenasUma = true para Objetiva, false para Múltipla
         Task<ServiceResult<bool>> DefinirGabaritoAsync(
-            int perguntaId, IEnumerable<int> opcaoIds, bool permitirApenasUma, CancellationToken ct = default);
+            int perguntaId,
+            IEnumerable<int> opcaoIds,
+            bool permitirApenasUma,
+            CancellationToken ct = default
+        );
 
-        // -------------------- Ordena��o --------------------
+        // ORDENACAO de perguntas
         Task<ServiceResult<bool>> ReordenarAsync(
-            int pesquisaId, IReadOnlyList<int> perguntaIdsNaOrdem, CancellationToken ct = default);
+            int pesquisaId,
+            IReadOnlyList<int> perguntaIdsNaOrdem,
+            CancellationToken ct = default
+        );
 
-        // -------------------- Op��es --------------------
+        // OPCOES
         Task<ServiceResult<OpcaoPerguntaResponse>> AdicionarOpcaoAsync(
-            int perguntaId, OpcaoPerguntaRequest req, CancellationToken ct = default);
-
+            int perguntaId,
+            OpcaoPerguntaRequest req,
+            CancellationToken ct = default
+        );
         Task<ServiceResult<OpcaoPerguntaResponse>> AtualizarOpcaoAsync(
-            OpcaoPerguntaUpdateRequest req, CancellationToken ct = default);
-
+            OpcaoPerguntaUpdateRequest req,
+            CancellationToken ct = default
+        );
         Task<ServiceResult<bool>> RemoverOpcaoAsync(
-            int opcaoId, bool softDelete = true, CancellationToken ct = default);
-
+            int opcaoId,
+            bool softDelete = true,
+            CancellationToken ct = default
+        );
         Task<ServiceResult<bool>> ReordenarOpcoesAsync(
-            int perguntaId, IReadOnlyList<int> opcaoIdsNaOrdem, CancellationToken ct = default);
+            int perguntaId,
+            IReadOnlyList<int> opcaoIdsNaOrdem,
+            CancellationToken ct = default
+        );
     }
 }

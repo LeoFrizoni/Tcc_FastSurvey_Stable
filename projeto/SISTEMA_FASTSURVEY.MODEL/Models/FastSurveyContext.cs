@@ -19,13 +19,13 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<Anexos> Anexos { get; set; }
 
-    public virtual DbSet<Externallogins> Externallogins { get; set; }
+    public virtual DbSet<ExternalLogins> ExternalLogins { get; set; }
 
     public virtual DbSet<Login> Login { get; set; }
 
-    public virtual DbSet<Loginavatar> Loginavatar { get; set; }
+    public virtual DbSet<LoginAvatar> LoginAvatar { get; set; }
 
-    public virtual DbSet<Opcoespergunta> Opcoespergunta { get; set; }
+    public virtual DbSet<OpcoesPergunta> OpcoesPergunta { get; set; }
 
     public virtual DbSet<ParticipantesSessao> ParticipantesSessao { get; set; }
 
@@ -39,199 +39,137 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<SessoesInterativas> SessoesInterativas { get; set; }
 
-    public virtual DbSet<Tipopergunta> Tipopergunta { get; set; }
+    public virtual DbSet<TipoPergunta> TipoPergunta { get; set; }
 
-    public virtual DbSet<Tipopesquisa> Tipopesquisa { get; set; }
+    public virtual DbSet<TipoPesquisa> TipoPesquisa { get; set; }
 
-    public virtual DbSet<Tipousuario> Tipousuario { get; set; }
+    public virtual DbSet<TipoUsuario> TipoUsuario { get; set; }
 
     public virtual DbSet<Tokens> Tokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        // A connection string será configurada via injeção de dependência
-        // Se não estiver configurada, usa a connection string padrão
-        if (!optionsBuilder.IsConfigured)
-        {
-            optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
-        }
-    }
+//#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+        => optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Anexos>(entity =>
         {
-            entity.HasKey(e => e.Anexoid).HasName("anexos_pkey");
+            entity.HasKey(e => e.AnexoId).HasName("anexos_pkey");
 
-            entity.ToTable("anexos");
+            entity.HasIndex(e => e.PerguntaId, "idx_anexos_perguntaid");
 
-            entity.HasIndex(e => e.Perguntaid, "idx_anexos_perguntaid");
+            entity.HasIndex(e => e.PesquisaId, "idx_anexos_pesquisaid");
 
-            entity.HasIndex(e => e.Pesquisaid, "idx_anexos_pesquisaid");
-
-            entity.Property(e => e.Anexoid).HasColumnName("anexoid");
-            entity.Property(e => e.Base64data).HasColumnName("base64data");
-            entity.Property(e => e.Contenttype)
-                .HasMaxLength(150)
-                .HasColumnName("contenttype");
+            entity.Property(e => e.AnexoId).HasDefaultValueSql("nextval('anexos_anexoid_seq'::regclass)");
+            entity.Property(e => e.ContentType).HasMaxLength(150);
             entity.Property(e => e.Extensao)
                 .IsRequired()
-                .HasMaxLength(25)
-                .HasColumnName("extensao");
+                .HasMaxLength(25);
             entity.Property(e => e.Nome)
                 .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("nome");
-            entity.Property(e => e.Nomeoriginal)
-                .HasMaxLength(255)
-                .HasColumnName("nomeoriginal");
-            entity.Property(e => e.Perguntaid).HasColumnName("perguntaid");
-            entity.Property(e => e.Pesquisaid).HasColumnName("pesquisaid");
-            entity.Property(e => e.Tamanhobytes).HasColumnName("tamanhobytes");
+                .HasMaxLength(255);
+            entity.Property(e => e.NomeOriginal).HasMaxLength(255);
 
             entity.HasOne(d => d.Pergunta).WithMany(p => p.Anexos)
-                .HasForeignKey(d => d.Perguntaid)
+                .HasForeignKey(d => d.PerguntaId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("anexos_perguntaid_fkey");
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.Anexos)
-                .HasForeignKey(d => d.Pesquisaid)
+                .HasForeignKey(d => d.PesquisaId)
                 .HasConstraintName("anexos_pesquisaid_fkey");
         });
 
-        modelBuilder.Entity<Externallogins>(entity =>
+        modelBuilder.Entity<ExternalLogins>(entity =>
         {
-            entity.HasKey(e => e.Externalloginid).HasName("externallogins_pkey");
+            entity.HasKey(e => e.ExternalLoginId).HasName("externallogins_pkey");
 
-            entity.ToTable("externallogins");
+            entity.HasIndex(e => e.LoginId, "idx_externallogins_loginid");
 
-            entity.HasIndex(e => e.Loginid, "idx_externallogins_loginid");
+            entity.HasIndex(e => new { e.Provider, e.ProviderUserId }, "uq_provider_user").IsUnique();
 
-            entity.HasIndex(e => new { e.Provider, e.Provideruserid }, "uq_provider_user").IsUnique();
-
-            entity.Property(e => e.Externalloginid).HasColumnName("externalloginid");
-            entity.Property(e => e.Criadoem)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("criadoem");
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
+            entity.Property(e => e.ExternalLoginId).HasDefaultValueSql("nextval('externallogins_externalloginid_seq'::regclass)");
+            entity.Property(e => e.CriadoEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Provider)
                 .IsRequired()
-                .HasMaxLength(50)
-                .HasColumnName("provider");
-            entity.Property(e => e.Provideruserid)
+                .HasMaxLength(50);
+            entity.Property(e => e.ProviderUserId)
                 .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("provideruserid");
+                .HasMaxLength(255);
 
-            entity.HasOne(d => d.Login).WithMany(p => p.Externallogins)
-                .HasForeignKey(d => d.Loginid)
+            entity.HasOne(d => d.Login).WithMany(p => p.ExternalLogins)
+                .HasForeignKey(d => d.LoginId)
                 .HasConstraintName("fk_externallogins_loginid");
         });
 
         modelBuilder.Entity<Login>(entity =>
         {
-            entity.HasKey(e => e.Loginid).HasName("login_pkey");
-
-            entity.ToTable("login");
+            entity.HasKey(e => e.LoginId).HasName("login_pkey");
 
             entity.HasIndex(e => e.Email, "uq_login_email").IsUnique();
 
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
-            entity.Property(e => e.Dataregistro)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("dataregistro");
+            entity.Property(e => e.LoginId).HasDefaultValueSql("nextval('login_loginid_seq'::regclass)");
+            entity.Property(e => e.DataRegistro).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Email)
                 .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("email");
-            entity.Property(e => e.Emailconfirmado)
-                .HasDefaultValue(false)
-                .HasColumnName("emailconfirmado");
+                .HasMaxLength(100);
+            entity.Property(e => e.EmailConfirmado).HasDefaultValue(false);
             entity.Property(e => e.Senha)
                 .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("senha");
-            entity.Property(e => e.Tipousuarioid)
-                .HasDefaultValue(13)
-                .HasColumnName("tipousuarioid");
-            entity.Property(e => e.Tipousuariotexto)
-                .HasMaxLength(50)
-                .HasColumnName("tipousuariotexto");
+                .HasMaxLength(100);
+            entity.Property(e => e.TipoUsuarioId).HasDefaultValue(13);
+            entity.Property(e => e.TipoUsuarioTexto).HasMaxLength(50);
             entity.Property(e => e.Usuario)
                 .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("usuario");
+                .HasMaxLength(255);
 
-            entity.HasOne(d => d.Tipousuario).WithMany(p => p.Login)
-                .HasForeignKey(d => d.Tipousuarioid)
-                .HasConstraintName("fk_login_tipousuarioid");
+            entity.HasOne(d => d.TipoUsuario).WithMany(p => p.Login)
+                .HasForeignKey(d => d.TipoUsuarioId)
+                .HasConstraintName("FkLoginTipoUsuarioId");
         });
 
-        modelBuilder.Entity<Loginavatar>(entity =>
+        modelBuilder.Entity<LoginAvatar>(entity =>
         {
-            entity.HasKey(e => e.Avatarid).HasName("loginavatar_pkey");
+            entity.HasKey(e => e.AvatarId).HasName("loginavatar_pkey");
 
-            entity.ToTable("loginavatar");
+            entity.HasIndex(e => e.LoginId, "idx_loginavatar_loginid");
 
-            entity.HasIndex(e => e.Loginid, "idx_loginavatar_loginid");
+            entity.HasIndex(e => e.LoginId, "uq_loginavatar_loginid").IsUnique();
 
-            entity.HasIndex(e => e.Loginid, "uq_loginavatar_loginid").IsUnique();
+            entity.Property(e => e.AvatarId).HasDefaultValueSql("nextval('loginavatar_avatarid_seq'::regclass)");
+            entity.Property(e => e.ContentType).HasMaxLength(150);
+            entity.Property(e => e.CriadoEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.NomeOriginal).HasMaxLength(255);
+            entity.Property(e => e.Versao).HasDefaultValue(0);
 
-            entity.Property(e => e.Avatarid).HasColumnName("avatarid");
-            entity.Property(e => e.Atualizadoem).HasColumnName("atualizadoem");
-            entity.Property(e => e.Contenttype)
-                .HasMaxLength(150)
-                .HasColumnName("contenttype");
-            entity.Property(e => e.Criadoem)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("criadoem");
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
-            entity.Property(e => e.Nomeoriginal)
-                .HasMaxLength(255)
-                .HasColumnName("nomeoriginal");
-            entity.Property(e => e.Storageurl).HasColumnName("storageurl");
-            entity.Property(e => e.Tamanhobytes).HasColumnName("tamanhobytes");
-            entity.Property(e => e.Versao)
-                .HasDefaultValue(0)
-                .HasColumnName("versao");
-
-            entity.HasOne(d => d.Login).WithOne(p => p.Loginavatar)
-                .HasForeignKey<Loginavatar>(d => d.Loginid)
+            entity.HasOne(d => d.Login).WithOne(p => p.LoginAvatar)
+                .HasForeignKey<LoginAvatar>(d => d.LoginId)
                 .HasConstraintName("fk_loginavatar_loginid");
         });
 
-        modelBuilder.Entity<Opcoespergunta>(entity =>
+        modelBuilder.Entity<OpcoesPergunta>(entity =>
         {
-            entity.HasKey(e => e.Opcaoid).HasName("opcoespergunta_pkey");
-
-            entity.ToTable("opcoespergunta");
+            entity.HasKey(e => e.OpcaoId).HasName("opcoespergunta_pkey");
 
             entity.HasIndex(e => e.Ativa, "idx_opcoespergunta_ativa");
 
             entity.HasIndex(e => e.Ordem, "idx_opcoespergunta_ordem");
 
-            entity.HasIndex(e => e.Perguntaid, "idx_opcoespergunta_perguntaid");
+            entity.HasIndex(e => e.PerguntaId, "idx_opcoespergunta_perguntaid");
 
-            entity.HasIndex(e => new { e.Perguntaid, e.Texto }, "ux_opcoespergunta_perguntaid_texto").IsUnique();
+            entity.HasIndex(e => new { e.PerguntaId, e.Texto }, "ux_opcoespergunta_perguntaid_texto").IsUnique();
 
-            entity.Property(e => e.Opcaoid).HasColumnName("opcaoid");
-            entity.Property(e => e.Ativa)
-                .HasDefaultValue(true)
-                .HasColumnName("ativa");
-            entity.Property(e => e.Correta)
-                .HasDefaultValue(false)
-                .HasColumnName("correta");
-            entity.Property(e => e.Ordem)
-                .HasDefaultValue(0)
-                .HasColumnName("ordem");
-            entity.Property(e => e.Perguntaid).HasColumnName("perguntaid");
+            entity.Property(e => e.OpcaoId).HasDefaultValueSql("nextval('opcoespergunta_opcaoid_seq'::regclass)");
+            entity.Property(e => e.Ativa).HasDefaultValue(true);
+            entity.Property(e => e.Correta).HasDefaultValue(false);
+            entity.Property(e => e.Ordem).HasDefaultValue(0);
             entity.Property(e => e.Texto)
                 .IsRequired()
-                .HasMaxLength(200)
-                .HasColumnName("texto");
+                .HasMaxLength(200);
 
-            entity.HasOne(d => d.Pergunta).WithMany(p => p.Opcoespergunta)
-                .HasForeignKey(d => d.Perguntaid)
+            entity.HasOne(d => d.Pergunta).WithMany(p => p.OpcoesPergunta)
+                .HasForeignKey(d => d.PerguntaId)
                 .HasConstraintName("opcoespergunta_perguntaid_fkey");
         });
 
@@ -239,353 +177,262 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.ParticipanteId).HasName("participantes_sessao_pkey");
 
-            entity.ToTable("participantes_sessao");
-
-            entity.Property(e => e.ParticipanteId).HasColumnName("participante_id");
-            entity.Property(e => e.EntrouEm)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("entrou_em");
+            entity.Property(e => e.ParticipanteId).HasDefaultValueSql("nextval('participantes_sessao_participante_id_seq'::regclass)");
+            entity.Property(e => e.EntrouEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.NomeParticipante)
                 .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("nome_participante");
-            entity.Property(e => e.SaiuEm).HasColumnName("saiu_em");
+                .HasMaxLength(100);
             entity.Property(e => e.SessaoId)
                 .IsRequired()
-                .HasMaxLength(50)
-                .HasColumnName("sessao_id");
+                .HasMaxLength(50);
 
             entity.HasOne(d => d.Sessao).WithMany(p => p.ParticipantesSessao)
                 .HasForeignKey(d => d.SessaoId)
-                .HasConstraintName("fk_participantes_sessao");
+                .HasConstraintName("FkParticipantesSessao");
         });
 
         modelBuilder.Entity<Pastas>(entity =>
         {
-            entity.HasKey(e => e.Pastaid).HasName("pastas_pkey");
+            entity.HasKey(e => e.PastaId).HasName("pastas_pkey");
 
-            entity.ToTable("pastas");
+            entity.HasIndex(e => new { e.LoginId, e.Nome }, "uq_pastas_loginid_nome").IsUnique();
 
-            entity.HasIndex(e => new { e.Loginid, e.Nome }, "uq_pastas_loginid_nome").IsUnique();
-
-            entity.Property(e => e.Pastaid).HasColumnName("pastaid");
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
+            entity.Property(e => e.PastaId).HasDefaultValueSql("nextval('pastas_pastaid_seq'::regclass)");
             entity.Property(e => e.Nome)
                 .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("nome");
+                .HasMaxLength(100);
 
             entity.HasOne(d => d.Login).WithMany(p => p.Pastas)
-                .HasForeignKey(d => d.Loginid)
+                .HasForeignKey(d => d.LoginId)
                 .OnDelete(DeleteBehavior.Cascade)
                 .HasConstraintName("fk_pastas_loginid");
         });
 
         modelBuilder.Entity<Perguntas>(entity =>
         {
-            entity.HasKey(e => e.Perguntaid).HasName("perguntas_pkey");
-
-            entity.ToTable("perguntas");
+            entity.HasKey(e => e.PerguntaId).HasName("perguntas_pkey");
 
             entity.HasIndex(e => e.Ordem, "idx_perguntas_ordem");
 
-            entity.HasIndex(e => e.Pesquisaid, "idx_perguntas_pesquisaid");
+            entity.HasIndex(e => e.PesquisaId, "idx_perguntas_pesquisaid");
 
-            entity.HasIndex(e => e.Tipoperguntaid, "idx_perguntas_tipoperguntaid");
+            entity.HasIndex(e => e.TipoPerguntaId, "idx_perguntas_tipoperguntaid");
 
-            entity.Property(e => e.Perguntaid).HasColumnName("perguntaid");
-            entity.Property(e => e.Ordem)
-                .HasDefaultValue(0)
-                .HasColumnName("ordem");
-            entity.Property(e => e.Permitemultiplaselecao)
-                .HasDefaultValue(false)
-                .HasColumnName("permitemultiplaselecao");
-            entity.Property(e => e.Pesquisaid).HasColumnName("pesquisaid");
-            entity.Property(e => e.Temgabarito)
-                .HasDefaultValue(false)
-                .HasColumnName("temgabarito");
-            entity.Property(e => e.Texto)
-                .IsRequired()
-                .HasColumnName("texto");
-            entity.Property(e => e.Tipoperguntaid).HasColumnName("tipoperguntaid");
+            entity.Property(e => e.PerguntaId).HasDefaultValueSql("nextval('perguntas_perguntaid_seq'::regclass)");
+            entity.Property(e => e.Ordem).HasDefaultValue(0);
+            entity.Property(e => e.PermiteMultiplasSelecao).HasDefaultValue(false);
+            entity.Property(e => e.TemGabarito).HasDefaultValue(false);
+            entity.Property(e => e.Texto).IsRequired();
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.Perguntas)
-                .HasForeignKey(d => d.Pesquisaid)
+                .HasForeignKey(d => d.PesquisaId)
                 .HasConstraintName("perguntas_pesquisaid_fkey");
 
-            entity.HasOne(d => d.Tipopergunta).WithMany(p => p.Perguntas)
-                .HasForeignKey(d => d.Tipoperguntaid)
+            entity.HasOne(d => d.TipoPergunta).WithMany(p => p.Perguntas)
+                .HasForeignKey(d => d.TipoPerguntaId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("perguntas_tipoperguntaid_fkey");
         });
 
         modelBuilder.Entity<Pesquisas>(entity =>
         {
-            entity.HasKey(e => e.Pesquisaid).HasName("pesquisas_pkey");
-
-            entity.ToTable("pesquisas");
+            entity.HasKey(e => e.PesquisaId).HasName("pesquisas_pkey");
 
             entity.HasIndex(e => e.Ativa, "idx_pesquisas_ativa");
 
-            entity.HasIndex(e => e.Datacriacao, "idx_pesquisas_datacriacao");
+            entity.HasIndex(e => e.DataCriacao, "idx_pesquisas_datacriacao");
 
-            entity.HasIndex(e => e.Datafechamento, "idx_pesquisas_datafechamento");
+            entity.HasIndex(e => e.DataFechamento, "idx_pesquisas_datafechamento");
 
             entity.HasIndex(e => e.Descricao, "idx_pesquisas_descricao");
 
-            entity.HasIndex(e => e.Isinterativa, "idx_pesquisas_isinterativa");
+            entity.HasIndex(e => e.IsInterativa, "idx_pesquisas_isinterativa");
 
-            entity.HasIndex(e => e.Loginid, "idx_pesquisas_loginid");
+            entity.HasIndex(e => e.LoginId, "idx_pesquisas_loginid");
 
-            entity.HasIndex(e => e.Pastaid, "idx_pesquisas_pastaid");
+            entity.HasIndex(e => e.PastaId, "idx_pesquisas_pastaid");
 
-            entity.HasIndex(e => e.Tipopesquisaid, "idx_pesquisas_tipopesquisa");
+            entity.HasIndex(e => e.TipoPesquisaId, "idx_pesquisas_tipopesquisa");
 
             entity.HasIndex(e => e.Titulo, "idx_pesquisas_titulo");
 
-            entity.Property(e => e.Pesquisaid).HasColumnName("pesquisaid");
-            entity.Property(e => e.Ativa)
-                .HasDefaultValue(true)
-                .HasColumnName("ativa");
-            entity.Property(e => e.Dataatualizacao).HasColumnName("dataatualizacao");
-            entity.Property(e => e.Datacriacao)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("datacriacao");
-            entity.Property(e => e.Datafechamento).HasColumnName("datafechamento");
+            entity.Property(e => e.PesquisaId).HasDefaultValueSql("nextval('pesquisas_pesquisaid_seq'::regclass)");
+            entity.Property(e => e.Ativa).HasDefaultValue(true);
+            entity.Property(e => e.DataCriacao).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Descricao)
                 .IsRequired()
-                .HasMaxLength(500)
-                .HasColumnName("descricao");
-            entity.Property(e => e.Isinterativa)
-                .HasDefaultValue(false)
-                .HasColumnName("isinterativa");
-            entity.Property(e => e.LimiteRespostas).HasColumnName("limite_respostas");
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
-            entity.Property(e => e.Pastaid).HasColumnName("pastaid");
-            entity.Property(e => e.PermiteRespostasAnonimas)
-                .HasDefaultValue(true)
-                .HasColumnName("permite_respostas_anonimas");
-            entity.Property(e => e.Qrcodeurl).HasColumnName("qrcodeurl");
-            entity.Property(e => e.Temlimitadortempo)
-                .HasDefaultValue(false)
-                .HasColumnName("temlimitadortempo");
-            entity.Property(e => e.Templatejson)
-                .HasDefaultValueSql("'[]'::text")
-                .HasColumnName("templatejson");
-            entity.Property(e => e.Tipopesquisaid).HasColumnName("tipopesquisaid");
+                .HasMaxLength(500);
+            entity.Property(e => e.IsInterativa).HasDefaultValue(false);
+            entity.Property(e => e.PermiteRespostasAnonimas).HasDefaultValue(true);
+            entity.Property(e => e.TemLimitadorTempo).HasDefaultValue(false);
+            entity.Property(e => e.TemplateJson).HasDefaultValueSql("'[]'::text");
             entity.Property(e => e.Titulo)
                 .IsRequired()
-                .HasMaxLength(100)
-                .HasColumnName("titulo");
+                .HasMaxLength(100);
 
             entity.HasOne(d => d.Login).WithMany(p => p.Pesquisas)
-                .HasForeignKey(d => d.Loginid)
+                .HasForeignKey(d => d.LoginId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_pesquisas_loginid");
 
             entity.HasOne(d => d.Pasta).WithMany(p => p.Pesquisas)
-                .HasForeignKey(d => d.Pastaid)
+                .HasForeignKey(d => d.PastaId)
                 .OnDelete(DeleteBehavior.SetNull)
                 .HasConstraintName("pesquisas_pastaid_fkey");
 
-            entity.HasOne(d => d.Tipopesquisa).WithMany(p => p.Pesquisas)
-                .HasForeignKey(d => d.Tipopesquisaid)
+            entity.HasOne(d => d.TipoPesquisa).WithMany(p => p.Pesquisas)
+                .HasForeignKey(d => d.TipoPesquisaId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("pesquisas_tipopesquisaid_fkey");
         });
 
         modelBuilder.Entity<Respostas>(entity =>
         {
-            entity.HasKey(e => e.Respostaid).HasName("respostas_pkey");
+            entity.HasKey(e => e.RespostaId).HasName("RespostasPkey");
 
-            entity.ToTable("respostas");
+            entity.HasIndex(e => e.RespostaAnonima, "IdxRespostasAnonima");
 
-            entity.HasIndex(e => e.RespostaAnonima, "idx_respostas_anonima");
+            entity.HasIndex(e => e.DataResposta, "IdxRespostasDataResposta");
 
-            entity.HasIndex(e => e.Dataresposta, "idx_respostas_dataresposta");
+            entity.HasIndex(e => e.PerguntaId, "IdxRespostasPerguntaId");
 
-            entity.HasIndex(e => e.Perguntaid, "idx_respostas_perguntaid");
+            entity.HasIndex(e => e.SessaoId, "IdxRespostasSessao");
 
-            entity.HasIndex(e => e.SessaoId, "idx_respostas_sessao");
-
-            entity.Property(e => e.Respostaid).HasColumnName("respostaid");
-            entity.Property(e => e.Dataresposta)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("dataresposta");
-            entity.Property(e => e.ParticipanteId).HasColumnName("participante_id");
-            entity.Property(e => e.Perguntaid).HasColumnName("perguntaid");
-            entity.Property(e => e.RespostaAnonima)
-                .HasDefaultValue(false)
-                .HasColumnName("resposta_anonima");
-            entity.Property(e => e.SessaoId)
-                .HasMaxLength(50)
-                .HasColumnName("sessao_id");
-            entity.Property(e => e.Texto)
-                .IsRequired()
-                .HasColumnName("texto");
+            entity.Property(e => e.RespostaId).HasDefaultValueSql("nextval('respostas_respostaid_seq'::regclass)");
+            entity.Property(e => e.DataResposta).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.RespostaAnonima).HasDefaultValue(false);
+            entity.Property(e => e.SessaoId).HasMaxLength(50);
+            entity.Property(e => e.Texto).IsRequired();
 
             entity.HasOne(d => d.Participante).WithMany(p => p.Respostas)
                 .HasForeignKey(d => d.ParticipanteId)
                 .OnDelete(DeleteBehavior.SetNull)
-                .HasConstraintName("fk_respostas_participante");
+                .HasConstraintName("FkRespostasParticipante");
 
             entity.HasOne(d => d.Pergunta).WithMany(p => p.Respostas)
-                .HasForeignKey(d => d.Perguntaid)
-                .HasConstraintName("respostas_perguntaid_fkey");
+                .HasForeignKey(d => d.PerguntaId)
+                .HasConstraintName("RespostasPerguntaIdFkey");
 
             entity.HasMany(d => d.Anexo).WithMany(p => p.Resposta)
                 .UsingEntity<Dictionary<string, object>>(
                     "RespostasAnexos",
                     r => r.HasOne<Anexos>().WithMany()
-                        .HasForeignKey("Anexoid")
+                        .HasForeignKey("AnexoId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("respostas_anexos_anexoid_fkey"),
+                        .HasConstraintName("RespostasAnexosAnexoIdFkey"),
                     l => l.HasOne<Respostas>().WithMany()
-                        .HasForeignKey("Respostaid")
-                        .HasConstraintName("respostas_anexos_respostaid_fkey"),
+                        .HasForeignKey("RespostaId")
+                        .HasConstraintName("RespostasAnexosRespostaIdFkey"),
                     j =>
                     {
-                        j.HasKey("Respostaid", "Anexoid").HasName("respostas_anexos_pkey");
-                        j.ToTable("respostas_anexos");
-                        j.HasIndex(new[] { "Anexoid" }, "idx_respostas_anexos_anexoid");
-                        j.IndexerProperty<int>("Respostaid").HasColumnName("respostaid");
-                        j.IndexerProperty<int>("Anexoid").HasColumnName("anexoid");
+                        j.HasKey("RespostaId", "AnexoId").HasName("RespostasAnexosPkey");
+                        j.HasIndex(new[] { "AnexoId" }, "IdxRespostasAnexosAnexoId");
                     });
 
             entity.HasMany(d => d.Opcao).WithMany(p => p.Resposta)
                 .UsingEntity<Dictionary<string, object>>(
                     "RespostasOpcoes",
-                    r => r.HasOne<Opcoespergunta>().WithMany()
-                        .HasForeignKey("Opcaoid")
+                    r => r.HasOne<OpcoesPergunta>().WithMany()
+                        .HasForeignKey("OpcaoId")
                         .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("respostas_opcoes_opcaoid_fkey"),
+                        .HasConstraintName("RespostasOpcoesOpcaoIdFkey"),
                     l => l.HasOne<Respostas>().WithMany()
-                        .HasForeignKey("Respostaid")
-                        .HasConstraintName("respostas_opcoes_respostaid_fkey"),
+                        .HasForeignKey("RespostaId")
+                        .HasConstraintName("RespostasOpcoesRespostaIdFkey"),
                     j =>
                     {
-                        j.HasKey("Respostaid", "Opcaoid").HasName("respostas_opcoes_pkey");
-                        j.ToTable("respostas_opcoes");
-                        j.HasIndex(new[] { "Opcaoid" }, "idx_respostasopcoes_opcaoid");
-                        j.HasIndex(new[] { "Respostaid" }, "idx_respostasopcoes_respostaid");
-                        j.IndexerProperty<int>("Respostaid").HasColumnName("respostaid");
-                        j.IndexerProperty<int>("Opcaoid").HasColumnName("opcaoid");
+                        j.HasKey("RespostaId", "OpcaoId").HasName("RespostasOpcoesPkey");
+                        j.HasIndex(new[] { "OpcaoId" }, "IdxRespostasOpcoesOpcaoId");
+                        j.HasIndex(new[] { "RespostaId" }, "IdxRespostasOpcoesRespostaId");
                     });
         });
 
         modelBuilder.Entity<SessoesInterativas>(entity =>
         {
-            entity.HasKey(e => e.SessaoId).HasName("sessoes_interativas_pkey");
+            entity.HasKey(e => e.SessaoId).HasName("SessoesInterativasPkey");
 
-            entity.ToTable("sessoes_interativas");
+            entity.HasIndex(e => e.Ativa, "IdxSessoesAtiva");
 
-            entity.HasIndex(e => e.Ativa, "idx_sessoes_ativa");
+            entity.HasIndex(e => e.CodigoAcesso, "IdxSessoesCodigo");
 
-            entity.HasIndex(e => e.CodigoAcesso, "idx_sessoes_codigo");
+            entity.HasIndex(e => e.CodigoAcesso, "UqSessoesCodigo").IsUnique();
 
-            entity.HasIndex(e => e.CodigoAcesso, "uq_sessoes_codigo").IsUnique();
-
-            entity.Property(e => e.SessaoId)
-                .HasMaxLength(50)
-                .HasColumnName("sessao_id");
-            entity.Property(e => e.Ativa)
-                .HasDefaultValue(true)
-                .HasColumnName("ativa");
+            entity.Property(e => e.SessaoId).HasMaxLength(50);
+            entity.Property(e => e.Ativa).HasDefaultValue(true);
             entity.Property(e => e.CodigoAcesso)
                 .IsRequired()
-                .HasMaxLength(10)
-                .HasColumnName("codigo_acesso");
-            entity.Property(e => e.CriadaEm)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("criada_em");
-            entity.Property(e => e.FinalizadaEm).HasColumnName("finalizada_em");
-            entity.Property(e => e.IniciadaEm).HasColumnName("iniciada_em");
-            entity.Property(e => e.PesquisaId).HasColumnName("pesquisa_id");
+                .HasMaxLength(10);
+            entity.Property(e => e.CriadaEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.SessoesInterativas)
                 .HasForeignKey(d => d.PesquisaId)
-                .HasConstraintName("fk_sessoes_pesquisa");
+                .HasConstraintName("FkSessoesPesquisa");
         });
 
-        modelBuilder.Entity<Tipopergunta>(entity =>
+        modelBuilder.Entity<TipoPergunta>(entity =>
         {
-            entity.HasKey(e => e.Tipoperguntaid).HasName("tipopergunta_pkey");
+            entity.HasKey(e => e.TipoPerguntaId).HasName("TipoPerguntaPkey");
 
-            entity.ToTable("tipopergunta", tb => tb.HasComment("Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha"));
+            entity.ToTable(tb => tb.HasComment("Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha"));
 
-            entity.Property(e => e.Tipoperguntaid).HasColumnName("tipoperguntaid");
-            entity.Property(e => e.Desabilitado)
-                .HasDefaultValue(false)
-                .HasColumnName("desabilitado");
-            entity.Property(e => e.Tipopergunta1)
+            entity.Property(e => e.TipoPerguntaId).HasDefaultValueSql("nextval('tipopergunta_tipoperguntaid_seq'::regclass)");
+            entity.Property(e => e.Desabilitado).HasDefaultValue(false);
+            entity.Property(e => e.TipoPergunta1)
                 .IsRequired()
                 .HasMaxLength(200)
-                .HasColumnName("tipopergunta");
+                .HasColumnName("TipoPergunta");
         });
 
-        modelBuilder.Entity<Tipopesquisa>(entity =>
+        modelBuilder.Entity<TipoPesquisa>(entity =>
         {
-            entity.HasKey(e => e.Tipopesquisaid).HasName("tipopesquisa_pkey");
+            entity.HasKey(e => e.TipoPesquisaId).HasName("TipoPesquisaPkey");
 
-            entity.ToTable("tipopesquisa", tb => tb.HasComment("Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste"));
+            entity.ToTable(tb => tb.HasComment("Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste"));
 
-            entity.Property(e => e.Tipopesquisaid).HasColumnName("tipopesquisaid");
-            entity.Property(e => e.Desabilitado)
-                .HasDefaultValue(false)
-                .HasColumnName("desabilitado");
-            entity.Property(e => e.Tipopesquisa1)
+            entity.Property(e => e.TipoPesquisaId).HasDefaultValueSql("nextval('tipopesquisa_tipopesquisaid_seq'::regclass)");
+            entity.Property(e => e.Desabilitado).HasDefaultValue(false);
+            entity.Property(e => e.TipoPesquisa1)
                 .IsRequired()
                 .HasMaxLength(200)
-                .HasColumnName("tipopesquisa");
+                .HasColumnName("TipoPesquisa");
         });
 
-        modelBuilder.Entity<Tipousuario>(entity =>
+        modelBuilder.Entity<TipoUsuario>(entity =>
         {
-            entity.HasKey(e => e.Tipousuarioid).HasName("tipousuario_pkey");
+            entity.HasKey(e => e.TipoUsuarioId).HasName("TipoUsuarioPkey");
 
-            entity.ToTable("tipousuario", tb => tb.HasComment("Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador"));
+            entity.ToTable(tb => tb.HasComment("Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador"));
 
-            entity.Property(e => e.Tipousuarioid).HasColumnName("tipousuarioid");
-            entity.Property(e => e.Tipousuario1)
+            entity.Property(e => e.TipoUsuarioId).HasDefaultValueSql("nextval('tipousuario_tipousuarioid_seq'::regclass)");
+            entity.Property(e => e.TipoUsuario1)
                 .HasMaxLength(50)
-                .HasColumnName("tipousuario");
+                .HasColumnName("TipoUsuario");
         });
 
         modelBuilder.Entity<Tokens>(entity =>
         {
-            entity.HasKey(e => e.Tokenid).HasName("tokens_pkey");
+            entity.HasKey(e => e.TokenId).HasName("TokensPkey");
 
-            entity.ToTable("tokens");
+            entity.HasIndex(e => e.Token, "UqTokensToken").IsUnique();
 
-            entity.HasIndex(e => e.Token, "idx_tokens_token_validos").HasFilter("(usadoem IS NULL)");
+            entity.HasIndex(e => e.Token, "idx_tokens_token_validos").HasFilter("(\"UsadoEm\" IS NULL)");
 
-            entity.HasIndex(e => new { e.Loginid, e.Finalidade }, "uq_tokens_loginid_finalidade_ativo")
+            entity.HasIndex(e => new { e.LoginId, e.Finalidade }, "uq_tokens_loginid_finalidade_ativo")
                 .IsUnique()
-                .HasFilter("(usadoem IS NULL)");
+                .HasFilter("(\"UsadoEm\" IS NULL)");
 
-            entity.HasIndex(e => e.Token, "uq_tokens_token").IsUnique();
-
-            entity.Property(e => e.Tokenid).HasColumnName("tokenid");
-            entity.Property(e => e.Dataexpirado)
-                .HasDefaultValueSql("(CURRENT_TIMESTAMP + '24:00:00'::interval)")
-                .HasColumnName("dataexpirado");
-            entity.Property(e => e.Dataregistro)
-                .HasDefaultValueSql("CURRENT_TIMESTAMP")
-                .HasColumnName("dataregistro");
-            entity.Property(e => e.Finalidade)
-                .HasMaxLength(30)
-                .HasColumnName("finalidade");
-            entity.Property(e => e.Loginid).HasColumnName("loginid");
+            entity.Property(e => e.TokenId).HasDefaultValueSql("nextval('tokens_tokenid_seq'::regclass)");
+            entity.Property(e => e.DataExpirado).HasDefaultValueSql("(CURRENT_TIMESTAMP + '24:00:00'::interval)");
+            entity.Property(e => e.DataRegistro).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.Finalidade).HasMaxLength(30);
             entity.Property(e => e.Token)
                 .IsRequired()
-                .HasMaxLength(255)
-                .HasColumnName("token");
-            entity.Property(e => e.Usadoem).HasColumnName("usadoem");
+                .HasMaxLength(255);
 
             entity.HasOne(d => d.Login).WithMany(p => p.Tokens)
-                .HasForeignKey(d => d.Loginid)
+                .HasForeignKey(d => d.LoginId)
                 .OnDelete(DeleteBehavior.Cascade)
-                .HasConstraintName("fk_tokens_loginid");
+                .HasConstraintName("FkTokensLoginId");
         });
 
         OnModelCreatingPartial(modelBuilder);

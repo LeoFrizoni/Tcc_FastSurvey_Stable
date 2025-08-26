@@ -123,7 +123,7 @@ const MultiplaEscolhaBase = ({
         <label className={styles.switch}>
           <input
             type="checkbox"
-            checked={!!b.temGabarito}
+            checked={!!b.TemGabarito}
             onChange={(e) => onToggleGabarito(b.id, e.target.checked)}
           />
           <span>Há gabarito?</span>
@@ -159,7 +159,7 @@ const MultiplaEscolhaBase = ({
               className={styles["input-opcao"]}
             />
 
-            {b.temGabarito && (
+            {b.TemGabarito && (
               <label className={styles["marcar-correta"]}>
                 <input
                   type={b.permitirMultiplaSelecao ? "checkbox" : "radio"}
@@ -205,7 +205,7 @@ function areEqualMult(a, b) {
     A.id === B.id &&
     A.selecionado === B.selecionado &&
     A.texto === B.texto &&
-    A.temGabarito === B.temGabarito &&
+    A.TemGabarito === B.TemGabarito &&
     A.permitirMultiplaSelecao === B.permitirMultiplaSelecao &&
     A.opcoes === B.opcoes &&         // referência
     A.corretas === B.corretas &&     // referência

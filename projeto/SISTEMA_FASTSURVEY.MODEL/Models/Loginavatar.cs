@@ -5,23 +5,23 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class Loginavatar
+public partial class LoginAvatar
 {
-    public int Avatarid { get; set; }
+    public int AvatarId { get; set; }
 
-    public int Loginid { get; set; }
+    public int LoginId { get; set; }
 
-    public string Storageurl { get; set; }
+    public string StorageUrl { get; set; }
 
-    public string Nomeoriginal { get; set; }
+    public string NomeOriginal { get; set; }
 
-    public string Contenttype { get; set; }
+    public string ContentType { get; set; }
 
-    public long? Tamanhobytes { get; set; }
+    public long? TamanhoBytes { get; set; }
 
-    public DateTime Criadoem { get; set; }
+    public DateTime CriadoEm { get; set; }
 
-    public DateTime? Atualizadoem { get; set; }
+    public DateTime? AtualizadoEm { get; set; }
 
     public int Versao { get; set; }
 

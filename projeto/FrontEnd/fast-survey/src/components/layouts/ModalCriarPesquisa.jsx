@@ -39,13 +39,14 @@ export default function ModalCriarPesquisa({ onConfirm }) {
   const itensTipos = useMemo(() => {
     return (tipos ?? [])
       .map((t) => {
-        const id = t?.tipopesquisaid ?? t?.tipoPesquisaId ?? t?.id ?? t?.Id ?? null;
+        const id = t?.TipoPesquisaId ?? t?.tipopesquisaid ?? t?.tipoPesquisaId ?? t?.id ?? t?.Id ?? null;
         const nome =
-          t?.tipopesquisa ??
           t?.tipopesquisa1 ??
-          t?.tipoPesquisa1 ??
-          t?.nome ??
+          t?.Tipopesquisa1 ??
+          t?.tipopesquisa ??
+          t?.tipoPesquisa ??
           t?.Nome ??
+          t?.nome ??
           "Sem nome";
         const desabilitado = t?.desabilitado ?? t?.Desabilitado ?? false;
         return { id, nome, desabilitado };

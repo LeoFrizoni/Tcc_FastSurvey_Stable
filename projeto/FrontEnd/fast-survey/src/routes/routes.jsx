@@ -25,8 +25,16 @@ const MobileAdmin = lazy(() => import('../pages/mobile/mobile-admin'));
 const MobileResponderPesquisa = lazy(() => import('../pages/mobile/mobile-responder-pesquisa'));
 const MobileMinhasPesquisas = lazy(() => import('../pages/mobile/mobile-minhas-pesquisas'));
 
+// Game Pages
+const GameHost = lazy(() => import('../pages/game/GameHost'));
+const GamePlayer = lazy(() => import('../pages/game/GamePlayer'));
+const GameJoin = lazy(() => import('../pages/game/GameJoin'));
+
+// Analytics Pages
+const AnalyticsDashboard = lazy(() => import('../pages/analytics/AnalyticsDashboard'));
+
 const PrivateRouteAdmin = ({ children }) => {
-  const tipoUsuarioId = parseInt(localStorage.getItem('tipousuarioid'), 10);
+  const tipoUsuarioId = parseInt(localStorage.getItem('tipousuarioid') || localStorage.getItem('TipoUsuarioId'), 10);
   const token = localStorage.getItem('token');
   if (!token) return <Navigate to="/login" replace />;
   return tipoUsuarioId === 15 ? children : <Navigate to="/home" replace />;
@@ -121,6 +129,34 @@ const AppRoutes = () => {
             <PrivateRouteAdmin>
               {mobile ? <MobileAdmin /> : <Admin />}
             </PrivateRouteAdmin>
+          }
+        />
+
+        {/* Game Routes */}
+        <Route
+          path="/game/host/:sessionId"
+          element={
+            <PrivateRoute>
+              <GameHost />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/game/player/:sessionId"
+          element={<GamePlayer />}
+        />
+        <Route
+          path="/game/join/:accessCode"
+          element={<GameJoin />}
+        />
+
+        {/* Analytics Routes */}
+        <Route
+          path="/analytics"
+          element={
+            <PrivateRoute>
+              <AnalyticsDashboard />
+            </PrivateRoute>
           }
         />
 

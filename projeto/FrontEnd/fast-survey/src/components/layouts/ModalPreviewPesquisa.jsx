@@ -165,6 +165,7 @@ const ModalPreviewPesquisa = ({ isOpen, onClose, dadosPesquisa, blocos = [], nom
   if (!isOpen) return null;
 
   const dataCriacao = (() => {
+    if (dadosPesquisa?.DataCriacao) return dadosPesquisa.DataCriacao;
     if (dadosPesquisa?.dataCriacao) return dadosPesquisa.dataCriacao;
     const hoje = new Date();
     return hoje.toISOString(); // CabecalhoPesquisa formatará
@@ -182,8 +183,8 @@ const ModalPreviewPesquisa = ({ isOpen, onClose, dadosPesquisa, blocos = [], nom
         />
 
         <InformacoesPesquisa
-          titulo={dadosPesquisa?.titulo}
-          descricao={dadosPesquisa?.descricao}
+          titulo={dadosPesquisa?.Titulo ?? dadosPesquisa?.titulo}
+          descricao={dadosPesquisa?.Descricao ?? dadosPesquisa?.descricao}
           tipoPesquisa={nomeTipoPesquisa}
         />
 

@@ -7,19 +7,19 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Tokens
 {
-    public int Tokenid { get; set; }
+    public int TokenId { get; set; }
 
     public string Token { get; set; }
 
-    public DateTime Dataregistro { get; set; }
+    public DateTime DataRegistro { get; set; }
 
-    public DateTime Dataexpirado { get; set; }
+    public DateTime DataExpirado { get; set; }
 
-    public int? Loginid { get; set; }
+    public int? LoginId { get; set; }
 
     public string Finalidade { get; set; }
 
-    public DateTime? Usadoem { get; set; }
+    public DateTime? UsadoEm { get; set; }
 
     public virtual Login Login { get; set; }
 }

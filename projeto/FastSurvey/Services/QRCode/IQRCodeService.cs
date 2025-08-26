@@ -5,11 +5,27 @@ namespace FASTSURVEY.Services.QRCode
 {
     public interface IQRCodeService
     {
-        Task<ServiceResult<QRCodeResponse>> GerarQRCodeAsync(QRCodeRequest request, CancellationToken ct = default);
-        Task<ServiceResult<QRCodeResponse>> ObterQRCodePesquisaAsync(int pesquisaId, CancellationToken ct = default);
-        Task<ServiceResult<bool>> ValidarQRCodeAsync(string qrCodeUrl, CancellationToken ct = default);
-        Task<ServiceResult<QRCodeResponse>> AtualizarQRCodeAsync(int pesquisaId, QRCodeRequest request, CancellationToken ct = default);
-        Task<ServiceResult<List<QRCodeResponse>>> ListarQRCodesUsuarioAsync(int loginId, CancellationToken ct = default);
+        Task<ServiceResult<QRCodeResponse>> GerarQRCodeAsync(
+            QRCodeRequest request,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<QRCodeResponse>> ObterQRCodePesquisaAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<bool>> ValidarQRCodeAsync(
+            string qrCodeUrl,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<QRCodeResponse>> AtualizarQRCodeAsync(
+            int pesquisaId,
+            QRCodeRequest request,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<List<QRCodeResponse>>> ListarQRCodesUsuarioAsync(
+            int loginId,
+            CancellationToken ct = default
+        );
     }
 
     public class QRCodeResponse

@@ -1,25 +1,25 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using FASTSURVEY.Services.Login;
-using System.Security.Claims;
-using System.Text.Json;
 
 namespace FASTSURVEY.Middleware
 {
-    public class AuthorizationMiddleware
+    /// <summary>
+    /// Complementa claims que possam faltar (ex.: loginId, tipoUsuarioId).
+    /// NÃO revalida JWT (isso já é feito pelo JwtBearer).
+    /// </summary>
+    public sealed class AuthorizationMiddleware
     {
         private readonly RequestDelegate _next;
-        private readonly IConfiguration _configuration;
         private readonly ILogger<AuthorizationMiddleware> _logger;
 
         public AuthorizationMiddleware(
             RequestDelegate next,
-            IConfiguration configuration,
-            ILogger<AuthorizationMiddleware> logger)
+            ILogger<AuthorizationMiddleware> logger
+        )
         {
             _next = next;
-            _configuration = configuration;
             _logger = logger;
         }
 
@@ -27,59 +27,44 @@ namespace FASTSURVEY.Middleware
         {
             try
             {
-                var token = ExtractTokenFromHeader(context.Request.Headers["Authorization"]);
-                
-                if (!string.IsNullOrEmpty(token))
+                var user = context.User;
+                if (user?.Identity?.IsAuthenticated == true)
                 {
-                    var principal = JwtHelper.ValidateToken(token, _configuration);
-                    
-                    if (principal != null)
+                    // Se já autenticado, só garante que as claims custom existem
+                    var identity =
+                        user.Identities.FirstOrDefault(i => i.IsAuthenticated)
+                        ?? user.Identity as ClaimsIdentity;
+                    if (identity != null)
                     {
-                        context.User = principal;
-                        
-                        // Adicionar claims customizadas se necessário
-                        var loginIdClaim = principal.FindFirst("loginId");
-                        var tipoUsuarioClaim = principal.FindFirst("tipoUsuarioId");
-                        
-                        if (loginIdClaim != null && tipoUsuarioClaim != null)
-                        {
-                            var claims = new List<Claim>
-                            {
-                                new Claim("loginId", loginIdClaim.Value),
-                                new Claim("tipoUsuarioId", tipoUsuarioClaim.Value)
-                            };
-                            
-                            context.User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Bearer"));
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogWarning("Token inválido: {Token}", token.Substring(0, Math.Min(10, token.Length)) + "...");
+                        // NÃO remova claims existentes; apenas adicione se faltar
+                        if (
+                            !identity.HasClaim(c => c.Type == "loginId")
+                            && user.FindFirst("loginId") is { } loginId
+                        )
+                            identity.AddClaim(loginId);
+
+                        if (
+                            !identity.HasClaim(c => c.Type == "tipoUsuarioId")
+                            && user.FindFirst("tipoUsuarioId") is { } tipoUsuarioId
+                        )
+                            identity.AddClaim(tipoUsuarioId);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Erro ao processar autorização");
+                _logger.LogError(ex, "Erro ao complementar claims");
+                // não bloquear request
             }
 
             await _next(context);
-        }
-
-        private static string? ExtractTokenFromHeader(string? authorizationHeader)
-        {
-            if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                return null;
-
-            return authorizationHeader.Substring("Bearer ".Length).Trim();
         }
     }
 
     public static class AuthorizationMiddlewareExtensions
     {
-        public static IApplicationBuilder UseAuthorizationMiddleware(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<AuthorizationMiddleware>();
-        }
+        public static IApplicationBuilder UseAuthorizationMiddleware(
+            this IApplicationBuilder app
+        ) => app.UseMiddleware<AuthorizationMiddleware>();
     }
 }

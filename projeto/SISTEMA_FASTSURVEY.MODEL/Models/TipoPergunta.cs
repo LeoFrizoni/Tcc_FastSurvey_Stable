@@ -8,11 +8,11 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 /// <summary>
 /// Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha
 /// </summary>
-public partial class Tipopergunta
+public partial class TipoPergunta
 {
-    public int Tipoperguntaid { get; set; }
+    public int TipoPerguntaId { get; set; }
 
-    public string Tipopergunta1 { get; set; }
+    public string TipoPergunta1 { get; set; }
 
     public bool Desabilitado { get; set; }
 

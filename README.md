@@ -2,6 +2,20 @@
 
 Sistema completo para criação, gerenciamento e análise de pesquisas interativas, desenvolvido com ASP.NET Core (Backend) e React (Frontend).
 
+## 📚 **DOCUMENTAÇÃO COMPLETA**
+
+**Toda a documentação do projeto foi organizada na pasta `Documentacao_Projeto/`:**
+
+- 📖 **[Documentação Completa](./Documentacao_Projeto/DOCUMENTACAO_COMPLETA_FASTSURVEY.md)** - Visão geral completa do sistema
+- 📋 **[Índice da Documentação](./Documentacao_Projeto/INDICE_DOCUMENTACAO.md)** - Organização de todos os documentos
+- 🔧 **[Correções Realizadas](./Documentacao_Projeto/CORREÇÕES_REALIZADAS.md)** - Histórico de correções
+- 🚀 **[Melhorias Implementadas](./Documentacao_Projeto/MELHORIAS_IMPLEMENTADAS.md)** - Funcionalidades adicionadas
+- 🔌 **[Novos Endpoints](./Documentacao_Projeto/NOVOS_ENDPOINTS.md)** - API disponível
+
+**Para uma visão completa do sistema, comece pela [Documentação Completa](./Documentacao_Projeto/DOCUMENTACAO_COMPLETA_FASTSURVEY.md).**
+
+---
+
 ## 🚀 Funcionalidades
 
 ### Backend (ASP.NET Core)
@@ -141,6 +155,11 @@ O frontend estará disponível em: `http://localhost:3000`
 
 ```
 TCC_FastSurvey-develop/
+├── Documentacao_Projeto/           # 📚 TODA A DOCUMENTAÇÃO
+│   ├── DOCUMENTACAO_COMPLETA_FASTSURVEY.md
+│   ├── INDICE_DOCUMENTACAO.md
+│   ├── CORREÇÕES_REALIZADAS.md
+│   └── ... (outros arquivos .md)
 ├── projeto/
 │   ├── FastSurvey/                 # Backend ASP.NET Core
 │   │   ├── Controllers/            # Controllers da API
@@ -242,3 +261,5 @@ Para suporte, envie um email para: suporte@fastsurvey.com
 ---
 
 **FastSurvey** - Transformando a forma como você coleta e analisa dados! 📊✨
+
+**📚 [Ver Documentação Completa](./Documentacao_Projeto/DOCUMENTACAO_COMPLETA_FASTSURVEY.md)**

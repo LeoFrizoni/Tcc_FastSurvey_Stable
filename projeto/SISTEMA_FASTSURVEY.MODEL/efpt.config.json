@@ -15,71 +15,71 @@
    "T4TemplatePath": null,
    "Tables": [
       {
-         "Name": "public.anexos",
+         "Name": "public.Anexos",
          "ObjectType": 0
       },
       {
-         "Name": "public.externallogins",
+         "Name": "public.ExternalLogins",
          "ObjectType": 0
       },
       {
-         "Name": "public.login",
+         "Name": "public.Login",
          "ObjectType": 0
       },
       {
-         "Name": "public.loginavatar",
+         "Name": "public.LoginAvatar",
          "ObjectType": 0
       },
       {
-         "Name": "public.opcoespergunta",
+         "Name": "public.OpcoesPergunta",
          "ObjectType": 0
       },
       {
-         "Name": "public.participantes_sessao",
+         "Name": "public.ParticipantesSessao",
          "ObjectType": 0
       },
       {
-         "Name": "public.pastas",
+         "Name": "public.Pastas",
          "ObjectType": 0
       },
       {
-         "Name": "public.perguntas",
+         "Name": "public.Perguntas",
          "ObjectType": 0
       },
       {
-         "Name": "public.pesquisas",
+         "Name": "public.Pesquisas",
          "ObjectType": 0
       },
       {
-         "Name": "public.respostas",
+         "Name": "public.Respostas",
          "ObjectType": 0
       },
       {
-         "Name": "public.respostas_anexos",
+         "Name": "public.RespostasAnexos",
          "ObjectType": 0
       },
       {
-         "Name": "public.respostas_opcoes",
+         "Name": "public.RespostasOpcoes",
          "ObjectType": 0
       },
       {
-         "Name": "public.sessoes_interativas",
+         "Name": "public.SessoesInterativas",
          "ObjectType": 0
       },
       {
-         "Name": "public.tipopergunta",
+         "Name": "public.TipoPergunta",
          "ObjectType": 0
       },
       {
-         "Name": "public.tipopesquisa",
+         "Name": "public.TipoPesquisa",
          "ObjectType": 0
       },
       {
-         "Name": "public.tipousuario",
+         "Name": "public.TipoUsuario",
          "ObjectType": 0
       },
       {
-         "Name": "public.tokens",
+         "Name": "public.Tokens",
          "ObjectType": 0
       }
    ],
@@ -87,7 +87,7 @@
    "UncountableWords": null,
    "UseAsyncStoredProcedureCalls": true,
    "UseBoolPropertiesWithoutDefaultSql": false,
-   "UseDatabaseNames": false,
+   "UseDatabaseNames": true,
    "UseDatabaseNamesForRoutines": true,
    "UseDateOnlyTimeOnly": true,
    "UseDbContextSplitting": false,

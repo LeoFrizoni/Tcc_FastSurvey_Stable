@@ -1,5 +1,12 @@
-using SISTEMA_FASTSURVEY.MODEL.Models;
-using SISTEMA_FASTSURVEY.MODEL.Repositories;
+// FASTSURVEY/Services/Tipos/TipoPerguntaService.cs
+#nullable enable
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using FASTSURVEY.Dtos.Tipos;
+using SISTEMA_FASTSURVEY.MODEL.Interfaces; // ITipoPerguntaRepository
+using SISTEMA_FASTSURVEY.MODEL.Models; // TipoPergunta (entidade)
 
 namespace FASTSURVEY.Services.Tipos
 {
@@ -9,15 +16,29 @@ namespace FASTSURVEY.Services.Tipos
 
         public TipoPerguntaService(ITipoPerguntaRepository repo) => _repo = repo;
 
-        public async Task<List<Tipopergunta>> ListarAsync(bool incluirDesabilitados = false, CancellationToken ct = default)
+        public async Task<IReadOnlyList<TipoPerguntaCatalogDto>> ListarAsync(
+            bool incluirDesabilitados = false,
+            CancellationToken ct = default
+        )
         {
-            if (incluirDesabilitados)
-            {
-                var todos = await _repo.ListAsync(ct: ct); // Corrigido para usar ListAsync
-                return todos.OrderBy(x => x.Tipopergunta1 ?? string.Empty).ToList();
-            }
+            IEnumerable<TipoPergunta> fonte;
 
-            return await _repo.ListarAtivosAsync(ct);
+            if (incluirDesabilitados)
+                fonte = await _repo.ListAsync(ct: ct);
+            else
+                fonte = await _repo.ListarAtivosAsync(ct);
+
+            var lista = fonte
+                .OrderBy(x => x.TipoPergunta1 ?? string.Empty)
+                .Select(x => new TipoPerguntaCatalogDto
+                {
+                    TipoPerguntaId = x.TipoPerguntaId,
+                    TipoPergunta = x.TipoPergunta1 ?? string.Empty,
+                    Desabilitado = x.Desabilitado,
+                })
+                .ToList();
+
+            return lista;
         }
     }
 }

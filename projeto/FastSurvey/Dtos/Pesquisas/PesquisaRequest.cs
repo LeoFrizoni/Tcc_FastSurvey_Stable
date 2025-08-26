@@ -1,93 +1,109 @@
 ﻿// ---------- CREATE ----------
 using System.ComponentModel.DataAnnotations;
 
-// ---------- CREATE ----------
-public class CriarPesquisaRequest
+namespace FASTSURVEY.Dtos.Pesquisas
 {
-    [Required] public int LoginId { get; set; }
-    [Required] public int TipoPesquisaId { get; set; }
-    public int? PastaId { get; set; }
+    // ---------- CREATE ----------
+    public class CriarPesquisaRequest
+    {
+        [Required]
+        public int LoginId { get; set; }
 
-    [Required, StringLength(160)]
-    public string Titulo { get; set; } = string.Empty;
+        [Required]
+        public int TipoPesquisaId { get; set; }
+        public int? PastaId { get; set; }
 
-    [StringLength(2000)]
-    public string? Descricao { get; set; }
+        [Required, StringLength(160)]
+        public string Titulo { get; set; } = string.Empty;
 
-    // JSON do construtor (array de blocos). Salve como string.
-    public string? TemplateJson { get; set; }
+        [StringLength(2000)]
+        public string? Descricao { get; set; }
 
-    // Opcional: URL do QR code, se já existir.
-    public string? QrCodeUrl { get; set; }
+        public string? TemplateJson { get; set; }
+        public string? QRCodeUrl { get; set; }
 
-    // NOVOS CAMPOS NECESSÁRIOS
-    public bool TemLimitadorTempo { get; set; } = false;
-    public DateTime? DataFechamento { get; set; }
-    public bool IsInterativa { get; set; } = false; // Para funcionalidade tipo Kahoot
-    public bool PermiteRespostasAnonimas { get; set; } = true;
-    public int? LimiteRespostas { get; set; } // Para usuários premium
-}
+        public bool TemLimitadorTempo { get; set; } = false;
+        public DateTime? DataFechamento { get; set; }
+        public bool IsInterativa { get; set; } = false;
+        public bool PermiteRespostasAnonimas { get; set; } = true;
+        public int? LimiteRespostas { get; set; }
+        public bool Ativa { get; set; } = true;
 
-// ---------- UPDATE (PUT) ----------
-public class AtualizarPesquisaRequest
-{
-    [Required, StringLength(160)]
-    public string Titulo { get; set; } = string.Empty;
+        // Só mantenha estes se a Model/DB já tiver colunas
+        public string? Slug { get; set; }
+        public bool RequerIdentificacao { get; set; } = false;
+        public string? Instrucoes { get; set; }
+        public bool MostrarProgresso { get; set; } = true;
+        public bool PermitirEdicao { get; set; } = false;
+        public int? TempoLimitePorPergunta { get; set; }
+    }
 
-    [StringLength(2000)]
-    public string? Descricao { get; set; }
+    // ---------- UPDATE (PUT) ----------
+    public class AtualizarPesquisaRequest
+    {
+        [Required, StringLength(160)]
+        public string Titulo { get; set; } = string.Empty;
 
-    public int? PastaId { get; set; }
-    public int? TipoPesquisaId { get; set; }
+        [StringLength(2000)]
+        public string? Descricao { get; set; }
 
-    // Se quiser trocar o QR armazenado
-    public string? QrCodeUrl { get; set; }
+        public int? PastaId { get; set; }
+        public int? TipoPesquisaId { get; set; }
+        public string? QRCodeUrl { get; set; }
 
-    // NOVOS CAMPOS
-    public bool? TemLimitadorTempo { get; set; }
-    public DateTime? DataFechamento { get; set; }
-    public bool? IsInterativa { get; set; }
-    public bool? PermiteRespostasAnonimas { get; set; }
-    public int? LimiteRespostas { get; set; }
-}
+        public bool? TemLimitadorTempo { get; set; }
+        public DateTime? DataFechamento { get; set; }
+        public bool? IsInterativa { get; set; }
+        public bool? PermiteRespostasAnonimas { get; set; }
+        public int? LimiteRespostas { get; set; }
+        public bool? Ativa { get; set; }
 
-// ---------- PATCH TEMPLATE ----------
-public class AtualizarTemplateRequest
-{
-    [Required] public string TemplateJson { get; set; } = "[]";
-}
+        // idem observação
+        public string? Slug { get; set; }
+        public bool? RequerIdentificacao { get; set; }
+        public string? Instrucoes { get; set; }
+        public bool? MostrarProgresso { get; set; }
+        public bool? PermitirEdicao { get; set; }
+        public int? TempoLimitePorPergunta { get; set; }
+    }
 
-// ---------- FILTRO LISTAGEM ----------
-public class PesquisaFiltroRequest
-{
-    public int? LoginId { get; set; }
-    public int? PastaId { get; set; }
-    public int? TipoPesquisaId { get; set; }
-    public string? Busca { get; set; } // procura em título/descrição
-    public int? Page { get; set; } = 1;       // 1-based
-    public int? PageSize { get; set; } = 20;  // padrão
-    public bool? IsInterativa { get; set; }   // Filtrar por tipo
-    public bool? Ativa { get; set; }          // Filtrar por status
-}
+    // ---------- PATCH TEMPLATE ----------
+    public class AtualizarTemplateRequest
+    {
+        [Required]
+        public string TemplateJson { get; set; } = "[]";
+    }
 
-// ---------- NOVOS DTOs PARA FUNCIONALIDADES ESPECÍFICAS ----------
-public class PesquisaInterativaRequest
-{
-    public int PesquisaId { get; set; }
-    public bool IsAtiva { get; set; }
-    public string? CodigoAcesso { get; set; } // Para participantes entrarem
-}
+    // ---------- FILTRO LISTAGEM ----------
+    public class PesquisaFiltroRequest
+    {
+        public int? LoginId { get; set; }
+        public int? PastaId { get; set; }
+        public int? TipoPesquisaId { get; set; }
+        public string? Busca { get; set; }
+        public int? Page { get; set; } = 1;
+        public int? PageSize { get; set; } = 20;
 
-public class ResultadoPesquisaRequest
-{
-    public int PesquisaId { get; set; }
-    public string Formato { get; set; } = "json"; // json, pdf, excel
-    public bool IncluirGraficos { get; set; } = true;
-}
+        public bool? IsInterativa { get; set; }
+        public bool? Ativa { get; set; }
+        public bool? TemLimitadorTempo { get; set; }
+        public DateTime? DataInicio { get; set; }
+        public DateTime? DataFim { get; set; }
+    }
 
-public class QRCodeRequest
-{
-    public int PesquisaId { get; set; }
-    public bool GerarNovo { get; set; } = false;
-    public DateTime? Expiracao { get; set; }
+    // ---------- ESPECIAIS ----------
+    public class DuplicarPesquisaRequest
+    {
+        public int PesquisaId { get; set; }
+        public string? NovoTitulo { get; set; }
+        public int? NovaPastaId { get; set; }
+        public bool IncluirRespostas { get; set; } = false;
+    }
+
+    public class ValidarPesquisaRequest
+    {
+        public int PesquisaId { get; set; }
+        public string? CodigoAcesso { get; set; }
+        public bool RespostaAnonima { get; set; } = false;
+    }
 }

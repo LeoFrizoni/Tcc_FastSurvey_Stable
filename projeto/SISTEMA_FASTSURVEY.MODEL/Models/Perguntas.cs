@@ -7,27 +7,27 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Perguntas
 {
-    public int Perguntaid { get; set; }
+    public int PerguntaId { get; set; }
 
-    public int Tipoperguntaid { get; set; }
+    public int TipoPerguntaId { get; set; }
 
-    public int Pesquisaid { get; set; }
+    public int PesquisaId { get; set; }
 
     public string Texto { get; set; }
 
-    public bool Temgabarito { get; set; }
+    public bool TemGabarito { get; set; }
 
-    public bool Permitemultiplaselecao { get; set; }
+    public bool PermiteMultiplasSelecao { get; set; }
 
     public int Ordem { get; set; }
 
     public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
-    public virtual ICollection<Opcoespergunta> Opcoespergunta { get; set; } = new List<Opcoespergunta>();
+    public virtual ICollection<OpcoesPergunta> OpcoesPergunta { get; set; } = new List<OpcoesPergunta>();
 
     public virtual Pesquisas Pesquisa { get; set; }
 
     public virtual ICollection<Respostas> Respostas { get; set; } = new List<Respostas>();
 
-    public virtual Tipopergunta Tipopergunta { get; set; }
+    public virtual TipoPergunta TipoPergunta { get; set; }
 }

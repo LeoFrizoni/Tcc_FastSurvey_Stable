@@ -306,11 +306,11 @@ const ResponderPesquisa = () => {
       for (const item of payload) {
         if (item.tipo === 'discursiva') {
           await api.post(`/Respostas/discursiva`, {
-            PerguntaId: item.perguntaId, Texto: item.texto, LoginId: loginId, PesquisaId: Number(id)
+            Perguntaid: item.perguntaId, Texto: item.texto, Loginid: loginId, Pesquisaid: Number(id)
           });
         } else {
           await api.post(`/Respostas/opcoes`, {
-            PerguntaId: item.perguntaId, OpcoesSelecionadas: item.opcoes, LoginId: loginId, PesquisaId: Number(id)
+            Perguntaid: item.perguntaId, OpcoesSelecionadas: item.opcoes, Loginid: loginId, Pesquisaid: Number(id)
           });
         }
       }
@@ -367,6 +367,7 @@ const ResponderPesquisa = () => {
     '—';
 
   const dataRaw =
+    pesquisa?.DataCriacao ??
     pesquisa?.dataCriacao ??
     pesquisa?.dataregistro ??
     pesquisa?.dataRegistro ??

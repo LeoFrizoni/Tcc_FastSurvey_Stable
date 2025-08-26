@@ -1,55 +1,71 @@
+#nullable enable
+using System.Threading;
+using System.Threading.Tasks;
 using FASTSURVEY.Dtos.Login;
 using FASTSURVEY.Services.Login;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using SISTEMA_FASTSURVEY.MODEL.Models;
-using System.Data;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace FASTSURVEY.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
-    public class LoginController : ControllerBase
+    public class LoginController : BaseController
     {
-        private readonly ILoginService _auth;
-        private readonly FastSurveyContext _ctx;
-        private readonly IConfiguration _cfg;
+        private readonly ILoginService _loginService;
 
-        public LoginController(ILoginService auth, FastSurveyContext ctx, IConfiguration cfg)
-        {
-            _auth = auth;
-            _ctx = ctx;
-            _cfg = cfg;
-        }
+        public LoginController(ILoginService loginService) => _loginService = loginService;
+
+        // ======================== AUTENTICAÇÃO ========================
 
         [AllowAnonymous]
+        [EnableRateLimiting("strict-login")]
         [HttpPost("Autenticar")]
         [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> Autenticar([FromBody] LoginRequest req, CancellationToken ct)
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> Autenticar(
+            [FromBody] LoginRequest request,
+            CancellationToken ct
+        )
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             try
             {
-                var resp = await _auth.AutenticarAsync(req, ct);
-                return Ok(new
-                {
-                    id = resp.Id,
-                    usuario = resp.Usuario,
-                    tipousuarioid = resp.TipoUsuarioId,
-                    token = resp.Token
-                });
+                var response = await _loginService.AutenticarAsync(request, ct);
+                return Ok(response);
             }
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(new { message = ex.Message });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpPost("LoginExterno")]
+        [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> LoginExterno(
+            [FromBody] ExternalLoginRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                var response = await _loginService.LoginExternoAsync(request, ct);
+                return Ok(response);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
@@ -57,70 +73,104 @@ namespace FASTSURVEY.Controllers
 
         [AllowAnonymous]
         [HttpPost("Cadastrar")]
-        [ProducesResponseType(typeof(CadastrarLoginResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(CadastrarLoginResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status409Conflict)]
-        public async Task<IActionResult> Cadastrar([FromForm] CadastrarLoginRequest req, CancellationToken ct)
+        public async Task<IActionResult> Cadastrar(
+            [FromBody] CadastrarLoginRequest request,
+            CancellationToken ct
+        )
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             try
             {
-                var resp = await _auth.CadastrarAsync(req, ct);
-                return CreatedAtAction(nameof(Autenticar), new { }, new
-                {
-                    id = resp.Id,
-                    usuario = resp.Usuario,
-                    email = resp.Email,
-                    tipousuarioid = resp.TipoUsuarioId
-                });
+                var response = await _loginService.CadastrarAsync(request, ct);
+                // Opcional: CreatedAtAction com rota de perfil
+                return Ok(response);
             }
-            catch (InvalidOperationException ex)
+            catch (System.ArgumentException ex)
             {
-                return Conflict(new { message = ex.Message });
+                return BadRequest(new { message = ex.Message });
             }
-            catch (Exception ex)
+            catch (System.InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
 
+        // ======================== RESET DE SENHA ========================
+
         [AllowAnonymous]
+        [EnableRateLimiting("strict-login")]
         [HttpPost("EsqueciSenha")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> EsqueciSenha([FromBody] ForgotPasswordRequest req, CancellationToken ct)
+        public async Task<IActionResult> EsqueciSenha(
+            [FromBody] ForgotPasswordRequest request,
+            CancellationToken ct
+        )
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             try
             {
-                var result = await _auth.SolicitarResetSenhaAsync(req, ct);
-                return Ok(new { message = "Se o email existir em nossa base, voc� receber� um link para resetar sua senha." });
+                var result = await _loginService.SolicitarResetSenhaAsync(request, ct);
+                return Ok(
+                    new
+                    {
+                        message = "Se o email existir em nossa base, você receberá um link para resetar sua senha.",
+                        success = result,
+                    }
+                );
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
 
         [AllowAnonymous]
+        [EnableRateLimiting("strict-login")]
         [HttpPost("ResetarSenha")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ResetarSenha([FromBody] ResetPasswordRequest req, CancellationToken ct)
+        public async Task<IActionResult> ResetarSenha(
+            [FromBody] ResetPasswordRequest request,
+            CancellationToken ct
+        )
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             try
             {
-                var result = await _auth.ResetarSenhaAsync(req, ct);
-                if (result)
-                    return Ok(new { message = "Senha alterada com sucesso!" });
-                else
-                    return BadRequest(new { message = "Token inv�lido ou expirado." });
+                var result = await _loginService.ResetarSenhaAsync(request, ct);
+                return result
+                    ? Ok(new { message = "Senha alterada com sucesso!" })
+                    : BadRequest(new { message = "Token inválido ou expirado." });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // ======================== CONFIRMAÇÃO DE EMAIL ========================
+
+        [AllowAnonymous]
+        [HttpPost("ReenviarConfirmacao")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ReenviarConfirmacao(
+            [FromBody] ForgotPasswordRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                var result = await _loginService.EnviarConfirmacaoEmailAsync(request.Email, ct);
+                return result
+                    ? Ok(new { message = "Email de confirmação enviado com sucesso!" })
+                    : BadRequest(new { message = "Email não encontrado ou já confirmado." });
+            }
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
@@ -130,48 +180,25 @@ namespace FASTSURVEY.Controllers
         [HttpPost("ConfirmarEmail")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ConfirmarEmail([FromBody] VerifyEmailRequest req, CancellationToken ct)
+        public async Task<IActionResult> ConfirmarEmail(
+            [FromBody] VerifyEmailRequest request,
+            CancellationToken ct
+        )
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
             try
             {
-                var result = await _auth.ConfirmarEmailAsync(req, ct);
-                if (result)
-                    return Ok(new { message = "Email confirmado com sucesso!" });
-                else
-                    return BadRequest(new { message = "Token inv�lido ou expirado." });
+                var result = await _loginService.ConfirmarEmailAsync(request, ct);
+                return result
+                    ? Ok(new { message = "Email confirmado com sucesso!" })
+                    : BadRequest(new { message = "Token inválido ou expirado." });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
         }
 
-        [AllowAnonymous]
-        [HttpPost("Google")]
-        [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> LoginGoogle([FromBody] ExternalLoginRequest req, CancellationToken ct)
-        {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
-
-            try
-            {
-                var resp = await _auth.LoginGoogleAsync(req, ct);
-                return Ok(new
-                {
-                    id = resp.Id,
-                    usuario = resp.Usuario,
-                    tipousuarioid = resp.TipoUsuarioId,
-                    token = resp.Token
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
+        // ======================== PERFIL ========================
 
         [Authorize]
         [HttpGet("Perfil")]
@@ -181,22 +208,13 @@ namespace FASTSURVEY.Controllers
         {
             try
             {
-                var loginId = int.Parse(User.FindFirst("loginId")?.Value ?? "0");
-                if (loginId <= 0) return Unauthorized();
-
-                var perfil = await _auth.ObterPerfilAsync(loginId, ct);
-                if (perfil is null) return NotFound();
-
-                return Ok(new
-                {
-                    id = perfil.Id,
-                    usuario = perfil.Usuario,
-                    email = perfil.Email,
-                    tipousuarioid = perfil.TipoUsuarioId,
-                    avatarUrl = perfil.AvatarUrl
-                });
+                var loginId = GetLoginIdFromToken();
+                var perfil = await _loginService.ObterPerfilAsync(loginId, ct);
+                return perfil is null
+                    ? NotFound(new { message = "Perfil não encontrado" })
+                    : Ok(perfil);
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
@@ -206,20 +224,72 @@ namespace FASTSURVEY.Controllers
         [HttpPut("Perfil")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> AtualizarPerfil([FromBody] object request, CancellationToken ct)
+        public async Task<IActionResult> AtualizarPerfil(
+            [FromBody] AtualizarPerfilRequest request,
+            CancellationToken ct
+        )
         {
             try
             {
-                var loginId = int.Parse(User.FindFirst("loginId")?.Value ?? "0");
-                if (loginId <= 0) return Unauthorized();
-
-                // Implementar l�gica de atualiza��o de perfil
-                return Ok(new { message = "Perfil atualizado com sucesso!" });
+                var loginId = GetLoginIdFromToken();
+                var result = await _loginService.AtualizarPerfilAsync(loginId, request, ct);
+                return result
+                    ? Ok(new { message = "Perfil atualizado com sucesso!" })
+                    : BadRequest(
+                        new
+                        {
+                            message = "Erro ao atualizar perfil. Verifique se os dados são válidos.",
+                        }
+                    );
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        [Authorize]
+        [HttpPut("Nome")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AtualizarNome(
+            [FromBody] AtualizarNomeRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                var loginId = GetLoginIdFromToken();
+                var result = await _loginService.AtualizarNomeAsync(loginId, request, ct);
+                return result
+                    ? Ok(new { message = "Nome atualizado com sucesso!" })
+                    : BadRequest(
+                        new
+                        {
+                            message = "Erro ao atualizar nome. Verifique se o nome é válido e não está em uso.",
+                        }
+                    );
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        // ======================== COMPATIBILIDADE ========================
+
+        [AllowAnonymous]
+        [HttpPost("GoogleAuth")]
+        [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GoogleAuth(
+            [FromBody] ExternalLoginRequest request,
+            CancellationToken ct
+        )
+        {
+            request.Provider = "google";
+            return await LoginExterno(request, ct);
         }
     }
 }

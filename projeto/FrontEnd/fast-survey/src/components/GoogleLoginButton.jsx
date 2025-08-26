@@ -1,19 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || '';
+import { GOOGLE_CONFIG, isGoogleConfigured, getGoogleConfigError } from '../config/google';
 
 const GoogleLoginButton = ({ 
   onSuccess, 
   onError, 
-  clientId = GOOGLE_CLIENT_ID,
+  clientId = GOOGLE_CONFIG.CLIENT_ID,
   buttonText = "Entrar com Google",
-  theme = "outline",
-  size = "large",
-  type = "standard",
-  text = "signin_with",
-  shape = "pill",
-  width = 280,
-  logoAlignment = "left"
+  theme = GOOGLE_CONFIG.BUTTON_CONFIG.theme,
+  size = GOOGLE_CONFIG.BUTTON_CONFIG.size,
+  type = GOOGLE_CONFIG.BUTTON_CONFIG.type,
+  text = GOOGLE_CONFIG.BUTTON_CONFIG.text,
+  shape = GOOGLE_CONFIG.BUTTON_CONFIG.shape,
+  width = GOOGLE_CONFIG.BUTTON_CONFIG.width,
+  logoAlignment = GOOGLE_CONFIG.BUTTON_CONFIG.logoAlignment
 }) => {
   const [gisReady, setGisReady] = useState(false);
   const [buttonRendered, setButtonRendered] = useState(false);
@@ -21,8 +20,8 @@ const GoogleLoginButton = ({
 
   // Carrega o script do Google
   useEffect(() => {
-    if (!clientId) {
-      console.log('No Google Client ID configured');
+    if (!isGoogleConfigured()) {
+      console.warn('Google Client ID não configurado corretamente');
       return;
     }
 
@@ -55,7 +54,7 @@ const GoogleLoginButton = ({
 
   // Renderiza o botão do Google
   const renderGoogleButton = () => {
-    if (!gisReady || !clientId || !window.google || !buttonRef.current || buttonRendered) {
+    if (!gisReady || !isGoogleConfigured() || !window.google || !buttonRef.current || buttonRendered) {
       return;
     }
 
@@ -74,6 +73,9 @@ const GoogleLoginButton = ({
         },
         auto_select: false,
         cancel_on_tap_outside: true,
+        // Adiciona configurações extras para debug
+        prompt_parent_id: buttonRef.current.id || 'google-login-button',
+        context: 'signin'
       });
 
       const options = {
@@ -112,18 +114,34 @@ const GoogleLoginButton = ({
     }
   }, [gisReady, buttonRendered]);
 
-  if (!clientId) {
+  if (!isGoogleConfigured()) {
+    const configError = getGoogleConfigError();
     return (
       <div style={{ 
-        padding: '12px', 
-        border: '1px solid #ddd', 
+        padding: '16px', 
+        border: '1px solid #ff6b6b', 
         borderRadius: '8px', 
-        background: '#f9f9f9',
+        background: '#fff5f5',
         textAlign: 'center',
-        color: '#666',
-        fontSize: '12px'
+        color: '#d63031',
+        fontSize: '14px',
+        maxWidth: '400px',
+        margin: '0 auto'
       }}>
-        Google Client ID não configurado
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+          {configError.title}
+        </div>
+        <div style={{ marginBottom: '12px', fontSize: '12px' }}>
+          {configError.message}
+        </div>
+        <div style={{ textAlign: 'left', fontSize: '11px' }}>
+          <strong>Instruções:</strong>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            {configError.instructions.map((instruction, index) => (
+              <li key={index}>{instruction}</li>
+            ))}
+          </ul>
+        </div>
       </div>
     );
   }
@@ -139,6 +157,7 @@ const GoogleLoginButton = ({
     }}>
       <div 
         ref={buttonRef}
+        id="google-login-button"
         style={{
           minWidth: `${width}px`,
           minHeight: '44px',

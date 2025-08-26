@@ -1,230 +1,659 @@
+// FASTSURVEY/Services/Pesquisa/PesquisaService.cs
 #nullable enable
+using System.Text.Json;
 using FASTSURVEY.Dtos.Pesquisas;
+using FASTSURVEY.Services.Cache;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
-using System.Text.Json;
 
 namespace FASTSURVEY.Services.Pesquisa
 {
     public class PesquisaService : IPesquisaService
     {
         private readonly FastSurveyContext _ctx;
+        private readonly ICacheService _cache;
+        private const string CACHE_PREFIX = "pesquisa:";
+        private const string CACHE_LIST_PREFIX = "pesquisa:list:";
 
-        public PesquisaService(FastSurveyContext ctx) => _ctx = ctx;
+        public PesquisaService(FastSurveyContext ctx, ICacheService cache)
+        {
+            _ctx = ctx;
+            _cache = cache;
+        }
 
         // ------------------ CREATE ------------------
         public async Task<int> CriarAsync(CriarPesquisaRequest req, CancellationToken ct = default)
         {
             // Valida JSON do template
-            string template = string.IsNullOrWhiteSpace(req.TemplateJson) ? "[]"
-                                : req.TemplateJson.Trim();
-
-            try { JsonDocument.Parse(template); }
-            catch { template = "[]"; }
+            string template = string.IsNullOrWhiteSpace(req.TemplateJson)
+                ? "[]"
+                : req.TemplateJson.Trim();
+            try
+            {
+                JsonDocument.Parse(template);
+            }
+            catch
+            {
+                template = "[]";
+            }
 
             var entity = new Pesquisas
             {
-                Loginid = req.LoginId,
-                Tipopesquisaid = req.TipoPesquisaId,
-                Pastaid = req.PastaId,
+                LoginId = req.LoginId,
+                TipoPesquisaId = req.TipoPesquisaId,
+                PastaId = req.PastaId,
                 Titulo = req.Titulo,
                 Descricao = req.Descricao ?? string.Empty,
-                Templatejson = template,
-                Qrcodeurl = req.QrCodeUrl,   // pode ser nulo
-                Datacriacao = DateTime.UtcNow,
-                Dataatualizacao = null,
-                // Novas funcionalidades
-                Temlimitadortempo = req.TemLimitadorTempo,
-                Datafechamento = req.DataFechamento,
-                Isinterativa = req.IsInterativa,
+                TemplateJson = template,
+                QRCodeUrl = req.QRCodeUrl,
+                DataCriacao = DateTime.UtcNow,
+                DataAtualizacao = null,
+
+                TemLimitadorTempo = req.TemLimitadorTempo,
+                DataFechamento = req.DataFechamento,
+                IsInterativa = req.IsInterativa,
                 PermiteRespostasAnonimas = req.PermiteRespostasAnonimas,
                 LimiteRespostas = req.LimiteRespostas,
-                Ativa = true
+                Ativa = req.Ativa,
+                // Se sua entidade tiver estes campos, descomente:
+                // Slug = req.Slug,
+                // RequerIdentificacao = req.RequerIdentificacao,
+                // Instrucoes = req.Instrucoes,
+                // MostrarProgresso = req.MostrarProgresso,
+                // PermitirEdicao = req.PermitirEdicao,
+                // TempoLimitePorPergunta = req.TempoLimitePorPergunta
             };
 
             _ctx.Pesquisas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
-            return entity.Pesquisaid;
+
+            await InvalidateUserCache(req.LoginId, ct);
+            return entity.PesquisaId;
         }
 
         // ------------------ UPDATE (PUT) ------------------
-        public async Task<bool> AtualizarAsync(int id, AtualizarPesquisaRequest req, CancellationToken ct = default)
+        public async Task<bool> AtualizarAsync(
+            int id,
+            AtualizarPesquisaRequest req,
+            CancellationToken ct = default
+        )
         {
-            var entity = await _ctx.Pesquisas
-                .FirstOrDefaultAsync(x => x.Pesquisaid == id, ct);
-            if (entity is null) return false;
+            var entity = await _ctx.Pesquisas.FirstOrDefaultAsync(x => x.PesquisaId == id, ct);
+            if (entity is null)
+                return false;
 
             entity.Titulo = req.Titulo;
             entity.Descricao = req.Descricao ?? entity.Descricao;
-            entity.Pastaid = req.PastaId ?? entity.Pastaid;
-            entity.Tipopesquisaid = req.TipoPesquisaId ?? entity.Tipopesquisaid;
-            entity.Qrcodeurl = req.QrCodeUrl ?? entity.Qrcodeurl;
-            
-            // Atualizar novas funcionalidades
-            if (req.TemLimitadorTempo.HasValue) entity.Temlimitadortempo = req.TemLimitadorTempo.Value;
-            if (req.DataFechamento.HasValue) entity.Datafechamento = req.DataFechamento;
-            if (req.IsInterativa.HasValue) entity.Isinterativa = req.IsInterativa.Value;
-            if (req.PermiteRespostasAnonimas.HasValue) entity.PermiteRespostasAnonimas = req.PermiteRespostasAnonimas.Value;
-            if (req.LimiteRespostas.HasValue) entity.LimiteRespostas = req.LimiteRespostas;
+            entity.PastaId = req.PastaId ?? entity.PastaId;
+            entity.TipoPesquisaId = req.TipoPesquisaId ?? entity.TipoPesquisaId;
+            entity.QRCodeUrl = req.QRCodeUrl ?? entity.QRCodeUrl;
 
-            entity.Dataatualizacao = DateTime.UtcNow;
+            if (req.TemLimitadorTempo.HasValue)
+                entity.TemLimitadorTempo = req.TemLimitadorTempo.Value;
+            if (req.DataFechamento.HasValue)
+                entity.DataFechamento = req.DataFechamento;
+            if (req.IsInterativa.HasValue)
+                entity.IsInterativa = req.IsInterativa.Value;
+            if (req.PermiteRespostasAnonimas.HasValue)
+                entity.PermiteRespostasAnonimas = req.PermiteRespostasAnonimas.Value;
+            if (req.LimiteRespostas.HasValue)
+                entity.LimiteRespostas = req.LimiteRespostas;
+            if (req.Ativa.HasValue)
+                entity.Ativa = req.Ativa.Value;
+
+            // Se a entidade tiver estes campos, descomente:
+            // if (req.Slug is not null) entity.Slug = req.Slug;
+            // if (req.RequerIdentificacao.HasValue) entity.RequerIdentificacao = req.RequerIdentificacao.Value;
+            // if (req.Instrucoes is not null) entity.Instrucoes = req.Instrucoes;
+            // if (req.MostrarProgresso.HasValue) entity.MostrarProgresso = req.MostrarProgresso.Value;
+            // if (req.PermitirEdicao.HasValue) entity.PermitirEdicao = req.PermitirEdicao.Value;
+            // if (req.TempoLimitePorPergunta.HasValue) entity.TempoLimitePorPergunta = req.TempoLimitePorPergunta;
+
+            entity.DataAtualizacao = DateTime.UtcNow;
 
             await _ctx.SaveChangesAsync(ct);
+            await InvalidatePesquisaCache(id, entity.LoginId, ct);
             return true;
         }
 
         // ------------------ DELETE ------------------
         public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
         {
-            var entity = await _ctx.Pesquisas.FirstOrDefaultAsync(x => x.Pesquisaid == id, ct);
-            if (entity is null) return false;
+            var entity = await _ctx
+                .Pesquisas.Select(x => new { x.PesquisaId, x.LoginId })
+                .FirstOrDefaultAsync(x => x.PesquisaId == id, ct);
+            if (entity is null)
+                return false;
 
-            _ctx.Pesquisas.Remove(entity);
-            await _ctx.SaveChangesAsync(ct); // CASCADE conforme delta aplicado
-            return true;
+            var deleted = await _ctx.Database.ExecuteSqlInterpolatedAsync(
+                $@"DELETE FROM pesquisas WHERE pesquisaid = {id}",
+                ct
+            );
+
+            if (deleted > 0)
+                await InvalidatePesquisaCache(id, entity.LoginId, ct);
+
+            return deleted > 0;
         }
 
         // ------------------ GET BY ID ------------------
         public async Task<PesquisaResponse?> ObterPorIdAsync(int id, CancellationToken ct = default)
         {
-            var q = await _ctx.Pesquisas
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x => x.Pesquisaid == id, ct);
+            var cacheKey = $"{CACHE_PREFIX}{id}";
+            return await _cache.GetOrSetAsync<PesquisaResponse?>(
+                cacheKey,
+                async token =>
+                {
+                    var q = await _ctx
+                        .Pesquisas.AsNoTracking()
+                        .FirstOrDefaultAsync(x => x.PesquisaId == id, token);
+                    if (q is null)
+                        return null;
 
-            if (q is null) return null;
-
-            return new PesquisaResponse
-            {
-                PesquisaId = q.Pesquisaid,
-                Titulo = q.Titulo,
-                Descricao = q.Descricao,
-                LoginId = q.Loginid,
-                TipoPesquisaId = q.Tipopesquisaid,
-                PastaId = q.Pastaid,
-                TemplateJson = q.Templatejson ?? "[]",
-                QrCodeUrl = q.Qrcodeurl,
-                DataCriacao = q.Datacriacao,
-                DataAtualizacao = q.Dataatualizacao
-            };
+                    return new PesquisaResponse
+                    {
+                        PesquisaId = q.PesquisaId,
+                        Titulo = q.Titulo,
+                        Descricao = q.Descricao,
+                        LoginId = q.LoginId,
+                        TipoPesquisaId = q.TipoPesquisaId,
+                        PastaId = q.PastaId,
+                        TemplateJson = q.TemplateJson ?? "[]",
+                        QRCodeUrl = q.QRCodeUrl,
+                        DataCriacao = q.DataCriacao,
+                        DataAtualizacao = q.DataAtualizacao,
+                        TemLimitadorTempo = q.TemLimitadorTempo,
+                        DataFechamento = q.DataFechamento,
+                        IsInterativa = q.IsInterativa,
+                        PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
+                        LimiteRespostas = q.LimiteRespostas,
+                        Ativa = q.Ativa,
+                    };
+                },
+                absoluteExpiration: TimeSpan.FromMinutes(15),
+                ct: ct
+            );
         }
 
         // ------------------ LIST / SEARCH (PAGINADO) ------------------
-        public async Task<PagedResult<PesquisaListItemResponse>> ListarAsync(PesquisaFiltroRequest filtro, CancellationToken ct = default)
+        public async Task<PagedResult<PesquisaListItemResponse>> ListarAsync(
+            PesquisaFiltroRequest filtro,
+            CancellationToken ct = default
+        )
         {
             int page = Math.Max(1, filtro.Page ?? 1);
             int pageSize = Math.Clamp(filtro.PageSize ?? 20, 1, 200);
 
-            var query = _ctx.Pesquisas.AsNoTracking().AsQueryable();
-
-            if (filtro.LoginId.HasValue)
-                query = query.Where(x => x.Loginid == filtro.LoginId.Value);
-
-            if (filtro.PastaId.HasValue)
-                query = query.Where(x => x.Pastaid == filtro.PastaId.Value);
-
-            if (filtro.TipoPesquisaId.HasValue)
-                query = query.Where(x => x.Tipopesquisaid == filtro.TipoPesquisaId.Value);
-
-            if (!string.IsNullOrWhiteSpace(filtro.Busca))
-            {
-                var b = filtro.Busca.Trim().ToLower();
-                query = query.Where(x =>
-                    x.Titulo.ToLower().Contains(b) ||
-                    (x.Descricao != null && x.Descricao.ToLower().Contains(b))
-                );
-            }
-
-            int total = await query.CountAsync(ct);
-
-            var items = await query
-                .OrderByDescending(x => x.Dataatualizacao ?? x.Datacriacao)
-                .ThenByDescending(x => x.Pesquisaid)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(q => new PesquisaListItemResponse
+            string K(object? v) =>
+                v switch
                 {
-                    PesquisaId = q.Pesquisaid,
-                    Titulo = q.Titulo,
-                    Descricao = q.Descricao,
-                    LoginId = q.Loginid,
-                    TipoPesquisaId = q.Tipopesquisaid,
-                    PastaId = q.Pastaid,
-                    QrCodeUrl = q.Qrcodeurl,
-                    DataCriacao = q.Datacriacao,
-                    DataAtualizacao = q.Dataatualizacao,
-                    TemLimitadorTempo = q.Temlimitadortempo,
-                    DataFechamento = q.Datafechamento,
-                    IsInterativa = q.Isinterativa,
-                    PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
-                    LimiteRespostas = q.LimiteRespostas,
-                    Ativa = q.Ativa
-                })
-                .ToListAsync(ct);
+                    null => "_",
+                    DateTime d => d.ToString("yyyy-MM-dd"),
+                    _ => v.ToString() ?? "_",
+                };
 
-            return new PagedResult<PesquisaListItemResponse>
-            {
-                Page = page,
-                PageSize = pageSize,
-                TotalItems = total,
-                Items = items
-            };
+            var cacheKey =
+                $"{CACHE_LIST_PREFIX}"
+                + $"{K(filtro.LoginId)}:{K(filtro.PastaId)}:{K(filtro.TipoPesquisaId)}:{K(filtro.Busca)}:"
+                + $"{K(filtro.IsInterativa)}:{K(filtro.Ativa)}:{K(filtro.TemLimitadorTempo)}:"
+                + $"{K(filtro.DataInicio)}:{K(filtro.DataFim)}:{page}:{pageSize}";
+
+            return await _cache.GetOrSetAsync<PagedResult<PesquisaListItemResponse>>(
+                cacheKey,
+                async token =>
+                {
+                    var query = _ctx.Pesquisas.AsNoTracking().AsQueryable();
+
+                    if (filtro.LoginId.HasValue)
+                        query = query.Where(x => x.LoginId == filtro.LoginId.Value);
+                    if (filtro.PastaId.HasValue)
+                        query = query.Where(x => x.PastaId == filtro.PastaId.Value);
+                    if (filtro.TipoPesquisaId.HasValue)
+                        query = query.Where(x => x.TipoPesquisaId == filtro.TipoPesquisaId.Value);
+                    if (filtro.IsInterativa.HasValue)
+                        query = query.Where(x => x.IsInterativa == filtro.IsInterativa.Value);
+                    if (filtro.Ativa.HasValue)
+                        query = query.Where(x => x.Ativa == filtro.Ativa.Value);
+                    if (filtro.TemLimitadorTempo.HasValue)
+                        query = query.Where(x =>
+                            x.TemLimitadorTempo == filtro.TemLimitadorTempo.Value
+                        );
+                    if (filtro.DataInicio.HasValue)
+                        query = query.Where(x =>
+                            (x.DataAtualizacao ?? x.DataCriacao) >= filtro.DataInicio.Value
+                        );
+                    if (filtro.DataFim.HasValue)
+                        query = query.Where(x =>
+                            (x.DataAtualizacao ?? x.DataCriacao) < filtro.DataFim.Value
+                        );
+
+                    if (!string.IsNullOrWhiteSpace(filtro.Busca))
+                    {
+                        var b = filtro.Busca.Trim();
+                        query = query.Where(x =>
+                            EF.Functions.ILike(x.Titulo, $"%{b}%")
+                            || (x.Descricao != null && EF.Functions.ILike(x.Descricao, $"%{b}%"))
+                        );
+                    }
+
+                    var countTask = query.CountAsync(token);
+                    var dataTask = query
+                        .OrderByDescending(x => x.DataAtualizacao ?? x.DataCriacao)
+                        .ThenByDescending(x => x.PesquisaId)
+                        .Skip((page - 1) * pageSize)
+                        .Take(pageSize)
+                        .Select(q => new PesquisaListItemResponse
+                        {
+                            PesquisaId = q.PesquisaId,
+                            Titulo = q.Titulo,
+                            Descricao = q.Descricao,
+                            LoginId = q.LoginId,
+                            TipoPesquisaId = q.TipoPesquisaId,
+                            PastaId = q.PastaId,
+                            QRCodeUrl = q.QRCodeUrl,
+                            DataCriacao = q.DataCriacao,
+                            DataAtualizacao = q.DataAtualizacao,
+                            TemLimitadorTempo = q.TemLimitadorTempo,
+                            DataFechamento = q.DataFechamento,
+                            IsInterativa = q.IsInterativa,
+                            PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
+                            LimiteRespostas = q.LimiteRespostas,
+                            Ativa = q.Ativa,
+                        })
+                        .ToListAsync(token);
+
+                    await Task.WhenAll(countTask, dataTask);
+                    var total = await countTask;
+                    var items = await dataTask;
+
+                    return new PagedResult<PesquisaListItemResponse>
+                    {
+                        Page = page,
+                        PageSize = pageSize,
+                        TotalItems = total,
+                        Items = items,
+                    };
+                },
+                absoluteExpiration: TimeSpan.FromMinutes(10),
+                ct: ct
+            );
         }
 
         // ------------------ PATCH TEMPLATE ------------------
-        public async Task<bool> AtualizarTemplateAsync(int id, string templateJson, CancellationToken ct = default)
+        public async Task<bool> AtualizarTemplateAsync(
+            int id,
+            string templateJson,
+            CancellationToken ct = default
+        )
         {
-            var entity = await _ctx.Pesquisas.FirstOrDefaultAsync(x => x.Pesquisaid == id, ct);
-            if (entity is null) return false;
+            var entity = await _ctx
+                .Pesquisas.Select(x => new { x.PesquisaId, x.LoginId })
+                .FirstOrDefaultAsync(x => x.PesquisaId == id, ct);
+            if (entity is null)
+                return false;
 
-            if (string.IsNullOrWhiteSpace(templateJson)) templateJson = "[]";
-            try { JsonDocument.Parse(templateJson); }
-            catch { templateJson = "[]"; }
+            if (string.IsNullOrWhiteSpace(templateJson))
+                templateJson = "[]";
+            try
+            {
+                JsonDocument.Parse(templateJson);
+            }
+            catch
+            {
+                templateJson = "[]";
+            }
 
-            entity.Templatejson = templateJson;
-            entity.Dataatualizacao = DateTime.UtcNow;
+            var updated = await _ctx.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE pesquisas 
+                   SET templatejson = {templateJson}, dataatualizacao = {DateTime.UtcNow}
+                   WHERE pesquisaid = {id}",
+                ct
+            );
 
-            await _ctx.SaveChangesAsync(ct);
-            return true;
+            if (updated > 0)
+                await InvalidatePesquisaCache(id, entity.LoginId, ct);
+
+            return updated > 0;
         }
 
-        // ================== NOVOS M�TODOS (exigidos pela interface) ==================
+        // -------- Extras exigidos pela interface --------
 
-        // Lista simples por usu�rio � usada por GET /api/pesquisas/usuario/{loginId}
-        public async Task<List<PesquisaListItemResponse>> ListarPorLoginAsync(int loginId, CancellationToken ct = default)
+        public async Task<List<PesquisaListItemResponse>> ListarPorLoginAsync(
+            int loginid,
+            CancellationToken ct = default
+        )
         {
-            var list = await _ctx.Pesquisas
-                .AsNoTracking()
-                .Where(x => x.Loginid == loginId)
-                .OrderByDescending(x => x.Dataatualizacao ?? x.Datacriacao)
-                .ThenByDescending(x => x.Pesquisaid)
-                .Select(q => new PesquisaListItemResponse
+            var cacheKey = $"{CACHE_LIST_PREFIX}user:{loginid}";
+            return await _cache.GetOrSetAsync<List<PesquisaListItemResponse>>(
+                cacheKey,
+                async token =>
                 {
-                    PesquisaId = q.Pesquisaid,
+                    var list = await _ctx
+                        .Pesquisas.AsNoTracking()
+                        .Where(x => x.LoginId == loginid)
+                        .OrderByDescending(x => x.DataAtualizacao ?? x.DataCriacao)
+                        .ThenByDescending(x => x.PesquisaId)
+                        .Select(q => new PesquisaListItemResponse
+                        {
+                            PesquisaId = q.PesquisaId,
+                            Titulo = q.Titulo,
+                            Descricao = q.Descricao,
+                            LoginId = q.LoginId,
+                            TipoPesquisaId = q.TipoPesquisaId,
+                            PastaId = q.PastaId,
+                            QRCodeUrl = q.QRCodeUrl,
+                            DataCriacao = q.DataCriacao,
+                            DataAtualizacao = q.DataAtualizacao,
+                            TemLimitadorTempo = q.TemLimitadorTempo,
+                            DataFechamento = q.DataFechamento,
+                            IsInterativa = q.IsInterativa,
+                            PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
+                            LimiteRespostas = q.LimiteRespostas,
+                            Ativa = q.Ativa,
+                        })
+                        .ToListAsync(token);
+
+                    return list;
+                },
+                absoluteExpiration: TimeSpan.FromMinutes(15),
+                ct: ct
+            );
+        }
+
+        public async Task<bool> DefinirPastaAsync(
+            int pesquisaid,
+            int? pastaid,
+            CancellationToken ct = default
+        )
+        {
+            var entity = await _ctx
+                .Pesquisas.Select(x => new { x.PesquisaId, x.LoginId })
+                .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaid, ct);
+            if (entity is null)
+                return false;
+
+            var updated = await _ctx.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE pesquisas 
+                   SET pastaid = {pastaid}, dataatualizacao = {DateTime.UtcNow}
+                   WHERE pesquisaid = {pesquisaid}",
+                ct
+            );
+
+            if (updated > 0)
+                await InvalidatePesquisaCache(pesquisaid, entity.LoginId, ct);
+
+            return updated > 0;
+        }
+
+        private async Task InvalidatePesquisaCache(
+            int pesquisaid,
+            int loginid,
+            CancellationToken ct
+        )
+        {
+            await Task.WhenAll(
+                new Task[]
+                {
+                    _cache.RemoveAsync($"{CACHE_PREFIX}{pesquisaid}", ct),
+                    _cache.RemoveAsync($"{CACHE_LIST_PREFIX}user:{loginid}", ct),
+                }
+            );
+        }
+
+        private async Task InvalidateUserCache(int loginid, CancellationToken ct)
+        {
+            await _cache.RemoveAsync($"{CACHE_LIST_PREFIX}user:{loginid}", ct);
+        }
+
+        public async Task<PesquisaResponse?> ObterPorSlugAsync(
+            string slug,
+            CancellationToken ct = default
+        )
+        {
+            if (int.TryParse(slug, out int pesquisaId))
+            {
+                var q = await _ctx
+                    .Pesquisas.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaId, ct);
+                if (q is null)
+                    return null;
+
+                return new PesquisaResponse
+                {
+                    PesquisaId = q.PesquisaId,
                     Titulo = q.Titulo,
                     Descricao = q.Descricao,
-                    LoginId = q.Loginid,
-                    TipoPesquisaId = q.Tipopesquisaid,
-                    PastaId = q.Pastaid,
-                    QrCodeUrl = q.Qrcodeurl,
-                    DataCriacao = q.Datacriacao,
-                    DataAtualizacao = q.Dataatualizacao
+                    LoginId = q.LoginId,
+                    TipoPesquisaId = q.TipoPesquisaId,
+                    PastaId = q.PastaId,
+                    QRCodeUrl = q.QRCodeUrl,
+                    DataCriacao = q.DataCriacao,
+                    DataAtualizacao = q.DataAtualizacao,
+                    TemLimitadorTempo = q.TemLimitadorTempo,
+                    DataFechamento = q.DataFechamento,
+                    IsInterativa = q.IsInterativa,
+                    PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
+                    LimiteRespostas = q.LimiteRespostas,
+                    Ativa = q.Ativa,
+                    TemplateJson = q.TemplateJson ?? "[]",
+                };
+            }
+            return null;
+        }
+
+        public async Task<int> DuplicarAsync(
+            int pesquisaId,
+            DuplicarPesquisaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            var original = await _ctx
+                .Pesquisas.Include(p => p.Perguntas)
+                .ThenInclude(p => p.OpcoesPergunta)
+                .FirstOrDefaultAsync(p => p.PesquisaId == pesquisaId, ct);
+            if (original is null)
+                return 0;
+
+            var nova = new Pesquisas
+            {
+                LoginId = original.LoginId,
+                TipoPesquisaId = original.TipoPesquisaId,
+                PastaId = request.NovaPastaId ?? original.PastaId,
+                Titulo = request.NovoTitulo ?? $"{original.Titulo} (Cópia)",
+                Descricao = original.Descricao,
+                TemplateJson = original.TemplateJson,
+                TemLimitadorTempo = original.TemLimitadorTempo,
+                DataFechamento = original.DataFechamento,
+                IsInterativa = original.IsInterativa,
+                PermiteRespostasAnonimas = original.PermiteRespostasAnonimas,
+                LimiteRespostas = original.LimiteRespostas,
+                Ativa = true,
+                DataCriacao = DateTime.UtcNow,
+            };
+
+            _ctx.Pesquisas.Add(nova);
+            await _ctx.SaveChangesAsync(ct);
+
+            if (!request.IncluirRespostas)
+            {
+                foreach (var pergunta in original.Perguntas)
+                {
+                    var novaPergunta = new Perguntas
+                    {
+                        PesquisaId = nova.PesquisaId,
+                        TipoPerguntaId = pergunta.TipoPerguntaId,
+                        Texto = pergunta.Texto,
+                        Ordem = pergunta.Ordem,
+                        TemGabarito = pergunta.TemGabarito,
+                    };
+                    _ctx.Perguntas.Add(novaPergunta);
+                    await _ctx.SaveChangesAsync(ct);
+
+                    foreach (var opcao in pergunta.OpcoesPergunta)
+                    {
+                        _ctx.OpcoesPergunta.Add(
+                            new OpcoesPergunta
+                            {
+                                PerguntaId = novaPergunta.PerguntaId,
+                                Texto = opcao.Texto,
+                                Ordem = opcao.Ordem,
+                                Correta = opcao.Correta,
+                            }
+                        );
+                    }
+                }
+                await _ctx.SaveChangesAsync(ct);
+            }
+
+            await InvalidateUserCache(original.LoginId, ct);
+            return nova.PesquisaId;
+        }
+
+        public async Task<object?> GerarQRCodeAsync(int pesquisaId, CancellationToken ct = default)
+        {
+            var pesquisa = await _ctx
+                .Pesquisas.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PesquisaId == pesquisaId, ct);
+            if (pesquisa is null)
+                return null;
+
+            // Ajuste a base URL conforme o ambiente:
+            var url = $"http://localhost:3000/responder/{pesquisaId}";
+            return new
+            {
+                url,
+                slug = pesquisaId.ToString(),
+                expiracao = pesquisa.DataFechamento,
+            };
+        }
+
+        public async Task<byte[]?> ExportarPDFAsync(int pesquisaId, CancellationToken ct = default)
+        {
+            var pesquisa = await _ctx
+                .Pesquisas.Include(p => p.Perguntas)
+                .ThenInclude(p => p.OpcoesPergunta)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(p => p.PesquisaId == pesquisaId, ct);
+            if (pesquisa is null)
+                return null;
+
+            // TODO: integrar biblioteca de PDF
+            return Array.Empty<byte>();
+        }
+
+        public async Task<object?> ValidarAcessoAsync(
+            int pesquisaId,
+            ValidarPesquisaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            var p = await _ctx
+                .Pesquisas.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaId, ct);
+            if (p is null)
+                return null;
+
+            var expirada =
+                p.TemLimitadorTempo
+                && p.DataFechamento.HasValue
+                && p.DataFechamento.Value < DateTime.UtcNow;
+            return new
+            {
+                pesquisaId = p.PesquisaId,
+                ativa = p.Ativa,
+                expirada,
+                dataExpiracao = p.DataFechamento,
+                permiteAnonimo = p.PermiteRespostasAnonimas,
+                requerIdentificacao = false, // ajuste se tiver a coluna
+            };
+        }
+
+        public async Task<object?> ObterEstatisticasAsync(
+            int pesquisaId,
+            EstatisticasPesquisaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            var p = await _ctx
+                .Pesquisas.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaId, ct);
+            if (p is null)
+                return null;
+
+            // TODO: implementar contagens reais
+            return new
+            {
+                pesquisaId = p.PesquisaId,
+                titulo = p.Titulo,
+                totalRespostas = 0,
+                taxaConclusao = 0.0,
+                tempoMedio = TimeSpan.Zero,
+            };
+        }
+
+        public async Task<StatusPesquisaResponse?> ObterStatusAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        )
+        {
+            var p = await _ctx
+                .Pesquisas.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaId, ct);
+            if (p is null)
+                return null;
+
+            var expirada =
+                p.TemLimitadorTempo
+                && p.DataFechamento.HasValue
+                && p.DataFechamento.Value < DateTime.UtcNow;
+
+            return new StatusPesquisaResponse
+            {
+                PesquisaId = p.PesquisaId,
+                Titulo = p.Titulo,
+                Ativa = p.Ativa,
+                Expirada = expirada,
+                DataExpiracao = p.DataFechamento,
+                TotalRespostas = 0,
+                LimiteRespostas = p.LimiteRespostas,
+                LimiteAtingido = false,
+                RequerIdentificacao = false,
+                Instrucoes = null,
+                PermiteRespostasAnonimas = p.PermiteRespostasAnonimas,
+            };
+        }
+
+        public async Task<object> ListarTodasPesquisasAsync(CancellationToken ct = default)
+        {
+            var pesquisas = await _ctx
+                .Pesquisas.AsNoTracking()
+                .OrderByDescending(p => p.DataCriacao)
+                .Select(p => new
+                {
+                    p.PesquisaId,
+                    p.Titulo,
+                    p.LoginId,
+                    p.DataCriacao,
+                    p.Ativa,
                 })
                 .ToListAsync(ct);
 
-            return list;
+            return pesquisas;
         }
 
-        // Define/atualiza a pasta � usada por PATCH /api/pesquisas/{id}/mover-pasta
-        public async Task<bool> DefinirPastaAsync(int pesquisaId, int? pastaId, CancellationToken ct = default)
+        public async Task<object> ObterEstatisticasGeraisAsync(CancellationToken ct = default)
         {
-            var entity = await _ctx.Pesquisas.FirstOrDefaultAsync(x => x.Pesquisaid == pesquisaId, ct);
-            if (entity is null) return false;
+            var totalPesquisas = await _ctx.Pesquisas.CountAsync(ct);
+            var totalUsuarios = await _ctx.Login.CountAsync(ct);
+            var pesquisasAtivas = await _ctx.Pesquisas.CountAsync(p => p.Ativa, ct);
 
-            entity.Pastaid = pastaId;               // null = �Sem pasta�
-            entity.Dataatualizacao = DateTime.UtcNow;
-
-            await _ctx.SaveChangesAsync(ct);
-            return true;
+            return new
+            {
+                totalPesquisas,
+                totalUsuarios,
+                pesquisasAtivas,
+                dataGeracao = DateTime.UtcNow,
+            };
         }
     }
 }

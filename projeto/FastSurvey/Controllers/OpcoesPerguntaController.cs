@@ -1,10 +1,12 @@
+// FASTSURVEY/Controllers/OpcaoPerguntaController.cs
 #nullable enable
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using FASTSURVEY.Dtos.Opcoes;
 using FASTSURVEY.Services.Opcoes;
+using FASTSURVEY.Services.Result;
 using Microsoft.AspNetCore.Mvc;
-
-// ===== ALIAS para casar com a Model do scaffold =====
-using OpcaoPergunta = SISTEMA_FASTSURVEY.MODEL.Models.Opcoespergunta;
 
 namespace FASTSURVEY.Controllers
 {
@@ -13,118 +15,90 @@ namespace FASTSURVEY.Controllers
     public class OpcaoPerguntaController : ControllerBase
     {
         private readonly IOpcaoPerguntaService _service;
+
         public OpcaoPerguntaController(IOpcaoPerguntaService service) => _service = service;
 
-        // -------- Mapper --------
-        private static OpcaoPerguntaResponse MapToResponse(OpcaoPergunta e) => new()
+        private IActionResult ToActionResult<T>(ServiceResult<T> result)
         {
-            OpcaoId = e.Opcaoid,
-            PerguntaId = e.Perguntaid,
-            Texto = e.Texto ?? string.Empty,
-            Ordem = e.Ordem,
-            Ativa = e.Ativa,
-            Correta = e.Correta
-        };
+            if (result == null)
+                return StatusCode(500, "Erro inesperado.");
+            if (result.Success)
+                return Ok(result.Data);
+            return BadRequest(result.Errors);
+        }
 
-        // -------- Endpoints --------
-
-        /// <summary>Cria uma op��o vinculada � pergunta (informando PerguntaId no body).</summary>
+        /// <summary>Cria uma opção vinculada à pergunta (informando PerguntaId no body).</summary>
         [HttpPost]
-        public async Task<IActionResult> Criar([FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
+        public async Task<IActionResult> Criar(
+            [FromBody] OpcaoPerguntaRequest dto,
+            CancellationToken ct
+        )
         {
-            if (dto is null) return BadRequest("Body inv�lido.");
+            if (dto is null)
+                return BadRequest("Body inválido.");
             if ((dto.PerguntaId ?? 0) <= 0)
-                return BadRequest("Informe PerguntaId no body ou use a rota /pergunta/{perguntaId}.");
+                return BadRequest(
+                    "Informe PerguntaId no body ou use a rota /pergunta/{perguntaId}."
+                );
 
-            var result = await _service.CriarAsync(
-                perguntaId: dto.PerguntaId.Value,
-                texto: dto.Texto,
-                correta: dto.Correta,
-                ordem: dto.Ordem,
-                ativa: dto.Ativa,
-                ct: ct
-            );
-
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Erro ao criar.");
-
-            return Ok(MapToResponse(result.Data!));
+            var result = await _service.CriarAsync(dto.PerguntaId.Value, dto, ct);
+            return ToActionResult(result);
         }
 
-        /// <summary>Cria uma op��o pela rota com perguntaId.</summary>
+        /// <summary>Cria uma opção pela rota com perguntaId.</summary>
         [HttpPost("pergunta/{perguntaId:int}")]
-        public async Task<IActionResult> CriarNaPergunta([FromRoute] int perguntaId, [FromBody] OpcaoPerguntaRequest dto, CancellationToken ct)
+        public async Task<IActionResult> CriarNaPergunta(
+            [FromRoute] int perguntaId,
+            [FromBody] OpcaoPerguntaRequest dto,
+            CancellationToken ct
+        )
         {
-            if (dto is null) return BadRequest("Body inv�lido.");
-
-            var result = await _service.CriarAsync(
-                perguntaId: perguntaId,
-                texto: dto.Texto,
-                correta: dto.Correta,
-                ordem: dto.Ordem,
-                ativa: dto.Ativa,
-                ct: ct
-            );
-
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Erro ao criar.");
-
-            return Ok(MapToResponse(result.Data!));
+            if (dto is null)
+                return BadRequest("Body inválido.");
+            var result = await _service.CriarAsync(perguntaId, dto, ct);
+            return ToActionResult(result);
         }
 
-        /// <summary>Obt�m uma op��o por id.</summary>
+        /// <summary>Obtém uma opção por id.</summary>
         [HttpGet("{opcaoId:int}")]
         public async Task<IActionResult> Obter([FromRoute] int opcaoId, CancellationToken ct)
         {
             var result = await _service.ObterPorIdAsync(opcaoId, ct);
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
-
-            return Ok(MapToResponse(result.Data!));
+            return ToActionResult(result);
         }
 
-        /// <summary>Lista op��es de uma pergunta.</summary>
+        /// <summary>Lista opções de uma pergunta.</summary>
         [HttpGet("pergunta/{perguntaId:int}")]
-        public async Task<IActionResult> ListarPorPergunta([FromRoute] int perguntaId, CancellationToken ct)
+        public async Task<IActionResult> ListarPorPergunta(
+            [FromRoute] int perguntaId,
+            CancellationToken ct
+        )
         {
             var result = await _service.ListarPorPerguntaAsync(perguntaId, ct);
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Pergunta n�o encontrada.");
-
-            var list = result.Data!.Select(MapToResponse).ToList();
-            return Ok(list);
+            return ToActionResult(result);
         }
 
-        /// <summary>Atualiza parcialmente uma op��o.</summary>
+        /// <summary>Atualiza parcialmente uma opção.</summary>
         [HttpPut("{opcaoId:int}")]
-        public async Task<IActionResult> Atualizar([FromRoute] int opcaoId, [FromBody] OpcaoPerguntaUpdateRequest dto, CancellationToken ct)
+        public async Task<IActionResult> Atualizar(
+            [FromRoute] int opcaoId,
+            [FromBody] OpcaoPerguntaUpdateRequest dto,
+            CancellationToken ct
+        )
         {
             if (dto is null || dto.OpcaoId != opcaoId)
                 return BadRequest("Id da rota difere do body.");
 
-            var result = await _service.AtualizarAsync(opcaoId, e =>
-            {
-                if (!string.IsNullOrWhiteSpace(dto.Texto)) e.Texto = dto.Texto.Trim();
-                if (dto.Correta.HasValue) e.Correta = dto.Correta.Value;
-                if (dto.Ordem.HasValue) e.Ordem = dto.Ordem.Value;
-                if (dto.Ativa.HasValue) e.Ativa = dto.Ativa.Value;
-            }, ct);
-
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
-
-            return Ok(MapToResponse(result.Data!));
+            var result = await _service.AtualizarAsync(dto, ct);
+            return ToActionResult(result);
         }
 
-        /// <summary>Remove uma op��o (hard delete).</summary>
+        /// <summary>Remove uma opção (hard delete).</summary>
         [HttpDelete("{opcaoId:int}")]
         public async Task<IActionResult> Remover([FromRoute] int opcaoId, CancellationToken ct)
         {
             var result = await _service.RemoverAsync(opcaoId, ct);
-            if (!result.Success)
-                return NotFound(result.Errors.FirstOrDefault()?.Message ?? "Op��o n�o encontrada.");
-
-            return Ok(new { success = true });
+            return ToActionResult(result);
         }
     }
 }

@@ -1,229 +1,393 @@
+#nullable enable
 using FASTSURVEY.Dtos.Respostas;
+using FASTSURVEY.Services.Cache;
 using FASTSURVEY.Services.Result;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
-using System.Text.Json;
 
 namespace FASTSURVEY.Services.Resultados
 {
     public class ResultadosService : IResultadosService
     {
         private readonly FastSurveyContext _ctx;
+        private readonly ICacheService _cache;
 
-        public ResultadosService(FastSurveyContext ctx)
+        private const string CACHE_PESQUISA_PREFIX = "resultados:pesquisa:";
+        private const string CACHE_PERGUNTA_PREFIX = "resultados:pergunta:";
+        private const string CACHE_GRAFICOS_PREFIX = "resultados:graficos:";
+        private const string CACHE_DASHBOARD_PREFIX = "resultados:dashboard:";
+
+        public ResultadosService(FastSurveyContext ctx, ICacheService cache)
         {
             _ctx = ctx;
+            _cache = cache;
         }
 
-        public async Task<ServiceResult<object>> ObterResultadosPesquisaAsync(EstatisticasPesquisaRequest request, CancellationToken ct = default)
+        // ====================== RESULTADOS DA PESQUISA ======================
+        public async Task<ServiceResult<object>> ObterResultadosPesquisaAsync(
+            EstatisticasPesquisaRequest request,
+            CancellationToken ct = default
+        )
         {
+            var cacheKey = $"{CACHE_PESQUISA_PREFIX}{request.PesquisaId}";
+
             try
             {
-                var pesquisa = await _ctx.Pesquisas
-                    .Include(p => p.Perguntas)
-                        .ThenInclude(pg => pg.Opcoespergunta)
-                    .Include(p => p.Perguntas)
-                        .ThenInclude(pg => pg.Respostas)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == request.PesquisaId, ct);
-
-                if (pesquisa == null)
-                    return ServiceResult<object>.Fail("NOT_FOUND", "Pesquisa não encontrada");
-
-                var resultado = new
-                {
-                    pesquisa = new
+                var payload = await _cache.GetOrSetAsync<object>(
+                    cacheKey,
+                    async token =>
                     {
-                        id = pesquisa.Pesquisaid,
-                        titulo = pesquisa.Titulo,
-                        descricao = pesquisa.Descricao,
-                        dataCriacao = pesquisa.Datacriacao,
-                        totalRespostas = pesquisa.Perguntas.SelectMany(p => p.Respostas).Count()
-                    },
-                    perguntas = pesquisa.Perguntas.OrderBy(p => p.Ordem).Select(pergunta => new
-                    {
-                        id = pergunta.Perguntaid,
-                        texto = pergunta.Texto,
-                        tipo = pergunta.Tipoperguntaid,
-                        totalRespostas = pergunta.Respostas.Count,
-                        opcoes = pergunta.Opcoespergunta.OrderBy(o => o.Ordem).Select(opcao => new
-                        {
-                            id = opcao.Opcaoid,
-                            texto = opcao.Texto,
-                            totalRespostas = _ctx.Set<Respostas>()
-                                .Where(r => r.Perguntaid == pergunta.Perguntaid)
-                                .SelectMany(r => r.Opcao)
-                                .Count(o => o.Opcaoid == opcao.Opcaoid),
-                            percentual = CalcularPercentual(pergunta.Perguntaid, opcao.Opcaoid)
-                        }).ToList(),
-                        respostasDiscursivas = pergunta.Respostas
-                            .Where(r => !string.IsNullOrEmpty(r.Texto))
-                            .Select(r => new
+                        var pesquisa = await _ctx
+                            .Pesquisas.AsNoTracking()
+                            .Where(p => p.PesquisaId == request.PesquisaId)
+                            .Select(p => new
                             {
-                                texto = r.Texto,
-                                dataResposta = r.Dataresposta
-                            }).ToList()
-                    }).ToList(),
-                    estatisticas = new
-                    {
-                        totalPerguntas = pesquisa.Perguntas.Count,
-                        totalRespostas = pesquisa.Perguntas.SelectMany(p => p.Respostas).Count(),
-                        mediaRespostasPorPergunta = pesquisa.Perguntas.Count > 0 
-                            ? pesquisa.Perguntas.Average(p => p.Respostas.Count) 
-                            : 0,
-                        perguntaMaisRespondida = pesquisa.Perguntas
-                            .OrderByDescending(p => p.Respostas.Count)
-                            .Select(p => new { p.Texto, total = p.Respostas.Count })
-                            .FirstOrDefault()
-                    }
-                };
+                                p.PesquisaId,
+                                p.Titulo,
+                                p.Descricao,
+                                p.DataCriacao,
+                                Perguntas = p
+                                    .Perguntas.OrderBy(pg => pg.Ordem)
+                                    .Select(pg => new
+                                    {
+                                        pg.PerguntaId,
+                                        pg.Texto,
+                                        pg.TipoPerguntaId,
+                                        TotalRespostas = pg.Respostas.Count,
+                                        Opcoes = pg
+                                            .OpcoesPergunta.OrderBy(o => o.Ordem)
+                                            .Select(o => new
+                                            {
+                                                o.OpcaoId,
+                                                o.Texto,
+                                                o.Ordem,
+                                            })
+                                            .ToList(),
+                                        RespostasDiscursivas = pg
+                                            .Respostas.Where(r => !string.IsNullOrEmpty(r.Texto))
+                                            .Select(r => new { r.Texto, r.DataResposta })
+                                            .ToList(),
+                                    })
+                                    .ToList(),
+                            })
+                            .FirstOrDefaultAsync(token);
 
-                return ServiceResult<object>.Ok(resultado);
-            }
-            catch (Exception ex)
-            {
-                return ServiceResult<object>.Fail("ERROR", $"Erro ao obter resultados: {ex.Message}");
-            }
-        }
+                        if (pesquisa is null)
+                            throw new InvalidOperationException(
+                                "NOT_FOUND:Pesquisa não encontrada"
+                            );
 
-        public async Task<ServiceResult<object>> ObterEstatisticasPerguntaAsync(EstatisticasPerguntaRequest request, CancellationToken ct = default)
-        {
-            try
-            {
-                var pergunta = await _ctx.Perguntas
-                    .Include(p => p.Opcoespergunta)
-                    .Include(p => p.Respostas)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Perguntaid == request.PerguntaId, ct);
+                        var totalRespostas = pesquisa.Perguntas.Sum(p => p.TotalRespostas);
 
-                if (pergunta == null)
-                    return ServiceResult<object>.Fail("NOT_FOUND", "Pergunta não encontrada");
+                        var estatisticasTask = CalcularEstatisticasAsync(request.PesquisaId, token);
+                        var opcoesContagensTasks = Task.WhenAll(
+                            pesquisa.Perguntas.Select(p =>
+                                CalcularContagemOpcoesAsync(p.PerguntaId, token)
+                            )
+                        );
 
-                var totalRespostas = pergunta.Respostas.Count;
-                
-                var estatisticas = new
-                {
-                    pergunta = new
-                    {
-                        id = pergunta.Perguntaid,
-                        texto = pergunta.Texto,
-                        tipo = pergunta.Tipoperguntaid,
-                        totalRespostas
-                    },
-                    opcoes = pergunta.Opcoespergunta.OrderBy(o => o.Ordem).Select(opcao => 
-                    {
-                        var respostasOpcao = _ctx.Set<Respostas>()
-                            .Where(r => r.Perguntaid == pergunta.Perguntaid)
-                            .SelectMany(r => r.Opcao)
-                            .Count(o => o.Opcaoid == opcao.Opcaoid);
-                        
-                        return new
+                        await Task.WhenAll(estatisticasTask, opcoesContagensTasks);
+
+                        var countsByPerguntaId = pesquisa
+                            .Perguntas.Select(
+                                (p, i) =>
+                                    new { p.PerguntaId, counts = opcoesContagensTasks.Result[i] }
+                            )
+                            .ToDictionary(x => x.PerguntaId, x => x.counts);
+
+                        var resultado = new
                         {
-                            id = opcao.Opcaoid,
-                            texto = opcao.Texto,
-                            totalRespostas = respostasOpcao,
-                            percentual = totalRespostas > 0 ? (respostasOpcao * 100.0 / totalRespostas) : 0,
-                            correta = opcao.Correta
+                            pesquisa = new
+                            {
+                                id = pesquisa.PesquisaId,
+                                titulo = pesquisa.Titulo,
+                                descricao = pesquisa.Descricao,
+                                dataCriacao = pesquisa.DataCriacao,
+                                totalRespostas,
+                            },
+                            perguntas = pesquisa
+                                .Perguntas.Select(pergunta =>
+                                {
+                                    var cont = countsByPerguntaId[pergunta.PerguntaId];
+                                    return new
+                                    {
+                                        id = pergunta.PerguntaId,
+                                        texto = pergunta.Texto,
+                                        tipo = pergunta.TipoPerguntaId,
+                                        totalRespostas = pergunta.TotalRespostas,
+                                        opcoes = pergunta
+                                            .Opcoes.Select(opcao =>
+                                            {
+                                                var totalVotos = cont.GetValueOrDefault(
+                                                    opcao.OpcaoId,
+                                                    0
+                                                );
+                                                return new
+                                                {
+                                                    id = opcao.OpcaoId,
+                                                    texto = opcao.Texto,
+                                                    totalRespostas = totalVotos,
+                                                    percentual = pergunta.TotalRespostas > 0
+                                                        ? (double)totalVotos
+                                                            * 100.0
+                                                            / pergunta.TotalRespostas
+                                                        : 0.0,
+                                                };
+                                            })
+                                            .ToList(),
+                                        respostasDiscursivas = pergunta.RespostasDiscursivas,
+                                    };
+                                })
+                                .ToList(),
+                            estatisticas = await estatisticasTask,
                         };
-                    }).ToList(),
-                    grafico = request.IncluirGraficos ? GerarDadosGrafico(pergunta, request.TipoGrafico) : null
+
+                        return (object)resultado;
+                    },
+                    absoluteExpiration: TimeSpan.FromMinutes(30),
+                    ct: ct
+                );
+
+                return ServiceResult<object>.Ok(payload);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("NOT_FOUND"))
+            {
+                return ServiceResult<object>.Fail("NOT_FOUND", ex.Message.Split(':', 2).Last());
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<object>.Fail(
+                    "ERROR",
+                    $"Erro ao obter resultados: {ex.Message}"
+                );
+            }
+        }
+
+        // ====================== ESTATÍSTICAS DA PERGUNTA ======================
+        public async Task<ServiceResult<object>> ObterEstatisticasPerguntaAsync(
+            EstatisticasPerguntaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            var cacheKey = $"{CACHE_PERGUNTA_PREFIX}{request.PerguntaId}";
+
+            try
+            {
+                var payload = await _cache.GetOrSetAsync<object>(
+                    cacheKey,
+                    async token =>
+                    {
+                        var pergunta = await _ctx
+                            .Perguntas.AsNoTracking()
+                            .Where(p => p.PerguntaId == request.PerguntaId)
+                            .Select(p => new
+                            {
+                                p.PerguntaId,
+                                p.Texto,
+                                p.TipoPerguntaId,
+                                p.Ordem,
+                                TotalRespostas = p.Respostas.Count,
+                                Opcoes = p
+                                    .OpcoesPergunta.OrderBy(o => o.Ordem)
+                                    .Select(o => new
+                                    {
+                                        o.OpcaoId,
+                                        o.Texto,
+                                        o.Ordem,
+                                    })
+                                    .ToList(),
+                                RespostasDiscursivas = p
+                                    .Respostas.Where(r => !string.IsNullOrEmpty(r.Texto))
+                                    .Select(r => new { r.Texto, r.DataResposta })
+                                    .ToList(),
+                            })
+                            .FirstOrDefaultAsync(token);
+
+                        if (pergunta is null)
+                            throw new InvalidOperationException(
+                                "NOT_FOUND:Pergunta não encontrada"
+                            );
+
+                        var opcoesComContagem = await CalcularContagemOpcoesAsync(
+                            request.PerguntaId,
+                            token
+                        );
+
+                        var resultado = new
+                        {
+                            pergunta = new
+                            {
+                                id = pergunta.PerguntaId,
+                                texto = pergunta.Texto,
+                                tipo = pergunta.TipoPerguntaId,
+                                ordem = pergunta.Ordem,
+                                totalRespostas = pergunta.TotalRespostas,
+                            },
+                            opcoes = pergunta
+                                .Opcoes.Select(opcao => new
+                                {
+                                    id = opcao.OpcaoId,
+                                    texto = opcao.Texto,
+                                    ordem = opcao.Ordem,
+                                    totalRespostas = opcoesComContagem.GetValueOrDefault(
+                                        opcao.OpcaoId,
+                                        0
+                                    ),
+                                    percentual = pergunta.TotalRespostas > 0
+                                        ? (double)
+                                            opcoesComContagem.GetValueOrDefault(opcao.OpcaoId, 0)
+                                            * 100.0
+                                            / pergunta.TotalRespostas
+                                        : 0.0,
+                                })
+                                .ToList(),
+                            respostasDiscursivas = pergunta.RespostasDiscursivas,
+                            estatisticas = new
+                            {
+                                totalRespostas = pergunta.TotalRespostas,
+                                totalOpcoes = pergunta.Opcoes.Count,
+                                opcaoMaisEscolhida = pergunta
+                                    .Opcoes.OrderByDescending(o =>
+                                        opcoesComContagem.GetValueOrDefault(o.OpcaoId, 0)
+                                    )
+                                    .Select(o => new
+                                    {
+                                        o.Texto,
+                                        total = opcoesComContagem.GetValueOrDefault(o.OpcaoId, 0),
+                                    })
+                                    .FirstOrDefault(),
+                            },
+                        };
+
+                        return (object)resultado;
+                    },
+                    absoluteExpiration: TimeSpan.FromMinutes(15),
+                    ct: ct
+                );
+
+                return ServiceResult<object>.Ok(payload);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.StartsWith("NOT_FOUND"))
+            {
+                return ServiceResult<object>.Fail("NOT_FOUND", ex.Message.Split(':', 2).Last());
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<object>.Fail(
+                    "ERROR",
+                    $"Erro ao obter estatísticas: {ex.Message}"
+                );
+            }
+        }
+
+        // ====================== EXPORTAR RESULTADOS ======================
+        public async Task<ServiceResult<ExportResult>> ExportarResultadosAsync(
+            EstatisticasPesquisaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            try
+            {
+                var pesquisa = await _ctx
+                    .Pesquisas.AsNoTracking()
+                    .Where(p => p.PesquisaId == request.PesquisaId)
+                    .Select(p => new { p.Titulo, p.Descricao })
+                    .FirstOrDefaultAsync(ct);
+
+                if (pesquisa is null)
+                    return ServiceResult<ExportResult>.Fail("NOT_FOUND", "Pesquisa não encontrada");
+
+                var exportResult = new ExportResult
+                {
+                    Data = System.Text.Encoding.UTF8.GetBytes(
+                        $"Exportação da pesquisa: {pesquisa.Titulo}"
+                    ),
+                    ContentType = "application/pdf",
+                    FileName =
+                        $"resultados_pesquisa_{request.PesquisaId}_{DateTime.UtcNow:yyyyMMdd}.pdf",
                 };
 
-                return ServiceResult<object>.Ok(estatisticas);
+                return ServiceResult<ExportResult>.Ok(exportResult);
             }
             catch (Exception ex)
             {
-                return ServiceResult<object>.Fail("ERROR", $"Erro ao obter estatísticas: {ex.Message}");
+                return ServiceResult<ExportResult>.Fail(
+                    "ERROR",
+                    $"Erro ao exportar resultados: {ex.Message}"
+                );
             }
         }
 
-        public async Task<ServiceResult<ExportResult>> ExportarResultadosAsync(EstatisticasPesquisaRequest request, CancellationToken ct = default)
+        // ====================== GRÁFICOS ======================
+        public async Task<ServiceResult<object>> ObterGraficosAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        )
         {
+            var cacheKey = $"{CACHE_GRAFICOS_PREFIX}{pesquisaId}";
+
             try
             {
-                var resultados = await ObterResultadosPesquisaAsync(request, ct);
-                if (!resultados.Success)
-                    return ServiceResult<ExportResult>.Fail("ERROR", "Erro ao obter dados para exportação");
-
-                byte[] dados;
-                string contentType;
-                string fileName;
-
-                switch (request.Formato.ToLower())
-                {
-                    case "pdf":
-                        dados = await GerarPDFAsync(resultados.Data);
-                        contentType = "application/pdf";
-                        fileName = $"resultados_pesquisa_{request.PesquisaId}_{DateTime.Now:yyyyMMdd}.pdf";
-                        break;
-                    
-                    case "excel":
-                        dados = await GerarExcelAsync(resultados.Data);
-                        contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-                        fileName = $"resultados_pesquisa_{request.PesquisaId}_{DateTime.Now:yyyyMMdd}.xlsx";
-                        break;
-                    
-                    default:
-                        var json = JsonSerializer.Serialize(resultados.Data, new JsonSerializerOptions { WriteIndented = true });
-                        dados = System.Text.Encoding.UTF8.GetBytes(json);
-                        contentType = "application/json";
-                        fileName = $"resultados_pesquisa_{request.PesquisaId}_{DateTime.Now:yyyyMMdd}.json";
-                        break;
-                }
-
-                return ServiceResult<ExportResult>.Ok(new ExportResult
-                {
-                    Data = dados,
-                    ContentType = contentType,
-                    FileName = fileName
-                });
-            }
-            catch (Exception ex)
-            {
-                return ServiceResult<ExportResult>.Fail("ERROR", $"Erro ao exportar resultados: {ex.Message}");
-            }
-        }
-
-        public async Task<ServiceResult<object>> ObterGraficosAsync(int pesquisaId, CancellationToken ct = default)
-        {
-            try
-            {
-                var pesquisa = await _ctx.Pesquisas
-                    .Include(p => p.Perguntas)
-                        .ThenInclude(pg => pg.Opcoespergunta)
-                    .Include(p => p.Perguntas)
-                        .ThenInclude(pg => pg.Respostas)
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == pesquisaId, ct);
-
-                if (pesquisa == null)
-                    return ServiceResult<object>.Fail("NOT_FOUND", "Pesquisa não encontrada");
-
-                var graficos = pesquisa.Perguntas
-                    .Where(p => p.Opcoespergunta.Any()) // Apenas perguntas com opções
-                    .OrderBy(p => p.Ordem)
-                    .Select(pergunta => new
+                var payload = await _cache.GetOrSetAsync<object>(
+                    cacheKey,
+                    async token =>
                     {
-                        perguntaId = pergunta.Perguntaid,
-                        titulo = pergunta.Texto,
-                        tipo = pergunta.Tipoperguntaid == 2 ? "pie" : "bar", // Objetiva = pie, Multipla = bar
-                        dados = pergunta.Opcoespergunta.OrderBy(o => o.Ordem).Select(opcao =>
+                        var dadosPerguntas = await _ctx
+                            .Perguntas.AsNoTracking()
+                            .Where(p => p.PesquisaId == pesquisaId)
+                            .Select(p => new
+                            {
+                                p.PerguntaId,
+                                p.Texto,
+                                p.TipoPerguntaId,
+                                TotalRespostas = p.Respostas.Count,
+                                Opcoes = p
+                                    .OpcoesPergunta.Select(o => new
+                                    {
+                                        o.OpcaoId,
+                                        o.Texto,
+                                        o.Ordem,
+                                    })
+                                    .ToList(),
+                            })
+                            .ToListAsync(token);
+
+                        var tasks = dadosPerguntas.Select(async pergunta =>
                         {
-                            var respostasOpcao = _ctx.Set<Respostas>()
-                                .Where(r => r.Perguntaid == pergunta.Perguntaid)
-                                .SelectMany(r => r.Opcao)
-                                .Count(o => o.Opcaoid == opcao.Opcaoid);
-                            
+                            var contagemOpcoes = await CalcularContagemOpcoesAsync(
+                                pergunta.PerguntaId,
+                                token
+                            );
                             return new
                             {
-                                label = opcao.Texto,
-                                value = respostasOpcao,
-                                color = GerarCorGrafico(opcao.Opcaoid)
+                                perguntaId = pergunta.PerguntaId,
+                                texto = pergunta.Texto,
+                                tipo = pergunta.TipoPerguntaId,
+                                totalRespostas = pergunta.TotalRespostas,
+                                dados = pergunta
+                                    .Opcoes.OrderBy(o => o.Ordem)
+                                    .Select(o => new
+                                    {
+                                        label = o.Texto,
+                                        value = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0),
+                                        percentual = pergunta.TotalRespostas > 0
+                                            ? (double)contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0)
+                                                * 100.0
+                                                / pergunta.TotalRespostas
+                                            : 0.0,
+                                    })
+                                    .ToList(),
                             };
-                        }).ToList()
-                    }).ToList();
+                        });
 
-                return ServiceResult<object>.Ok(new { graficos });
+                        var resultados = await Task.WhenAll(tasks);
+                        return (object)new { graficos = resultados };
+                    },
+                    absoluteExpiration: TimeSpan.FromMinutes(20),
+                    ct: ct
+                );
+
+                return ServiceResult<object>.Ok(payload);
             }
             catch (Exception ex)
             {
@@ -231,117 +395,237 @@ namespace FASTSURVEY.Services.Resultados
             }
         }
 
-        public async Task<ServiceResult<DashboardData>> ObterDashboardAsync(int loginId, CancellationToken ct = default)
+        // ====================== DASHBOARD ======================
+        public async Task<ServiceResult<DashboardData>> ObterDashboardAsync(
+            int loginId,
+            CancellationToken ct = default
+        )
         {
+            var cacheKey = $"{CACHE_DASHBOARD_PREFIX}{loginId}";
+
             try
             {
-                var totalPesquisas = await _ctx.Pesquisas.CountAsync(p => p.Loginid == loginId, ct);
-                var totalRespostas = await _ctx.Pesquisas
-                    .Where(p => p.Loginid == loginId)
-                    .SelectMany(p => p.Perguntas)
-                    .SelectMany(pg => pg.Respostas)
-                    .CountAsync(ct);
-
-                var pesquisasAtivas = await _ctx.Pesquisas
-                    .CountAsync(p => p.Loginid == loginId && 
-                        (p.Datafechamento == null || p.Datafechamento > DateTime.UtcNow), ct);
-
-                var pesquisasInterativas = await _ctx.Pesquisas
-                    .CountAsync(p => p.Loginid == loginId && p.Isinterativa == true, ct);
-
-                var pesquisasPopulares = await _ctx.Pesquisas
-                    .Where(p => p.Loginid == loginId)
-                    .Select(p => new PesquisaPopular
+                var payload = await _cache.GetOrSetAsync<DashboardData>(
+                    cacheKey,
+                    async token =>
                     {
-                        PesquisaId = p.Pesquisaid,
-                        Titulo = p.Titulo,
-                        TotalRespostas = p.Perguntas.SelectMany(pg => pg.Respostas).Count(),
-                        DataCriacao = p.Datacriacao
-                    })
-                    .OrderByDescending(p => p.TotalRespostas)
-                    .Take(5)
-                    .ToListAsync(ct);
+                        var totalPesquisasTask = _ctx
+                            .Pesquisas.AsNoTracking()
+                            .Where(p => p.LoginId == loginId)
+                            .CountAsync(token);
 
-                var dashboard = new DashboardData
-                {
-                    TotalPesquisas = totalPesquisas,
-                    TotalRespostas = totalRespostas,
-                    PesquisasAtivas = pesquisasAtivas,
-                    PesquisasInterativas = pesquisasInterativas,
-                    PesquisasPopulares = pesquisasPopulares
-                };
+                        var totalRespostasTask = _ctx
+                            .Respostas.AsNoTracking()
+                            .Where(r => r.Pergunta.Pesquisa.LoginId == loginId)
+                            .CountAsync(token);
 
-                return ServiceResult<DashboardData>.Ok(dashboard);
+                        var pesquisasAtivasTask = _ctx
+                            .Pesquisas.AsNoTracking()
+                            .Where(p => p.LoginId == loginId && p.Ativa)
+                            .CountAsync(token);
+
+                        var pesquisasInterativasTask = _ctx
+                            .Pesquisas.AsNoTracking()
+                            .Where(p => p.LoginId == loginId && p.IsInterativa)
+                            .CountAsync(token);
+
+                        var pesquisasPopularesTask = _ctx
+                            .Pesquisas.AsNoTracking()
+                            .Where(p => p.LoginId == loginId)
+                            .Select(p => new
+                            {
+                                p.PesquisaId,
+                                p.Titulo,
+                                p.DataCriacao,
+                                TotalRespostas = p.Perguntas.SelectMany(pg => pg.Respostas).Count(),
+                            })
+                            .OrderByDescending(p => p.TotalRespostas)
+                            .Take(5)
+                            .ToListAsync(token);
+
+                        await Task.WhenAll(
+                            totalPesquisasTask,
+                            totalRespostasTask,
+                            pesquisasAtivasTask,
+                            pesquisasInterativasTask,
+                            pesquisasPopularesTask
+                        );
+
+                        return new DashboardData
+                        {
+                            TotalPesquisas = await totalPesquisasTask,
+                            TotalRespostas = await totalRespostasTask,
+                            PesquisasAtivas = await pesquisasAtivasTask,
+                            PesquisasInterativas = await pesquisasInterativasTask,
+                            PesquisasPopulares = (await pesquisasPopularesTask)
+                                .Select(p => new PesquisaPopular
+                                {
+                                    PesquisaId = p.PesquisaId,
+                                    Titulo = p.Titulo,
+                                    DataCriacao = p.DataCriacao,
+                                    TotalRespostas = p.TotalRespostas,
+                                })
+                                .ToList(),
+                            EstatisticasMensais = await CalcularEstatisticasMensaisAsync(
+                                loginId,
+                                token
+                            ),
+                        };
+                    },
+                    absoluteExpiration: TimeSpan.FromMinutes(10),
+                    ct: ct
+                );
+
+                return ServiceResult<DashboardData>.Ok(payload);
             }
             catch (Exception ex)
             {
-                return ServiceResult<DashboardData>.Fail("ERROR", $"Erro ao obter dashboard: {ex.Message}");
+                return ServiceResult<DashboardData>.Fail(
+                    "ERROR",
+                    $"Erro ao obter dashboard: {ex.Message}"
+                );
             }
         }
 
-        // Métodos auxiliares
-        private double CalcularPercentual(int perguntaId, int opcaoId)
+        // ====================== RELATÓRIO COMPLETO ======================
+        public async Task<ServiceResult<object>> ObterRelatorioCompletoAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        )
         {
-            var totalRespostas = _ctx.Respostas.Count(r => r.Perguntaid == perguntaId);
-            if (totalRespostas == 0) return 0;
+            try
+            {
+                var pesquisa = await _ctx
+                    .Pesquisas.AsNoTracking()
+                    .Include(p => p.Perguntas)
+                    .ThenInclude(pg => pg.OpcoesPergunta)
+                    .Include(p => p.Perguntas)
+                    .ThenInclude(pg => pg.Respostas)
+                    .FirstOrDefaultAsync(p => p.PesquisaId == pesquisaId, ct);
 
-            var respostasOpcao = _ctx.Set<Respostas>()
-                .Where(r => r.Perguntaid == perguntaId)
-                .SelectMany(r => r.Opcao)
-                .Count(o => o.Opcaoid == opcaoId);
+                if (pesquisa is null)
+                    return ServiceResult<object>.Fail("NOT_FOUND", "Pesquisa não encontrada");
 
-            return respostasOpcao * 100.0 / totalRespostas;
+                var perguntasComEstatisticas = await Task.WhenAll(
+                    pesquisa
+                        .Perguntas.OrderBy(p => p.Ordem)
+                        .Select(async p =>
+                        {
+                            var contagemOpcoes = await CalcularContagemOpcoesAsync(
+                                p.PerguntaId,
+                                ct
+                            );
+                            var totalRespostas = p.Respostas.Count;
+
+                            return new
+                            {
+                                perguntaId = p.PerguntaId,
+                                texto = p.Texto,
+                                tipo = p.TipoPerguntaId,
+                                ordem = p.Ordem,
+                                totalRespostas,
+                                opcoes = p
+                                    .OpcoesPergunta.OrderBy(o => o.Ordem)
+                                    .Select(o => new
+                                    {
+                                        opcaoId = o.OpcaoId,
+                                        texto = o.Texto,
+                                        ordem = o.Ordem,
+                                        totalVotos = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0),
+                                        percentual = totalRespostas > 0
+                                            ? (double)contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0)
+                                                * 100.0
+                                                / totalRespostas
+                                            : 0.0,
+                                    })
+                                    .ToList(),
+                            };
+                        })
+                );
+
+                var resultadoFinal = new
+                {
+                    pesquisaId = pesquisa.PesquisaId,
+                    titulo = pesquisa.Titulo,
+                    descricao = pesquisa.Descricao,
+                    dataCriacao = pesquisa.DataCriacao,
+                    totalRespostas = pesquisa.Perguntas.SelectMany(p => p.Respostas).Count(),
+                    perguntas = perguntasComEstatisticas,
+                };
+
+                return ServiceResult<object>.Ok(resultadoFinal);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<object>.Fail(
+                    "ERROR",
+                    $"Erro ao obter relatório completo: {ex.Message}"
+                );
+            }
         }
 
-        private object GerarDadosGrafico(Perguntas pergunta, string? tipoGrafico)
+        // ====================== PRIVADOS ======================
+
+        private async Task<Dictionary<int, int>> CalcularContagemOpcoesAsync(
+            int perguntaId,
+            CancellationToken ct
+        )
         {
-            var tipo = tipoGrafico ?? (pergunta.Tipoperguntaid == 2 ? "pie" : "bar"); // Objetiva = pie, Multipla = bar
-            
+            // Se houver tabela de junção RespostasOpcoes, adapte a projeção.
+            var contagem = await _ctx
+                .Respostas.AsNoTracking()
+                .Where(r => r.PerguntaId == perguntaId)
+                .SelectMany(r => r.Opcao ?? new List<OpcoesPergunta>())
+                .GroupBy(o => o.OpcaoId)
+                .Select(g => new { OpcaoId = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+
+            return contagem.ToDictionary(x => x.OpcaoId, x => x.Count);
+        }
+
+        private async Task<object> CalcularEstatisticasAsync(int pesquisaId, CancellationToken ct)
+        {
+            var estatisticas = await _ctx
+                .Perguntas.AsNoTracking()
+                .Where(p => p.PesquisaId == pesquisaId)
+                .Select(p => new { p.PerguntaId, TotalRespostas = p.Respostas.Count })
+                .ToListAsync(ct);
+
             return new
             {
-                type = tipo,
-                labels = pergunta.Opcoespergunta.OrderBy(o => o.Ordem).Select(o => o.Texto).ToArray(),
-                datasets = new[]
+                totalPerguntas = estatisticas.Count,
+                totalRespostas = estatisticas.Sum(e => e.TotalRespostas),
+                mediaRespostasPorPergunta = estatisticas.Count > 0
+                    ? estatisticas.Average(e => e.TotalRespostas)
+                    : 0.0,
+                perguntaMaisRespondida = estatisticas
+                    .OrderByDescending(e => e.TotalRespostas)
+                    .FirstOrDefault(),
+            };
+        }
+
+        private async Task<List<EstatisticaMensal>> CalcularEstatisticasMensaisAsync(
+            int loginId,
+            CancellationToken ct
+        )
+        {
+            var estatisticas = await _ctx
+                .Pesquisas.AsNoTracking()
+                .Where(p => p.LoginId == loginId)
+                .GroupBy(p => new { p.DataCriacao.Year, p.DataCriacao.Month })
+                .Select(g => new EstatisticaMensal
                 {
-                    new
-                    {
-                        data = pergunta.Opcoespergunta.OrderBy(o => o.Ordem).Select(opcao =>
-                            _ctx.Set<Respostas>()
-                                .Where(r => r.Perguntaid == pergunta.Perguntaid)
-                                .SelectMany(r => r.Opcao)
-                                .Count(o => o.Opcaoid == opcao.Opcaoid)
-                        ).ToArray(),
-                        backgroundColor = pergunta.Opcoespergunta.OrderBy(o => o.Ordem)
-                            .Select(o => GerarCorGrafico(o.Opcaoid)).ToArray()
-                    }
-                }
-            };
-        }
+                    Mes = $"{g.Key.Year}-{g.Key.Month:D2}",
+                    PesquisasCriadas = g.Count(),
+                    RespostasRecebidas = g.SelectMany(p => p.Perguntas)
+                        .SelectMany(pg => pg.Respostas)
+                        .Count(),
+                })
+                .OrderByDescending(e => e.Mes)
+                .Take(12)
+                .ToListAsync(ct);
 
-        private string GerarCorGrafico(int opcaoId)
-        {
-            var cores = new[]
-            {
-                "#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF",
-                "#FF9F40", "#FF6384", "#C9CBCF", "#4BC0C0", "#FF6384"
-            };
-            return cores[opcaoId % cores.Length];
-        }
-
-        private async Task<byte[]> GerarPDFAsync(object dados)
-        {
-            // TODO: Implementar geração de PDF usando uma biblioteca como iText ou similar
-            // Por enquanto, retorna JSON como bytes
-            var json = JsonSerializer.Serialize(dados, new JsonSerializerOptions { WriteIndented = true });
-            return System.Text.Encoding.UTF8.GetBytes(json);
-        }
-
-        private async Task<byte[]> GerarExcelAsync(object dados)
-        {
-            // TODO: Implementar geração de Excel usando uma biblioteca como EPPlus
-            // Por enquanto, retorna JSON como bytes
-            var json = JsonSerializer.Serialize(dados, new JsonSerializerOptions { WriteIndented = true });
-            return System.Text.Encoding.UTF8.GetBytes(json);
+            return estatisticas;
         }
     }
 }

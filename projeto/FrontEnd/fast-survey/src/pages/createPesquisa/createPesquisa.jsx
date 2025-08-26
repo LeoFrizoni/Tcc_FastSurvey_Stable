@@ -185,13 +185,23 @@ const CriarPesquisa = () => {
       axios
         .get(`${API_BASE_URL}/api/login/${loginId}`)
         .then((res) => setAutorNome(res.data.usuario || "Usuário"))
-        .catch(() => setAutorNome("Usuário"));
+        .catch((error) => {
+          console.error("Erro ao buscar usuário:", error);
+          // Se o usuário não existe, limpar o localStorage e redirecionar para login
+          if (error.response?.status === 404) {
+            localStorage.removeItem("userId");
+            localStorage.removeItem("token");
+            window.location.href = "/login";
+          } else {
+            setAutorNome("Usuário");
+          }
+        });
     }
   }, []);
 
   useEffect(() => {
     axios
-      .get(`${API_BASE_URL}/api/tipopesquisa/ListarTipoPesquisa`)
+      .get(`${API_BASE_URL}/api/TipoPesquisa/ListarTipoPesquisa`)
       .then((res) => setTiposPesquisa(res.data))
       .catch(() => setTiposPesquisa([]));
   }, []);
@@ -218,7 +228,7 @@ const CriarPesquisa = () => {
           {
             ...base,
             opcoes: [""],
-            temGabarito: false,
+            TemGabarito: false,
             permitirMultiplaSelecao: true,
             corretas: [],
           },
@@ -226,7 +236,7 @@ const CriarPesquisa = () => {
       if (tipo === "objetiva")
         return [
           ...prev,
-          { ...base, opcoes: [""], temGabarito: false, corretaIndex: null },
+          { ...base, opcoes: [""], TemGabarito: false, corretaIndex: null },
         ];
       if (tipo === "anexo") {
         inputFileRef.current?.click();
@@ -323,7 +333,7 @@ const CriarPesquisa = () => {
 
   const toggleGabarito = useCallback(
     (id, val) => {
-      atualizarBloco(id, { temGabarito: !!val });
+      atualizarBloco(id, { TemGabarito: !!val });
     },
     [atualizarBloco]
   );
@@ -470,7 +480,7 @@ const CriarPesquisa = () => {
 
   // ---------- montar VM + template ----------
   const montarPesquisaVM = useCallback(() => {
-    const loginid = parseInt(localStorage.getItem("userId"));
+    const loginId = parseInt(localStorage.getItem("userId"));
     const dataCriacao = new Date();
 
     const limparOpcoes = (ops = []) =>
@@ -579,7 +589,7 @@ const CriarPesquisa = () => {
       });
 
     return {
-      loginid,
+      loginid: loginId,
       tipopesquisaid: parseInt(dadosPesquisa.tipo),
       titulo: dadosPesquisa.titulo,
       descricao: dadosPesquisa.descricao,
@@ -751,7 +761,6 @@ const CriarPesquisa = () => {
   const nomeTipoPesquisa = useMemo(
     () =>
       tiposPesquisa.find((tp) => tp.tipopesquisaid === parseInt(dadosPesquisa.tipo))?.tipopesquisa1 ||
-      tiposPesquisa.find((tp) => tp.tipopesquisaid === parseInt(dadosPesquisa.tipo))?.tipopesquisa ||
       "—",
     [tiposPesquisa, dadosPesquisa.tipo]
   );

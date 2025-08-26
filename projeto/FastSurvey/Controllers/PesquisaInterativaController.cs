@@ -21,7 +21,8 @@ namespace FASTSURVEY.Controllers
         [Authorize]
         public async Task<IActionResult> IniciarSessao(
             [FromBody] PesquisaInterativaRequest request,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.IniciarSessaoAsync(request, ct);
             return Ok(result);
@@ -32,7 +33,8 @@ namespace FASTSURVEY.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> EntrarSessao(
             [FromBody] EntrarSessaoRequest request,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.EntrarSessaoAsync(request, ct);
             return Ok(result);
@@ -43,7 +45,8 @@ namespace FASTSURVEY.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ObterSessao(
             [FromRoute] string codigo,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.ObterSessaoAsync(codigo, ct);
             return Ok(result);
@@ -54,7 +57,8 @@ namespace FASTSURVEY.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ResponderPergunta(
             [FromBody] RespostaInterativaRequest request,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.ResponderPerguntaAsync(request, ct);
             return Ok(result);
@@ -65,7 +69,8 @@ namespace FASTSURVEY.Controllers
         [Authorize]
         public async Task<IActionResult> ObterResultadosTempoReal(
             [FromRoute] string sessaoId,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.ObterResultadosTempoRealAsync(sessaoId, ct);
             return Ok(result);
@@ -76,31 +81,11 @@ namespace FASTSURVEY.Controllers
         [Authorize]
         public async Task<IActionResult> FinalizarSessao(
             [FromBody] FinalizarSessaoRequest request,
-            CancellationToken ct)
+            CancellationToken ct
+        )
         {
             var result = await _service.FinalizarSessaoAsync(request, ct);
             return Ok(result);
         }
-    }
-
-    // DTOs específicos para pesquisa interativa
-    public class EntrarSessaoRequest
-    {
-        public string CodigoAcesso { get; set; } = string.Empty;
-        public string NomeParticipante { get; set; } = string.Empty;
-    }
-
-    public class RespostaInterativaRequest
-    {
-        public string SessaoId { get; set; } = string.Empty;
-        public int PerguntaId { get; set; }
-        public List<int> OpcoesSelecionadas { get; set; } = new();
-        public string? TextoResposta { get; set; }
-    }
-
-    public class FinalizarSessaoRequest
-    {
-        public string SessaoId { get; set; } = string.Empty;
-        public bool SalvarResultados { get; set; } = true;
     }
 }

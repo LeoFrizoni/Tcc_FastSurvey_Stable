@@ -1,3 +1,4 @@
+#nullable enable
 using FASTSURVEY.Dtos.Login.Avatar;
 using FASTSURVEY.Services.Login;
 using Microsoft.AspNetCore.Authorization;
@@ -7,28 +8,41 @@ namespace FASTSURVEY.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AvatarController : ControllerBase
+    [Authorize]
+    public class AvatarController : BaseController
     {
-        private readonly IAvatarService _svc;
-        public AvatarController(IAvatarService svc) => _svc = svc;
+        private readonly IAvatarService _service;
 
-        [Authorize]
-        [HttpPost("upload")]
-        [Consumes("multipart/form-data")]
-        public async Task<IActionResult> Upload([FromForm] AvatarUploadRequest req, CancellationToken ct)
+        public AvatarController(IAvatarService service) => _service = service;
+
+        [HttpPost]
+        [RequestSizeLimit(10_000_000)] // 10MB (ajuste conforme MaxSizeBytes)
+        [ProducesResponseType(typeof(AvatarResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Upload(
+            [FromForm] AvatarUploadRequest req,
+            CancellationToken ct
+        )
         {
-            var loginId = int.Parse(User.FindFirst("loginId")!.Value);
-            var resp = await _svc.UploadAsync(loginId, req, ct);
-            return Ok(resp);
+            try
+            {
+                var loginId = GetLoginIdFromToken();
+                var resp = await _service.UploadAsync(loginId, req, ct);
+                return Ok(resp);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
-        [Authorize]
         [HttpDelete]
-        public async Task<IActionResult> Delete(CancellationToken ct)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<IActionResult> Remover(CancellationToken ct)
         {
-            var loginId = int.Parse(User.FindFirst("loginId")!.Value);
-            await _svc.RemoverAsync(loginId, ct);
-            return NoContent();
+            var loginId = GetLoginIdFromToken();
+            await _service.RemoverAsync(loginId, ct);
+            return Ok(new { success = true });
         }
     }
 }

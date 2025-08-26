@@ -121,7 +121,7 @@ const ObjetivaBase = ({
                   <label className={styles.switch}>
           <input
             type="checkbox"
-            checked={!!b.temGabarito}
+            checked={!!b.TemGabarito}
             onChange={(e) => onToggleGabarito(b.id, e.target.checked)}
           />
           <span>Há gabarito?</span>
@@ -142,7 +142,7 @@ const ObjetivaBase = ({
               className={styles["input-opcao"]}
             />
 
-            {b.temGabarito && (
+            {b.TemGabarito && (
               <label className={styles["marcar-correta"]}>
                 <input
                   type="radio"
@@ -188,7 +188,7 @@ function areEqualObj(a, b) {
     A.id === B.id &&
     A.selecionado === B.selecionado &&
     A.texto === B.texto &&
-    A.temGabarito === B.temGabarito &&
+    A.TemGabarito === B.TemGabarito &&
     A.corretaIndex === B.corretaIndex &&
     A.opcoes === B.opcoes &&       // referência
     A.imagens === B.imagens &&     // referência

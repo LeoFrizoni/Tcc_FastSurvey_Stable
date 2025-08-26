@@ -73,7 +73,7 @@ const AdminPage = () => {
           setTiposUsuario(data);
         }
         if (aba === 'tipopesquisa') {
-          const data = await fetchJSONSafe(`${API}/tipopesquisa/ListarTipoPesquisa`, { signal: controller.signal }, { defaultValue: [], expect: 'array' });
+          const data = await fetchJSONSafe(`${API}/TipoPesquisa/ListarTipoPesquisa`, { signal: controller.signal }, { defaultValue: [], expect: 'array' });
           setTiposPesquisa(data);
         }
       } catch (err) {
@@ -111,7 +111,7 @@ const AdminPage = () => {
   }
   async function fetchTiposPesquisa() {
     try {
-      const data = await fetchJSONSafe(`${API}/tipopesquisa/ListarTipoPesquisa`, {}, { defaultValue: [], expect: 'array' });
+      const data = await fetchJSONSafe(`${API}/TipoPesquisa/ListarTipoPesquisa`, {}, { defaultValue: [], expect: 'array' });
       setTiposPesquisa(data);
     } catch (err) {
       console.error(err);
@@ -127,7 +127,7 @@ const AdminPage = () => {
   async function saveUsuario() {
     try {
       await fetchJSONSafe(
-        `${API}/login/alterarloginporid/${edit.loginid}`,
+        `${API}/login/alterarloginporid/${edit.LoginId}`,
         {
           method: 'PUT',
           body: JSON.stringify(edit),
@@ -182,7 +182,7 @@ const AdminPage = () => {
   async function saveTipoUsuario() {
     try {
       await fetchJSONSafe(
-        `${API}/tipousuario/Alterar/${edit.usuarioid}`,
+        `${API}/tipousuario/Alterar/${edit.TipoUsuarioId}`,
         {
           method: 'PUT',
           body: JSON.stringify({ tipousuario1: edit.tipousuario1 }),
@@ -234,7 +234,7 @@ const AdminPage = () => {
   async function saveTipoPesquisa() {
     try {
       await fetchJSONSafe(
-        `${API}/tipopesquisa/AlterarTipoPesquisaPorId/${edit.tipopesquisaid}`,
+        `${API}/TipoPesquisa/AlterarTipoPesquisaPorId/${edit.TipoPesquisaId}`,
         {
           method: 'PUT',
           body: JSON.stringify({ tipopesquisa1: edit.tipopesquisa1 }),
@@ -252,7 +252,7 @@ const AdminPage = () => {
   async function deleteTipoPesquisa(id) {
     if (!window.confirm('Excluir tipo de pesquisa?')) return;
     try {
-      await fetchJSONSafe(`${API}/tipopesquisa/ExcluirTipoPesquisa/${id}`, { method: 'DELETE' }, { defaultValue: null, expect: 'object' });
+      await fetchJSONSafe(`${API}/TipoPesquisa/ExcluirTipoPesquisa/${id}`, { method: 'DELETE' }, { defaultValue: null, expect: 'object' });
       await fetchTiposPesquisa();
     } catch (err) {
       console.error(err);
@@ -263,7 +263,7 @@ const AdminPage = () => {
     if (!novo.tipopesquisa) return;
     try {
       await fetchJSONSafe(
-        `${API}/tipopesquisa/CadastrarTipoPesquisa`,
+        `${API}/TipoPesquisa/CadastrarTipoPesquisa`,
         {
           method: 'POST',
           body: JSON.stringify({ tipopesquisa1: novo.tipopesquisa }),
@@ -285,9 +285,22 @@ const AdminPage = () => {
       <div className={styles['admin-section']}>
         <h2>Usuários</h2>
         <div className={styles['admin-form']}>
-          <input placeholder="Usuário" value={novo.usuario} onChange={e => setNovo({ ...novo, usuario: e.target.value })} />
-          <input placeholder="Email" value={novo.email} onChange={e => setNovo({ ...novo, email: e.target.value })} />
-          <input placeholder="Senha" type="password" value={novo.senha} onChange={e => setNovo({ ...novo, senha: e.target.value })} />
+          <input
+            placeholder="Novo usuário"
+            value={novo.usuario}
+            onChange={e => setNovo({ ...novo, usuario: e.target.value })}
+          />
+          <input
+            placeholder="Email"
+            value={novo.email}
+            onChange={e => setNovo({ ...novo, email: e.target.value })}
+          />
+          <input
+            placeholder="Senha"
+            type="password"
+            value={novo.senha}
+            onChange={e => setNovo({ ...novo, senha: e.target.value })}
+          />
           <button onClick={addUsuario}>Adicionar</button>
         </div>
         <table>
@@ -298,20 +311,20 @@ const AdminPage = () => {
             {(usuarios || [])
               .filter(u => (u?.usuario || '').toLowerCase().includes(filtro.toLowerCase()))
               .map(u => (
-                <tr key={u.loginid}>
-                  <td>{u.loginid}</td>
+                <tr key={u.LoginId}>
+                  <td>{u.LoginId}</td>
                   <td>
-                    {edit.loginid === u.loginid
+                    {edit.LoginId === u.LoginId
                       ? <input value={edit.usuario ?? ''} onChange={e => setEdit({ ...edit, usuario: e.target.value })} />
                       : (u.usuario || '')}
                   </td>
                   <td>
-                    {edit.loginid === u.loginid
+                    {edit.LoginId === u.LoginId
                       ? <input value={edit.email ?? ''} onChange={e => setEdit({ ...edit, email: e.target.value })} />
                       : (u.email || '')}
                   </td>
                   <td>
-                    {edit.loginid === u.loginid ? (
+                    {edit.LoginId === u.LoginId ? (
                       <>
                         <button onClick={saveUsuario}>Salvar</button>
                         <button onClick={() => setEdit({})}>Cancelar</button>
@@ -319,7 +332,7 @@ const AdminPage = () => {
                     ) : (
                       <>
                         <button onClick={() => startEditUsuario(u)}>Editar</button>
-                        <button onClick={() => deleteUsuario(u.loginid)}>Excluir</button>
+                        <button onClick={() => deleteUsuario(u.LoginId)}>Excluir</button>
                       </>
                     )}
                   </td>
@@ -349,17 +362,17 @@ const AdminPage = () => {
           </thead>
           <tbody>
             {(tiposUsuario || [])
-              .filter(t => (t?.nome || '').toLowerCase().includes(filtro.toLowerCase()))
+              .filter(t => (t?.tipousuario1 || '').toLowerCase().includes(filtro.toLowerCase()))
               .map(t => (
-                <tr key={t.id}>
-                  <td>{t.id}</td>
+                <tr key={t.TipoUsuarioId}>
+                  <td>{t.TipoUsuarioId}</td>
                   <td>
-                    {edit.id === t.id
-                      ? <input value={edit.nome ?? ''} onChange={e => setEdit({ ...edit, nome: e.target.value })} />
-                      : (t.nome || '')}
+                    {edit.TipoUsuarioId === t.TipoUsuarioId
+                      ? <input value={edit.tipousuario1 ?? ''} onChange={e => setEdit({ ...edit, tipousuario1: e.target.value })} />
+                      : (t.tipousuario1 || '')}
                   </td>
                   <td>
-                    {edit.id === t.id ? (
+                    {edit.TipoUsuarioId === t.TipoUsuarioId ? (
                       <>
                         <button onClick={saveTipoUsuario}>Salvar</button>
                         <button onClick={() => setEdit({})}>Cancelar</button>
@@ -367,7 +380,7 @@ const AdminPage = () => {
                     ) : (
                       <>
                         <button onClick={() => startEditTipoUsuario(t)}>Editar</button>
-                        <button onClick={() => deleteTipoUsuario(t.id)}>Excluir</button>
+                        <button onClick={() => deleteTipoUsuario(t.TipoUsuarioId)}>Excluir</button>
                       </>
                     )}
                   </td>
@@ -397,17 +410,17 @@ const AdminPage = () => {
           </thead>
           <tbody>
             {(tiposPesquisa || [])
-              .filter(t => (t?.tipopesquisa || '').toLowerCase().includes(filtro.toLowerCase()))
+              .filter(t => (t?.tipopesquisa1 || '').toLowerCase().includes(filtro.toLowerCase()))
               .map(t => (
-                <tr key={t.tipopesquisaid}>
-                  <td>{t.tipopesquisaid}</td>
+                <tr key={t.TipoPesquisaId}>
+                  <td>{t.TipoPesquisaId}</td>
                   <td>
-                    {edit.tipopesquisaid === t.tipopesquisaid
-                      ? <input value={edit.tipopesquisa ?? ''} onChange={e => setEdit({ ...edit, tipopesquisa: e.target.value })} />
-                      : (t.tipopesquisa || '')}
+                    {edit.TipoPesquisaId === t.TipoPesquisaId
+                      ? <input value={edit.tipopesquisa1 ?? ''} onChange={e => setEdit({ ...edit, tipopesquisa1: e.target.value })} />
+                      : (t.tipopesquisa1 || '')}
                   </td>
                   <td>
-                    {edit.tipopesquisaid === t.tipopesquisaid ? (
+                    {edit.TipoPesquisaId === t.TipoPesquisaId ? (
                       <>
                         <button onClick={saveTipoPesquisa}>Salvar</button>
                         <button onClick={() => setEdit({})}>Cancelar</button>
@@ -415,7 +428,7 @@ const AdminPage = () => {
                     ) : (
                       <>
                         <button onClick={() => startEditTipoPesquisa(t)}>Editar</button>
-                        <button onClick={() => deleteTipoPesquisa(t.tipopesquisaid)}>Excluir</button>
+                        <button onClick={() => deleteTipoPesquisa(t.TipoPesquisaId)}>Excluir</button>
                       </>
                     )}
                   </td>

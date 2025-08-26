@@ -14,7 +14,7 @@ const ResultadosCompletos = ({ pesquisaId }) => {
     if (pesquisaId) {
       carregarGraficos();
     }
-  }, [pesquisaId]);
+  }, [pesquisaId, carregarGraficos]);
 
   const carregarGraficos = async () => {
     setLoading(true);
@@ -49,7 +49,7 @@ const ResultadosCompletos = ({ pesquisaId }) => {
       const response = await axios.post(
         `${API_BASE_URL}/api/resultados/exportar`,
         {
-          pesquisaId: parseInt(pesquisaId),
+          PesquisaId: parseInt(pesquisaId),
           formato: formato,
           incluirGraficos: true
         },
@@ -240,7 +240,7 @@ const ResultadosCompletos = ({ pesquisaId }) => {
             <ResultadosChart
               dados={grafico.dados || grafico.opcoes || []}
               tipo={grafico.tipo || tipoVisualizacao}
-              titulo={grafico.titulo || grafico.texto || `Pergunta ${index + 1}`}
+              titulo={(grafico.Titulo ?? grafico.titulo) || grafico.texto || `Pergunta ${index + 1}`}
             />
           </div>
         ))}

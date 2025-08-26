@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "html2canvas": "^1.4.1",
-    "jspdf": "^3.0.1",
-    "react-image-file-resizer": "^0.4.8",
-    "react-modal": "^3.16.3"
-  }
-}

@@ -7,31 +7,31 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Pesquisas
 {
-    public int Pesquisaid { get; set; }
+    public int PesquisaId { get; set; }
 
-    public int Loginid { get; set; }
+    public int LoginId { get; set; }
 
-    public int Tipopesquisaid { get; set; }
+    public int TipoPesquisaId { get; set; }
 
     public string Titulo { get; set; }
 
     public string Descricao { get; set; }
 
-    public string Templatejson { get; set; }
+    public string TemplateJson { get; set; }
 
-    public int? Pastaid { get; set; }
+    public int? PastaId { get; set; }
 
-    public DateTime Datacriacao { get; set; }
+    public DateTime DataCriacao { get; set; }
 
-    public DateTime? Dataatualizacao { get; set; }
+    public DateTime? DataAtualizacao { get; set; }
 
-    public string Qrcodeurl { get; set; }
+    public string QRCodeUrl { get; set; }
 
-    public bool Temlimitadortempo { get; set; }
+    public bool TemLimitadorTempo { get; set; }
 
-    public DateTime? Datafechamento { get; set; }
+    public DateTime? DataFechamento { get; set; }
 
-    public bool Isinterativa { get; set; }
+    public bool IsInterativa { get; set; }
 
     public bool PermiteRespostasAnonimas { get; set; }
 
@@ -49,5 +49,5 @@ public partial class Pesquisas
 
     public virtual ICollection<SessoesInterativas> SessoesInterativas { get; set; } = new List<SessoesInterativas>();
 
-    public virtual Tipopesquisa Tipopesquisa { get; set; }
+    public virtual TipoPesquisa TipoPesquisa { get; set; }
 }

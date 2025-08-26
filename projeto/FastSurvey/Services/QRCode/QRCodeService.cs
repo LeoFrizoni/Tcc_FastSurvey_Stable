@@ -1,10 +1,8 @@
 using FASTSURVEY.Dtos.Pesquisas;
 using FASTSURVEY.Services.Result;
 using Microsoft.EntityFrameworkCore;
-using SISTEMA_FASTSURVEY.MODEL.Models;
-using System.Drawing;
-using System.Drawing.Imaging;
 using QRCoder;
+using SISTEMA_FASTSURVEY.MODEL.Models;
 
 namespace FASTSURVEY.Services.QRCode
 {
@@ -19,125 +17,202 @@ namespace FASTSURVEY.Services.QRCode
             _config = config;
         }
 
-        public async Task<ServiceResult<QRCodeResponse>> GerarQRCodeAsync(QRCodeRequest request, CancellationToken ct = default)
+        // ========= Helpers =========
+
+        private static string BuildRespostaLink(IConfiguration config, int pesquisaId)
+        {
+            var baseUrl = config["Frontend:BaseUrl"] ?? "http://localhost:3000";
+            // garante sem barra dupla
+            baseUrl = baseUrl.TrimEnd('/');
+            return $"{baseUrl}/responder/{pesquisaId}";
+        }
+
+        private static string CreateQrDataUri(
+            string payload,
+            QRCodeGenerator.ECCLevel ecc = QRCodeGenerator.ECCLevel.Q,
+            int pixelsPerModule = 8
+        )
+        {
+            // sem System.Drawing: usa PngByteQRCode
+            using var generator = new QRCodeGenerator();
+            using var data = generator.CreateQrCode(payload, ecc);
+            var pngQr = new PngByteQRCode(data);
+            var bytes = pngQr.GetGraphic(pixelsPerModule);
+            var b64 = Convert.ToBase64String(bytes);
+            return $"data:image/png;base64,{b64}";
+        }
+
+        private static bool TryExtractPesquisaId(string qrCodeUrl, out int pesquisaId)
+        {
+            pesquisaId = 0;
+
+            // tenta absoluta
+            if (Uri.TryCreate(qrCodeUrl, UriKind.Absolute, out var abs))
+            {
+                var seg = abs.Segments.LastOrDefault()?.TrimEnd('/') ?? string.Empty;
+                return int.TryParse(seg, out pesquisaId);
+            }
+
+            // tenta relativa
+            if (Uri.TryCreate(qrCodeUrl, UriKind.Relative, out var rel))
+            {
+                var s = rel.OriginalString.TrimEnd('/');
+                var last = s.Split('/').LastOrDefault() ?? string.Empty;
+                return int.TryParse(last, out pesquisaId);
+            }
+
+            // fallback simples
+            var tail = qrCodeUrl.TrimEnd('/').Split('/').LastOrDefault() ?? string.Empty;
+            return int.TryParse(tail, out pesquisaId);
+        }
+
+        // ========= Métodos da interface =========
+
+        public async Task<ServiceResult<QRCodeResponse>> GerarQRCodeAsync(
+            QRCodeRequest request,
+            CancellationToken ct = default
+        )
         {
             try
             {
-                var pesquisa = await _ctx.Pesquisas
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == request.PesquisaId, ct);
+                var pesquisa = await _ctx.Pesquisas.FirstOrDefaultAsync(
+                    p => p.PesquisaId == request.PesquisaId,
+                    ct
+                );
 
-                if (pesquisa == null)
-                    return ServiceResult<QRCodeResponse>.Fail("NOT_FOUND", "Pesquisa não encontrada");
+                if (pesquisa is null)
+                    return ServiceResult<QRCodeResponse>.Fail(
+                        "NOT_FOUND",
+                        "Pesquisa não encontrada"
+                    );
 
-                // Verificar se a pesquisa está ativa
-                if (pesquisa.Temlimitadortempo && pesquisa.Datafechamento.HasValue && pesquisa.Datafechamento < DateTime.UtcNow)
+                // vencimento
+                if (
+                    pesquisa.TemLimitadorTempo
+                    && pesquisa.DataFechamento.HasValue
+                    && pesquisa.DataFechamento < DateTime.UtcNow
+                )
                     return ServiceResult<QRCodeResponse>.Fail("EXPIRED", "Pesquisa expirada");
 
-                var baseUrl = _config["Frontend:BaseUrl"] ?? "http://localhost:3000";
-                var linkResposta = $"{baseUrl}/responder/{request.PesquisaId}";
+                var linkResposta = BuildRespostaLink(_config, request.PesquisaId);
+                var qrCodeBase64 = CreateQrDataUri(linkResposta);
 
-                // Gerar QR Code
-                // TODO: Fix QR Code generation
-                // var qrGenerator = new QRCodeGenerator();
-                // var qrCodeData = qrGenerator.CreateQrCode(linkResposta, QRCodeGenerator.ECCLevel.Q);
-                // var qrCode = new QRCoder.QRCodeGenerator.QRCode(qrCodeData);
-                // 
-                // using var qrCodeImage = qrCode.GetGraphic(20);
-                var qrCodeBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="; // Placeholder
-
-                // Atualizar URL do QR Code na pesquisa se solicitado
-                if (request.GerarNovo || string.IsNullOrEmpty(pesquisa.Qrcodeurl))
+                // atualiza URL associada na pesquisa se solicitado
+                if (request.GerarNovo || string.IsNullOrEmpty(pesquisa.QRCodeUrl))
                 {
-                    pesquisa.Qrcodeurl = linkResposta;
+                    pesquisa.QRCodeUrl = linkResposta;
                     await _ctx.SaveChangesAsync(ct);
                 }
 
-                var response = new QRCodeResponse
+                var resp = new QRCodeResponse
                 {
-                    PesquisaId = pesquisa.Pesquisaid,
+                    PesquisaId = pesquisa.PesquisaId,
                     QRCodeUrl = linkResposta,
                     QRCodeBase64 = qrCodeBase64,
                     LinkResposta = linkResposta,
                     GeradoEm = DateTime.UtcNow,
-                    Expiracao = request.Expiracao ?? pesquisa.Datafechamento,
-                    Ativo = !pesquisa.Temlimitadortempo || !pesquisa.Datafechamento.HasValue || pesquisa.Datafechamento > DateTime.UtcNow,
-                    TituloPesquisa = pesquisa.Titulo
+                    Expiracao = request.Expiracao ?? pesquisa.DataFechamento,
+                    Ativo =
+                        !pesquisa.TemLimitadorTempo
+                        || !pesquisa.DataFechamento.HasValue
+                        || pesquisa.DataFechamento > DateTime.UtcNow,
+                    TituloPesquisa = pesquisa.Titulo,
                 };
 
-                return ServiceResult<QRCodeResponse>.Ok(response);
+                return ServiceResult<QRCodeResponse>.Ok(resp);
             }
             catch (Exception ex)
             {
-                return ServiceResult<QRCodeResponse>.Fail("ERROR", $"Erro ao gerar QR Code: {ex.Message}");
+                return ServiceResult<QRCodeResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao gerar QR Code: {ex.Message}"
+                );
             }
         }
 
-        public async Task<ServiceResult<QRCodeResponse>> ObterQRCodePesquisaAsync(int pesquisaId, CancellationToken ct = default)
+        public async Task<ServiceResult<QRCodeResponse>> ObterQRCodePesquisaAsync(
+            int pesquisaId,
+            CancellationToken ct = default
+        )
         {
             try
             {
-                var pesquisa = await _ctx.Pesquisas
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == pesquisaId, ct);
+                var pesquisa = await _ctx.Pesquisas.FirstOrDefaultAsync(
+                    p => p.PesquisaId == pesquisaId,
+                    ct
+                );
 
-                if (pesquisa == null)
-                    return ServiceResult<QRCodeResponse>.Fail("NOT_FOUND", "Pesquisa não encontrada");
+                if (pesquisa is null)
+                    return ServiceResult<QRCodeResponse>.Fail(
+                        "NOT_FOUND",
+                        "Pesquisa não encontrada"
+                    );
 
-                // Se não tem QR Code, gerar um novo
-                if (string.IsNullOrEmpty(pesquisa.Qrcodeurl))
+                // gera se ainda não houver
+                var link = string.IsNullOrEmpty(pesquisa.QRCodeUrl)
+                    ? BuildRespostaLink(_config, pesquisaId)
+                    : pesquisa.QRCodeUrl;
+
+                if (string.IsNullOrEmpty(pesquisa.QRCodeUrl))
                 {
-                    return await GerarQRCodeAsync(new QRCodeRequest { PesquisaId = pesquisaId, GerarNovo = true }, ct);
+                    pesquisa.QRCodeUrl = link;
+                    await _ctx.SaveChangesAsync(ct);
                 }
 
-                // TODO: Fix QR Code generation
-                // var qrGenerator = new QRCodeGenerator();
-                // var qrCodeData = qrGenerator.CreateQrCode(pesquisa.Qrcodeurl, QRCodeGenerator.ECCLevel.Q);
-                // var qrCode = new QRCoder.QRCode(qrCodeData);
-                // 
-                // using var qrCodeImage = qrCode.GetGraphic(20);
-                var qrCodeBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="; // Placeholder
+                var qrCodeBase64 = CreateQrDataUri(link);
 
-                var response = new QRCodeResponse
+                var resp = new QRCodeResponse
                 {
-                    PesquisaId = pesquisa.Pesquisaid,
-                    QRCodeUrl = pesquisa.Qrcodeurl,
+                    PesquisaId = pesquisa.PesquisaId,
+                    QRCodeUrl = link,
                     QRCodeBase64 = qrCodeBase64,
-                    LinkResposta = pesquisa.Qrcodeurl,
-                    GeradoEm = pesquisa.Datacriacao,
-                    Expiracao = pesquisa.Datafechamento,
-                    Ativo = !pesquisa.Temlimitadortempo || !pesquisa.Datafechamento.HasValue || pesquisa.Datafechamento > DateTime.UtcNow,
-                    TituloPesquisa = pesquisa.Titulo
+                    LinkResposta = link,
+                    GeradoEm = DateTime.UtcNow,
+                    Expiracao = pesquisa.DataFechamento,
+                    Ativo =
+                        !pesquisa.TemLimitadorTempo
+                        || !pesquisa.DataFechamento.HasValue
+                        || pesquisa.DataFechamento > DateTime.UtcNow,
+                    TituloPesquisa = pesquisa.Titulo,
                 };
 
-                return ServiceResult<QRCodeResponse>.Ok(response);
+                return ServiceResult<QRCodeResponse>.Ok(resp);
             }
             catch (Exception ex)
             {
-                return ServiceResult<QRCodeResponse>.Fail("ERROR", $"Erro ao obter QR Code: {ex.Message}");
+                return ServiceResult<QRCodeResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao obter QR Code: {ex.Message}"
+                );
             }
         }
 
-        public async Task<ServiceResult<bool>> ValidarQRCodeAsync(string qrCodeUrl, CancellationToken ct = default)
+        public async Task<ServiceResult<bool>> ValidarQRCodeAsync(
+            string qrCodeUrl,
+            CancellationToken ct = default
+        )
         {
             try
             {
-                // Extrair ID da pesquisa da URL
-                var uri = new Uri(qrCodeUrl);
-                var segments = uri.Segments;
-                if (segments.Length < 2 || !int.TryParse(segments[^1], out int pesquisaId))
+                if (!TryExtractPesquisaId(qrCodeUrl, out var pesquisaId))
                     return ServiceResult<bool>.Fail("INVALID_URL", "URL do QR Code inválida");
 
-                var pesquisa = await _ctx.Pesquisas
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == pesquisaId, ct);
+                var pesquisa = await _ctx.Pesquisas.FirstOrDefaultAsync(
+                    p => p.PesquisaId == pesquisaId,
+                    ct
+                );
 
-                if (pesquisa == null)
+                if (pesquisa is null)
                     return ServiceResult<bool>.Fail("NOT_FOUND", "Pesquisa não encontrada");
 
-                // Verificar se está ativa
                 if (!pesquisa.Ativa)
                     return ServiceResult<bool>.Fail("INACTIVE", "Pesquisa inativa");
 
-                // Verificar expiração
-                if (pesquisa.Temlimitadortempo && pesquisa.Datafechamento.HasValue && pesquisa.Datafechamento < DateTime.UtcNow)
+                if (
+                    pesquisa.TemLimitadorTempo
+                    && pesquisa.DataFechamento.HasValue
+                    && pesquisa.DataFechamento < DateTime.UtcNow
+                )
                     return ServiceResult<bool>.Fail("EXPIRED", "Pesquisa expirada");
 
                 return ServiceResult<bool>.Ok(true);
@@ -148,95 +223,119 @@ namespace FASTSURVEY.Services.QRCode
             }
         }
 
-        public async Task<ServiceResult<QRCodeResponse>> AtualizarQRCodeAsync(int pesquisaId, QRCodeRequest request, CancellationToken ct = default)
+        public async Task<ServiceResult<QRCodeResponse>> AtualizarQRCodeAsync(
+            int pesquisaId,
+            QRCodeRequest request,
+            CancellationToken ct = default
+        )
         {
             try
             {
-                var pesquisa = await _ctx.Pesquisas
-                    .FirstOrDefaultAsync(p => p.Pesquisaid == pesquisaId, ct);
+                var pesquisa = await _ctx.Pesquisas.FirstOrDefaultAsync(
+                    p => p.PesquisaId == pesquisaId,
+                    ct
+                );
 
-                if (pesquisa == null)
-                    return ServiceResult<QRCodeResponse>.Fail("NOT_FOUND", "Pesquisa não encontrada");
+                if (pesquisa is null)
+                    return ServiceResult<QRCodeResponse>.Fail(
+                        "NOT_FOUND",
+                        "Pesquisa não encontrada"
+                    );
 
-                // Atualizar configurações da pesquisa se necessário
+                // atualiza expiração se enviada
                 if (request.Expiracao.HasValue)
                 {
-                    pesquisa.Datafechamento = request.Expiracao;
-                    pesquisa.Temlimitadortempo = true;
+                    pesquisa.DataFechamento = request.Expiracao;
+                    pesquisa.TemLimitadorTempo = true;
                 }
+
+                // gera novo link se solicitado
+                if (request.GerarNovo || string.IsNullOrEmpty(pesquisa.QRCodeUrl))
+                    pesquisa.QRCodeUrl = BuildRespostaLink(_config, pesquisaId);
 
                 await _ctx.SaveChangesAsync(ct);
 
-                // Gerar novo QR Code
-                return await GerarQRCodeAsync(new QRCodeRequest 
-                { 
-                    PesquisaId = pesquisaId, 
-                    GerarNovo = true,
-                    Expiracao = request.Expiracao 
-                }, ct);
+                // retorna QR atualizado (gera imagem nova)
+                var link = pesquisa.QRCodeUrl!;
+                var qrCodeBase64 = CreateQrDataUri(link);
+
+                var resp = new QRCodeResponse
+                {
+                    PesquisaId = pesquisa.PesquisaId,
+                    QRCodeUrl = link,
+                    QRCodeBase64 = qrCodeBase64,
+                    LinkResposta = link,
+                    GeradoEm = DateTime.UtcNow,
+                    Expiracao = pesquisa.DataFechamento,
+                    Ativo =
+                        !pesquisa.TemLimitadorTempo
+                        || !pesquisa.DataFechamento.HasValue
+                        || pesquisa.DataFechamento > DateTime.UtcNow,
+                    TituloPesquisa = pesquisa.Titulo,
+                };
+
+                return ServiceResult<QRCodeResponse>.Ok(resp);
             }
             catch (Exception ex)
             {
-                return ServiceResult<QRCodeResponse>.Fail("ERROR", $"Erro ao atualizar QR Code: {ex.Message}");
+                return ServiceResult<QRCodeResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao atualizar QR Code: {ex.Message}"
+                );
             }
         }
 
-        public async Task<ServiceResult<List<QRCodeResponse>>> ListarQRCodesUsuarioAsync(int loginId, CancellationToken ct = default)
+        public async Task<ServiceResult<List<QRCodeResponse>>> ListarQRCodesUsuarioAsync(
+            int loginId,
+            CancellationToken ct = default
+        )
         {
             try
             {
-                var pesquisas = await _ctx.Pesquisas
-                    .Where(p => p.Loginid == loginId && !string.IsNullOrEmpty(p.Qrcodeurl))
-                    .OrderByDescending(p => p.Datacriacao)
+                var pesquisas = await _ctx
+                    .Pesquisas.AsNoTracking()
+                    .Where(p => p.LoginId == loginId)
+                    .OrderByDescending(p => p.DataCriacao)
                     .ToListAsync(ct);
 
-                var qrCodes = new List<QRCodeResponse>();
+                var list = new List<QRCodeResponse>(pesquisas.Count);
 
-                foreach (var pesquisa in pesquisas)
+                foreach (var p in pesquisas)
                 {
-                    try
-                    {
-                        // TODO: Fix QR Code generation
-                        // var qrGenerator = new QRCodeGenerator();
-                        // var qrCodeData = qrGenerator.CreateQrCode(pesquisa.Qrcodeurl, QRCodeGenerator.ECCLevel.Q);
-                        // var qrCode = new QRCoder.QRCode(qrCodeData);
-                        // 
-                        // using var qrCodeImage = qrCode.GetGraphic(10); // Menor para listagem
-                        var qrCodeBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="; // Placeholder
+                    // garante que tem URL; se não, monta agora sem persistir
+                    var link = string.IsNullOrEmpty(p.QRCodeUrl)
+                        ? BuildRespostaLink(_config, p.PesquisaId)
+                        : p.QRCodeUrl;
 
-                        qrCodes.Add(new QRCodeResponse
+                    var qrCodeBase64 = CreateQrDataUri(link);
+
+                    list.Add(
+                        new QRCodeResponse
                         {
-                            PesquisaId = pesquisa.Pesquisaid,
-                            QRCodeUrl = pesquisa.Qrcodeurl,
+                            PesquisaId = p.PesquisaId,
+                            QRCodeUrl = link,
                             QRCodeBase64 = qrCodeBase64,
-                            LinkResposta = pesquisa.Qrcodeurl,
-                            GeradoEm = pesquisa.Datacriacao,
-                            Expiracao = pesquisa.Datafechamento,
-                            Ativo = !pesquisa.Temlimitadortempo || !pesquisa.Datafechamento.HasValue || pesquisa.Datafechamento > DateTime.UtcNow,
-                            TituloPesquisa = pesquisa.Titulo
-                        });
-                    }
-                    catch
-                    {
-                        // Se falhar ao gerar QR Code para uma pesquisa específica, pula ela
-                        continue;
-                    }
+                            LinkResposta = link,
+                            GeradoEm = DateTime.UtcNow,
+                            Expiracao = p.DataFechamento,
+                            Ativo =
+                                !p.TemLimitadorTempo
+                                || !p.DataFechamento.HasValue
+                                || p.DataFechamento > DateTime.UtcNow,
+                            TituloPesquisa = p.Titulo,
+                        }
+                    );
                 }
 
-                return ServiceResult<List<QRCodeResponse>>.Ok(qrCodes);
+                return ServiceResult<List<QRCodeResponse>>.Ok(list);
             }
             catch (Exception ex)
             {
-                return ServiceResult<List<QRCodeResponse>>.Fail("ERROR", $"Erro ao listar QR Codes: {ex.Message}");
+                return ServiceResult<List<QRCodeResponse>>.Fail(
+                    "ERROR",
+                    $"Erro ao listar QR Codes: {ex.Message}"
+                );
             }
-        }
-
-        private string ConvertToBase64(Bitmap bitmap)
-        {
-            using var stream = new MemoryStream();
-            bitmap.Save(stream, ImageFormat.Png);
-            var bytes = stream.ToArray();
-            return Convert.ToBase64String(bytes);
         }
     }
 }

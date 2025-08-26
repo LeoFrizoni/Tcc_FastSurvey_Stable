@@ -1,6 +1,6 @@
 ﻿namespace FASTSURVEY.Dtos.Tipos
 {
-    public class TipoPerguntaDto
+    public class TipoPerguntaCatalogDto
     {
         public int TipoPerguntaId { get; set; }
         public string TipoPergunta { get; set; } = string.Empty;

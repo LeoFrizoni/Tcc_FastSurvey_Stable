@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace FASTSURVEY.Dtos.Login.Avatar
 {
     public class AvatarUploadRequest
     {
-        [Required] public IFormFile File { get; set; } = default!;
+        [Required]
+        public IFormFile File { get; set; } = default!;
         public int? X { get; set; }
         public int? Y { get; set; }
         public int? W { get; set; }

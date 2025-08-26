@@ -7,7 +7,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Login
 {
-    public int Loginid { get; set; }
+    public int LoginId { get; set; }
 
     public string Usuario { get; set; }
 
@@ -15,23 +15,23 @@ public partial class Login
 
     public string Senha { get; set; }
 
-    public DateTime Dataregistro { get; set; }
+    public DateTime DataRegistro { get; set; }
 
-    public int? Tipousuarioid { get; set; }
+    public int? TipoUsuarioId { get; set; }
 
-    public string Tipousuariotexto { get; set; }
+    public string TipoUsuarioTexto { get; set; }
 
-    public bool Emailconfirmado { get; set; }
+    public bool EmailConfirmado { get; set; }
 
-    public virtual ICollection<Externallogins> Externallogins { get; set; } = new List<Externallogins>();
+    public virtual ICollection<ExternalLogins> ExternalLogins { get; set; } = new List<ExternalLogins>();
 
-    public virtual Loginavatar Loginavatar { get; set; }
+    public virtual LoginAvatar LoginAvatar { get; set; }
 
     public virtual ICollection<Pastas> Pastas { get; set; } = new List<Pastas>();
 
     public virtual ICollection<Pesquisas> Pesquisas { get; set; } = new List<Pesquisas>();
 
-    public virtual Tipousuario Tipousuario { get; set; }
+    public virtual TipoUsuario TipoUsuario { get; set; }
 
     public virtual ICollection<Tokens> Tokens { get; set; } = new List<Tokens>();
 }

@@ -1,20 +1,21 @@
 ﻿// ===== Services da API =====
+using FASTSURVEY.Services.Analytics;
 using FASTSURVEY.Services.Anexo;
-using FASTSURVEY.Services.Login; // ILoginService, LoginService, IAvatarService, AvatarService, IExternalLoginService, ExternalLoginService
+using FASTSURVEY.Services.Email;
+using FASTSURVEY.Services.Export;
+using FASTSURVEY.Services.Login; // ILoginService, LoginService, IAvatarService, AvatarService
 using FASTSURVEY.Services.Opcoes;
 using FASTSURVEY.Services.Pasta;
 using FASTSURVEY.Services.Pergunta;
 using FASTSURVEY.Services.Pesquisa;
-using FASTSURVEY.Services.Resposta;
-using FASTSURVEY.Services.Tipos;
-using FASTSURVEY.Services.Tokens;
-// Novos Services
-using FASTSURVEY.Services.Resultados;
 using FASTSURVEY.Services.PesquisaInterativa;
 using FASTSURVEY.Services.QRCode;
-using FASTSURVEY.Services.Export;
+using FASTSURVEY.Services.Resposta;
+// Novos Services
+using FASTSURVEY.Services.Resultados;
 using FASTSURVEY.Services.Security;
-using FASTSURVEY.Services.Email;
+using FASTSURVEY.Services.Tipos;
+using FASTSURVEY.Services.Tokens;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +41,9 @@ namespace FASTSURVEY
             // Unit of Work
             services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+            // ===== Repositório Genérico =====
+            services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
             // ===== Repositories (MODEL) =====
             services.AddScoped<ILoginRepository, LoginRepository>();
             services.AddScoped<ITipoUsuarioRepository, TipoUsuarioRepository>();
@@ -61,7 +65,6 @@ namespace FASTSURVEY
             services.AddScoped<IAnexoService, AnexoService>();
             services.AddScoped<ILoginService, LoginService>();
             services.AddScoped<IAvatarService, AvatarService>();
-            services.AddScoped<IExternalLoginService, ExternalLoginService>();
             services.AddScoped<IOpcaoPerguntaService, OpcaoPerguntaService>();
             services.AddScoped<IPastaService, PastaService>();
             services.AddScoped<IPerguntaService, PerguntaService>();
@@ -70,13 +73,14 @@ namespace FASTSURVEY
             services.AddScoped<ITipoPerguntaService, TipoPerguntaService>();
             services.AddScoped<ITipoPesquisaService, TipoPesquisaService>();
             services.AddScoped<ITokenService, TokenService>();
-            
+
             // ===== Novos Services =====
             services.AddScoped<IResultadosService, ResultadosService>();
             services.AddScoped<IPesquisaInterativaService, PesquisaInterativaService>();
             services.AddScoped<IQRCodeService, QRCodeService>();
             services.AddScoped<IExportService, ExportService>();
             services.AddScoped<IAuthorizationService, AuthorizationService>();
+            services.AddScoped<IAnalyticsService, AnalyticsService>();
 
             // ===== Email Service =====
             services.AddScoped<IEmailSender, SmtpEmailSender>();

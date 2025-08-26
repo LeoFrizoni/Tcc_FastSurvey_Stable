@@ -5,30 +5,30 @@ namespace FASTSURVEY.Dtos.Tokens
 {
     public class TokenDto
     {
-        public int tokenid { get; set; }
-        public string token { get; set; } = string.Empty;
-        public DateTime dataregistro { get; set; }
-        public DateTime dataexpirado { get; set; }
-        public bool ativo => dataexpirado > DateTime.UtcNow;
+        public int TokenId { get; set; }
+        public string Token { get; set; } = string.Empty;
+        public DateTime DataRegistro { get; set; }
+        public DateTime DataExpirado { get; set; }
+        public bool Ativo => DataExpirado > DateTime.UtcNow;
     }
 
     public class CriarTokenRequest
     {
         /// <summary>Validade em minutos (default: 10)</summary>
-        public int? validadeMinutos { get; set; }
+        public int? ValidadeMinutos { get; set; }
     }
 
     public class ProrrogarTokenRequest
     {
         /// <summary>Minutos a somar na validade</summary>
-        public int minutos { get; set; }
+        public int Minutos { get; set; }
     }
 
     public class ValidarTokenResponse
     {
-        public bool valido { get; set; }
-        public int? tokenid { get; set; }
-        public DateTime? expiraEm { get; set; }
-        public string? motivoInvalidez { get; set; }
+        public bool Valido { get; set; }
+        public int? TokenId { get; set; }
+        public DateTime? ExpiraEm { get; set; }
+        public string? MotivoInvalidez { get; set; }
     }
 }

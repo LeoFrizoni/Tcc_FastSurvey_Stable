@@ -7,11 +7,11 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Pastas
 {
-    public int Pastaid { get; set; }
+    public int PastaId { get; set; }
 
     public string Nome { get; set; }
 
-    public int? Loginid { get; set; }
+    public int? LoginId { get; set; }
 
     public virtual Login Login { get; set; }
 

@@ -11,6 +11,7 @@
     <None Remove="Views\**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Google.Apis.Auth" Version="1.70.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.*" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.2" />
@@ -28,6 +29,9 @@
     <PackageReference Include="itext7" Version="8.0.2" />
     <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
     <PackageReference Include="EPPlus" Version="7.0.0" />
+    <!-- Email packages -->
+    <PackageReference Include="MailKit" Version="4.13.0" />
+    <PackageReference Include="MimeKit" Version="4.13.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SISTEMA_FASTSURVEY.MODEL\SISTEMA_FASTSURVEY.MODEL.csproj" />

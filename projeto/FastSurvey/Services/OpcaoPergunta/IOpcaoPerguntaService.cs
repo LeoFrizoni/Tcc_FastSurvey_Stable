@@ -1,41 +1,36 @@
+// FASTSURVEY/Services/Opcoes/IOpcaoPerguntaService.cs
 #nullable enable
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using FASTSURVEY.Dtos.Opcoes;
 using FASTSURVEY.Services.Result;
-
-// Alias para casar com a classe gerada pelo scaffold (tabela opcoespergunta)
-using OpcaoPergunta = SISTEMA_FASTSURVEY.MODEL.Models.Opcoespergunta;
 
 namespace FASTSURVEY.Services.Opcoes
 {
     public interface IOpcaoPerguntaService
     {
-        Task<ServiceResult<OpcaoPergunta>> CriarAsync(
+        Task<ServiceResult<OpcaoPerguntaResponse>> CriarAsync(
             int perguntaId,
-            string texto,
-            bool? correta = null,
-            int? ordem = null,
-            bool? ativa = null,
+            OpcaoPerguntaRequest req,
             CancellationToken ct = default
         );
 
-        Task<ServiceResult<OpcaoPergunta>> ObterPorIdAsync(
+        Task<ServiceResult<OpcaoPerguntaResponse>> ObterPorIdAsync(
             int opcaoId,
             CancellationToken ct = default
         );
 
-        Task<ServiceResult<List<OpcaoPergunta>>> ListarPorPerguntaAsync(
+        Task<ServiceResult<IReadOnlyList<OpcaoPerguntaResponse>>> ListarPorPerguntaAsync(
             int perguntaId,
             CancellationToken ct = default
         );
 
-        Task<ServiceResult<OpcaoPergunta>> AtualizarAsync(
-            int opcaoId,
-            Action<OpcaoPergunta> applyUpdates,
+        Task<ServiceResult<OpcaoPerguntaResponse>> AtualizarAsync(
+            OpcaoPerguntaUpdateRequest req,
             CancellationToken ct = default
         );
 
-        Task<ServiceResult<bool>> RemoverAsync(
-            int opcaoId,
-            CancellationToken ct = default
-        );
+        Task<ServiceResult<bool>> RemoverAsync(int opcaoId, CancellationToken ct = default);
     }
 }

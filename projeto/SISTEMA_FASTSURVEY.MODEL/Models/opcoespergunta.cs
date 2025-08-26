@@ -5,11 +5,11 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class Opcoespergunta
+public partial class OpcoesPergunta
 {
-    public int Opcaoid { get; set; }
+    public int OpcaoId { get; set; }
 
-    public int Perguntaid { get; set; }
+    public int PerguntaId { get; set; }
 
     public string Texto { get; set; }
 

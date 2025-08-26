@@ -6,7 +6,11 @@ namespace FASTSURVEY.Services.Login
 {
     public interface IAvatarService
     {
-        Task<AvatarResponse> UploadAsync(int loginId, AvatarUploadRequest req, CancellationToken ct = default);
+        Task<AvatarResponse> UploadAsync(
+            int loginId,
+            AvatarUploadRequest req,
+            CancellationToken ct = default
+        );
         Task<bool> RemoverAsync(int loginId, CancellationToken ct = default);
     }
 }

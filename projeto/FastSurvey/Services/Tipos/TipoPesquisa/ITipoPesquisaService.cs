@@ -1,10 +1,17 @@
+// FASTSURVEY/Services/Tipos/ITipoPesquisaService.cs
 #nullable enable
-using SISTEMA_FASTSURVEY.MODEL.Models;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using FASTSURVEY.Dtos.Tipos;
 
 namespace FASTSURVEY.Services.Tipos
 {
     public interface ITipoPesquisaService
     {
-        Task<List<Tipopesquisa>> ListarAsync(bool incluirDesabilitados = false, CancellationToken ct = default);
+        Task<IReadOnlyList<TipoPesquisaCatalogDto>> ListarAsync(
+            bool incluirDesabilitados = false,
+            CancellationToken ct = default
+        );
     }
 }

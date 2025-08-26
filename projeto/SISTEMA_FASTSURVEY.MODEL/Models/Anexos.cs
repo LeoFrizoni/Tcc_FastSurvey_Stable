@@ -7,23 +7,23 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Anexos
 {
-    public int Anexoid { get; set; }
+    public int AnexoId { get; set; }
 
-    public int Pesquisaid { get; set; }
+    public int PesquisaId { get; set; }
 
     public string Nome { get; set; }
 
     public string Extensao { get; set; }
 
-    public int? Perguntaid { get; set; }
+    public int? PerguntaId { get; set; }
 
-    public string Nomeoriginal { get; set; }
+    public string NomeOriginal { get; set; }
 
-    public string Contenttype { get; set; }
+    public string ContentType { get; set; }
 
-    public long? Tamanhobytes { get; set; }
+    public long? TamanhoBytes { get; set; }
 
-    public string Base64data { get; set; }
+    public string Base64Data { get; set; }
 
     public virtual Perguntas Pergunta { get; set; }
 

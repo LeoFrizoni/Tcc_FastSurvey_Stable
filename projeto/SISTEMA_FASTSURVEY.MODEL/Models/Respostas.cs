@@ -7,13 +7,13 @@ namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
 public partial class Respostas
 {
-    public int Respostaid { get; set; }
+    public int RespostaId { get; set; }
 
-    public int Perguntaid { get; set; }
+    public int PerguntaId { get; set; }
 
     public string Texto { get; set; }
 
-    public DateTime Dataresposta { get; set; }
+    public DateTime DataResposta { get; set; }
 
     public string SessaoId { get; set; }
 
@@ -27,5 +27,5 @@ public partial class Respostas
 
     public virtual ICollection<Anexos> Anexo { get; set; } = new List<Anexos>();
 
-    public virtual ICollection<Opcoespergunta> Opcao { get; set; } = new List<Opcoespergunta>();
+    public virtual ICollection<OpcoesPergunta> Opcao { get; set; } = new List<OpcoesPergunta>();
 }

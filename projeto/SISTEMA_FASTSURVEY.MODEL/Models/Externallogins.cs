@@ -5,17 +5,17 @@ using System.Collections.Generic;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Models;
 
-public partial class Externallogins
+public partial class ExternalLogins
 {
-    public int Externalloginid { get; set; }
+    public int ExternalLoginId { get; set; }
 
-    public int Loginid { get; set; }
+    public int LoginId { get; set; }
 
     public string Provider { get; set; }
 
-    public string Provideruserid { get; set; }
+    public string ProviderUserId { get; set; }
 
-    public DateTime Criadoem { get; set; }
+    public DateTime CriadoEm { get; set; }
 
     public virtual Login Login { get; set; }
 }

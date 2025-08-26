@@ -2,69 +2,147 @@ using FASTSURVEY.Dtos.Pastas;
 using FASTSURVEY.Services.Pasta;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace FASTSURVEY.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class PastasController : ControllerBase
+    [Authorize]
+    public class PastasController : BaseController
     {
         private readonly IPastaService _service;
+        private readonly IMemoryCache _cache;
+        private readonly ILogger<PastasController> _logger;
 
-        public PastasController(IPastaService service) => _service = service;
-
-        // GET /api/pastas?loginid=123
-        [HttpGet]
-        [Authorize]
-        public async Task<ActionResult<List<PastaResponse>>> Listar([FromQuery] int loginid, CancellationToken ct)
+        public PastasController(
+            IPastaService service,
+            IMemoryCache cache,
+            ILogger<PastasController> logger
+        )
         {
-            if (loginid <= 0) return BadRequest("loginid � obrigat�rio.");
-            var list = await _service.ListarAsync(loginid, ct);
-            return Ok(list);
+            _service = service;
+            _cache = cache;
+            _logger = logger;
         }
 
-        // POST /api/pastas
-        [HttpPost]
-        [Authorize]
-        public async Task<ActionResult<PastaResponse>> Criar([FromBody] CriarPastaRequest req, CancellationToken ct)
+        [HttpGet]
+        [ProducesResponseType(typeof(List<PastaResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> Listar(CancellationToken ct)
         {
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
             try
             {
-                var created = await _service.CriarAsync(req, ct);
-                return CreatedAtAction(nameof(Listar), new { loginid = req.LoginId }, created);
+                var loginId = GetLoginIdFromToken();
+                var cacheKey = $"pastas_user_{loginId}";
+
+                if (
+                    _cache.TryGetValue(cacheKey, out List<PastaResponse>? cached)
+                    && cached is not null
+                )
+                    return Ok(cached);
+
+                var result = await _service.ListarAsync(loginId, ct);
+
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(2))
+                    .SetSlidingExpiration(TimeSpan.FromMinutes(1));
+
+                _cache.Set(cacheKey, result, cacheOptions);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao listar pastas");
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        [HttpPost]
+        [ProducesResponseType(typeof(PastaResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        public async Task<IActionResult> Criar(
+            [FromBody] CriarPastaRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                // Força usar o loginId do token, ignorando o que vier no body
+                request.LoginId = GetLoginIdFromToken();
+
+                var created = await _service.CriarAsync(request, ct);
+
+                _cache.Remove($"pastas_user_{request.LoginId}");
+                return Ok(created);
             }
             catch (ArgumentException ex)
             {
-                return ValidationProblem(detail: ex.Message);
+                return BadRequest(new { message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
-                return Conflict(new { error = ex.Message });
+                // conflito de nome
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao criar pasta");
+                return StatusCode(500, new { message = "Erro interno do servidor" });
             }
         }
 
-        // PUT /api/pastas/{id}/nome?loginid=123
-        [HttpPut("{id:int}/nome")]
-        [Authorize]
-        public async Task<IActionResult> Renomear([FromRoute] int id, [FromQuery] int loginid,
-                                                 [FromBody] RenomearPastaRequest req, CancellationToken ct)
+        [HttpPut("{pastaId:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> Renomear(
+            [FromRoute] int pastaId,
+            [FromBody] RenomearPastaRequest req,
+            CancellationToken ct
+        )
         {
-            if (loginid <= 0) return BadRequest("loginid � obrigat�rio.");
-            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+            try
+            {
+                var loginId = GetLoginIdFromToken();
+                var ok = await _service.RenomearAsync(pastaId, loginId, req.NovoNome, ct);
+                if (!ok)
+                    return BadRequest(
+                        new
+                        {
+                            message = "Não foi possível renomear a pasta (nome inválido ou em uso).",
+                        }
+                    );
 
-            var ok = await _service.RenomearAsync(id, loginid, req.NovoNome, ct);
-            return ok ? NoContent() : NotFound();
+                _cache.Remove($"pastas_user_{loginId}");
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao renomear pasta {PastaId}", pastaId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // DELETE /api/pastas/{id}?loginid=123
-        [HttpDelete("{id:int}")]
-        [Authorize]
-        public async Task<IActionResult> Excluir([FromRoute] int id, [FromQuery] int loginid, CancellationToken ct)
+        [HttpDelete("{pastaId:int}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> Excluir([FromRoute] int pastaId, CancellationToken ct)
         {
-            if (loginid <= 0) return BadRequest("loginid � obrigat�rio.");
-            var ok = await _service.ExcluirAsync(id, loginid, ct);
-            return ok ? NoContent() : NotFound();
+            try
+            {
+                var loginId = GetLoginIdFromToken();
+                var ok = await _service.ExcluirAsync(pastaId, loginId, ct);
+                if (!ok)
+                    return NotFound(new { message = "Pasta não encontrada." });
+
+                _cache.Remove($"pastas_user_{loginId}");
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao excluir pasta {PastaId}", pastaId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
     }
 }

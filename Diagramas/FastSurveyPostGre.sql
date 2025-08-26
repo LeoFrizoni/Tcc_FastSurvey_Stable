@@ -3,378 +3,378 @@
 BEGIN;
 
 
-CREATE TABLE IF NOT EXISTS public.anexos
+CREATE TABLE IF NOT EXISTS public."Anexos"
 (
-    anexoid serial NOT NULL,
-    pesquisaid integer NOT NULL,
-    nome character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    extensao character varying(25) COLLATE pg_catalog."default" NOT NULL,
-    perguntaid integer,
-    nomeoriginal character varying(255) COLLATE pg_catalog."default",
-    contenttype character varying(150) COLLATE pg_catalog."default",
-    tamanhobytes bigint,
-    base64data text COLLATE pg_catalog."default",
-    CONSTRAINT anexos_pkey PRIMARY KEY (anexoid)
+    "AnexoId" integer NOT NULL DEFAULT nextval('anexos_anexoid_seq'::regclass),
+    "PesquisaId" integer NOT NULL,
+    "Nome" character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    "Extensao" character varying(25) COLLATE pg_catalog."default" NOT NULL,
+    "PerguntaId" integer,
+    "NomeOriginal" character varying(255) COLLATE pg_catalog."default",
+    "ContentType" character varying(150) COLLATE pg_catalog."default",
+    "TamanhoBytes" bigint,
+    "Base64Data" text COLLATE pg_catalog."default",
+    CONSTRAINT anexos_pkey PRIMARY KEY ("AnexoId")
 );
 
-CREATE TABLE IF NOT EXISTS public.externallogins
+CREATE TABLE IF NOT EXISTS public."ExternalLogins"
 (
-    externalloginid serial NOT NULL,
-    loginid integer NOT NULL,
-    provider character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    provideruserid character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    criadoem timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT externallogins_pkey PRIMARY KEY (externalloginid),
-    CONSTRAINT uq_provider_user UNIQUE (provider, provideruserid)
+    "ExternalLoginId" integer NOT NULL DEFAULT nextval('externallogins_externalloginid_seq'::regclass),
+    "LoginId" integer NOT NULL,
+    "Provider" character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    "ProviderUserId" character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    "CriadoEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT externallogins_pkey PRIMARY KEY ("ExternalLoginId"),
+    CONSTRAINT uq_provider_user UNIQUE ("Provider", "ProviderUserId")
 );
 
-CREATE TABLE IF NOT EXISTS public.login
+CREATE TABLE IF NOT EXISTS public."Login"
 (
-    loginid serial NOT NULL,
-    usuario character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    email character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    senha character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    dataregistro timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    tipousuarioid integer DEFAULT 13,
-    tipousuariotexto character varying(50) COLLATE pg_catalog."default",
-    emailconfirmado boolean NOT NULL DEFAULT false,
-    CONSTRAINT login_pkey PRIMARY KEY (loginid),
-    CONSTRAINT uq_login_email UNIQUE (email)
+    "LoginId" integer NOT NULL DEFAULT nextval('login_loginid_seq'::regclass),
+    "Usuario" character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    "Email" character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    "Senha" character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    "DataRegistro" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "TipoUsuarioId" integer DEFAULT 13,
+    "TipoUsuarioTexto" character varying(50) COLLATE pg_catalog."default",
+    "EmailConfirmado" boolean NOT NULL DEFAULT false,
+    CONSTRAINT login_pkey PRIMARY KEY ("LoginId"),
+    CONSTRAINT uq_login_email UNIQUE ("Email")
 );
 
-CREATE TABLE IF NOT EXISTS public.loginavatar
+CREATE TABLE IF NOT EXISTS public."LoginAvatar"
 (
-    avatarid serial NOT NULL,
-    loginid integer NOT NULL,
-    storageurl text COLLATE pg_catalog."default",
-    nomeoriginal character varying(255) COLLATE pg_catalog."default",
-    contenttype character varying(150) COLLATE pg_catalog."default",
-    tamanhobytes bigint,
-    criadoem timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    atualizadoem timestamp with time zone,
-    versao integer NOT NULL DEFAULT 0,
-    CONSTRAINT loginavatar_pkey PRIMARY KEY (avatarid),
-    CONSTRAINT uq_loginavatar_loginid UNIQUE (loginid)
+    "AvatarId" integer NOT NULL DEFAULT nextval('loginavatar_avatarid_seq'::regclass),
+    "LoginId" integer NOT NULL,
+    "StorageUrl" text COLLATE pg_catalog."default",
+    "NomeOriginal" character varying(255) COLLATE pg_catalog."default",
+    "ContentType" character varying(150) COLLATE pg_catalog."default",
+    "TamanhoBytes" bigint,
+    "CriadoEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "AtualizadoEm" timestamp with time zone,
+    "Versao" integer NOT NULL DEFAULT 0,
+    CONSTRAINT loginavatar_pkey PRIMARY KEY ("AvatarId"),
+    CONSTRAINT uq_loginavatar_loginid UNIQUE ("LoginId")
 );
 
-CREATE TABLE IF NOT EXISTS public.opcoespergunta
+CREATE TABLE IF NOT EXISTS public."OpcoesPergunta"
 (
-    opcaoid serial NOT NULL,
-    perguntaid integer NOT NULL,
-    texto character varying(200) COLLATE pg_catalog."default" NOT NULL,
-    correta boolean NOT NULL DEFAULT false,
-    ordem integer NOT NULL DEFAULT 0,
-    ativa boolean NOT NULL DEFAULT true,
-    CONSTRAINT opcoespergunta_pkey PRIMARY KEY (opcaoid)
+    "OpcaoId" integer NOT NULL DEFAULT nextval('opcoespergunta_opcaoid_seq'::regclass),
+    "PerguntaId" integer NOT NULL,
+    "Texto" character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    "Correta" boolean NOT NULL DEFAULT false,
+    "Ordem" integer NOT NULL DEFAULT 0,
+    "Ativa" boolean NOT NULL DEFAULT true,
+    CONSTRAINT opcoespergunta_pkey PRIMARY KEY ("OpcaoId")
 );
 
-CREATE TABLE IF NOT EXISTS public.participantes_sessao
+CREATE TABLE IF NOT EXISTS public."ParticipantesSessao"
 (
-    participante_id serial NOT NULL,
-    sessao_id character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    nome_participante character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    entrou_em timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    saiu_em timestamp with time zone,
-    CONSTRAINT participantes_sessao_pkey PRIMARY KEY (participante_id)
+    "ParticipanteId" integer NOT NULL DEFAULT nextval('participantes_sessao_participante_id_seq'::regclass),
+    "SessaoId" character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    "NomeParticipante" character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    "EntrouEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "SaiuEm" timestamp with time zone,
+    CONSTRAINT participantes_sessao_pkey PRIMARY KEY ("ParticipanteId")
 );
 
-CREATE TABLE IF NOT EXISTS public.pastas
+CREATE TABLE IF NOT EXISTS public."Pastas"
 (
-    pastaid serial NOT NULL,
-    nome character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    loginid integer,
-    CONSTRAINT pastas_pkey PRIMARY KEY (pastaid),
-    CONSTRAINT uq_pastas_loginid_nome UNIQUE (loginid, nome)
+    "PastaId" integer NOT NULL DEFAULT nextval('pastas_pastaid_seq'::regclass),
+    "Nome" character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    "LoginId" integer,
+    CONSTRAINT pastas_pkey PRIMARY KEY ("PastaId"),
+    CONSTRAINT uq_pastas_loginid_nome UNIQUE ("LoginId", "Nome")
 );
 
-CREATE TABLE IF NOT EXISTS public.perguntas
+CREATE TABLE IF NOT EXISTS public."Perguntas"
 (
-    perguntaid serial NOT NULL,
-    tipoperguntaid integer NOT NULL,
-    pesquisaid integer NOT NULL,
-    texto text COLLATE pg_catalog."default" NOT NULL,
-    temgabarito boolean NOT NULL DEFAULT false,
-    permitemultiplaselecao boolean NOT NULL DEFAULT false,
-    ordem integer NOT NULL DEFAULT 0,
-    CONSTRAINT perguntas_pkey PRIMARY KEY (perguntaid)
+    "PerguntaId" integer NOT NULL DEFAULT nextval('perguntas_perguntaid_seq'::regclass),
+    "TipoPerguntaId" integer NOT NULL,
+    "PesquisaId" integer NOT NULL,
+    "Texto" text COLLATE pg_catalog."default" NOT NULL,
+    "TemGabarito" boolean NOT NULL DEFAULT false,
+    "PermiteMultiplasSelecao" boolean NOT NULL DEFAULT false,
+    "Ordem" integer NOT NULL DEFAULT 0,
+    CONSTRAINT perguntas_pkey PRIMARY KEY ("PerguntaId")
 );
 
-CREATE TABLE IF NOT EXISTS public.pesquisas
+CREATE TABLE IF NOT EXISTS public."Pesquisas"
 (
-    pesquisaid serial NOT NULL,
-    loginid integer NOT NULL,
-    tipopesquisaid integer NOT NULL,
-    titulo character varying(100) COLLATE pg_catalog."default" NOT NULL,
-    descricao character varying(500) COLLATE pg_catalog."default" NOT NULL,
-    templatejson text COLLATE pg_catalog."default" DEFAULT '[]'::text,
-    pastaid integer,
-    datacriacao timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    dataatualizacao timestamp with time zone,
-    qrcodeurl text COLLATE pg_catalog."default",
-    temlimitadortempo boolean NOT NULL DEFAULT false,
-    datafechamento timestamp with time zone,
-    isinterativa boolean NOT NULL DEFAULT false,
-    permite_respostas_anonimas boolean NOT NULL DEFAULT true,
-    limite_respostas integer,
-    ativa boolean NOT NULL DEFAULT true,
-    CONSTRAINT pesquisas_pkey PRIMARY KEY (pesquisaid)
+    "PesquisaId" integer NOT NULL DEFAULT nextval('pesquisas_pesquisaid_seq'::regclass),
+    "LoginId" integer NOT NULL,
+    "TipoPesquisaId" integer NOT NULL,
+    "Titulo" character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    "Descricao" character varying(500) COLLATE pg_catalog."default" NOT NULL,
+    "TemplateJson" text COLLATE pg_catalog."default" DEFAULT '[]'::text,
+    "PastaId" integer,
+    "DataCriacao" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "DataAtualizacao" timestamp with time zone,
+    "QRCodeUrl" text COLLATE pg_catalog."default",
+    "TemLimitadorTempo" boolean NOT NULL DEFAULT false,
+    "DataFechamento" timestamp with time zone,
+    "IsInterativa" boolean NOT NULL DEFAULT false,
+    "PermiteRespostasAnonimas" boolean NOT NULL DEFAULT true,
+    "LimiteRespostas" integer,
+    "Ativa" boolean NOT NULL DEFAULT true,
+    CONSTRAINT pesquisas_pkey PRIMARY KEY ("PesquisaId")
 );
 
-CREATE TABLE IF NOT EXISTS public.respostas
+CREATE TABLE IF NOT EXISTS public."Respostas"
 (
-    respostaid serial NOT NULL,
-    perguntaid integer NOT NULL,
-    texto text COLLATE pg_catalog."default" NOT NULL,
-    dataresposta timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    sessao_id character varying(50) COLLATE pg_catalog."default",
-    resposta_anonima boolean NOT NULL DEFAULT false,
-    participante_id integer,
-    CONSTRAINT respostas_pkey PRIMARY KEY (respostaid)
+    "RespostaId" integer NOT NULL DEFAULT nextval('respostas_respostaid_seq'::regclass),
+    "PerguntaId" integer NOT NULL,
+    "Texto" text COLLATE pg_catalog."default" NOT NULL,
+    "DataResposta" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "SessaoId" character varying(50) COLLATE pg_catalog."default",
+    "RespostaAnonima" boolean NOT NULL DEFAULT false,
+    "ParticipanteId" integer,
+    CONSTRAINT "RespostasPkey" PRIMARY KEY ("RespostaId")
 );
 
-CREATE TABLE IF NOT EXISTS public.respostas_anexos
+CREATE TABLE IF NOT EXISTS public."RespostasAnexos"
 (
-    respostaid integer NOT NULL,
-    anexoid integer NOT NULL,
-    CONSTRAINT respostas_anexos_pkey PRIMARY KEY (respostaid, anexoid)
+    "RespostaId" integer NOT NULL,
+    "AnexoId" integer NOT NULL,
+    CONSTRAINT "RespostasAnexosPkey" PRIMARY KEY ("RespostaId", "AnexoId")
 );
 
-CREATE TABLE IF NOT EXISTS public.respostas_opcoes
+CREATE TABLE IF NOT EXISTS public."RespostasOpcoes"
 (
-    respostaid integer NOT NULL,
-    opcaoid integer NOT NULL,
-    CONSTRAINT respostas_opcoes_pkey PRIMARY KEY (respostaid, opcaoid)
+    "RespostaId" integer NOT NULL,
+    "OpcaoId" integer NOT NULL,
+    CONSTRAINT "RespostasOpcoesPkey" PRIMARY KEY ("RespostaId", "OpcaoId")
 );
 
-CREATE TABLE IF NOT EXISTS public.sessoes_interativas
+CREATE TABLE IF NOT EXISTS public."SessoesInterativas"
 (
-    sessao_id character varying(50) COLLATE pg_catalog."default" NOT NULL,
-    pesquisa_id integer NOT NULL,
-    codigo_acesso character varying(10) COLLATE pg_catalog."default" NOT NULL,
-    criada_em timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    iniciada_em timestamp with time zone,
-    finalizada_em timestamp with time zone,
-    ativa boolean NOT NULL DEFAULT true,
-    CONSTRAINT sessoes_interativas_pkey PRIMARY KEY (sessao_id),
-    CONSTRAINT uq_sessoes_codigo UNIQUE (codigo_acesso)
+    "SessaoId" character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    "PesquisaId" integer NOT NULL,
+    "CodigoAcesso" character varying(10) COLLATE pg_catalog."default" NOT NULL,
+    "CriadaEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "IniciadaEm" timestamp with time zone,
+    "FinalizadaEm" timestamp with time zone,
+    "Ativa" boolean NOT NULL DEFAULT true,
+    CONSTRAINT "SessoesInterativasPkey" PRIMARY KEY ("SessaoId"),
+    CONSTRAINT "UqSessoesCodigo" UNIQUE ("CodigoAcesso")
 );
 
-CREATE TABLE IF NOT EXISTS public.tipopergunta
+CREATE TABLE IF NOT EXISTS public."TipoPergunta"
 (
-    tipoperguntaid serial NOT NULL,
-    tipopergunta character varying(200) COLLATE pg_catalog."default" NOT NULL,
-    desabilitado boolean NOT NULL DEFAULT false,
-    CONSTRAINT tipopergunta_pkey PRIMARY KEY (tipoperguntaid)
+    "TipoPerguntaId" integer NOT NULL DEFAULT nextval('tipopergunta_tipoperguntaid_seq'::regclass),
+    "TipoPergunta" character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    "Desabilitado" boolean NOT NULL DEFAULT false,
+    CONSTRAINT "TipoPerguntaPkey" PRIMARY KEY ("TipoPerguntaId")
 );
 
-COMMENT ON TABLE public.tipopergunta
+COMMENT ON TABLE public."TipoPergunta"
     IS 'Tipos de pergunta: 1=Discursiva, 2=Objetiva, 3=Multipla Escolha';
 
-CREATE TABLE IF NOT EXISTS public.tipopesquisa
+CREATE TABLE IF NOT EXISTS public."TipoPesquisa"
 (
-    tipopesquisaid serial NOT NULL,
-    tipopesquisa character varying(200) COLLATE pg_catalog."default" NOT NULL,
-    desabilitado boolean NOT NULL DEFAULT false,
-    CONSTRAINT tipopesquisa_pkey PRIMARY KEY (tipopesquisaid)
+    "TipoPesquisaId" integer NOT NULL DEFAULT nextval('tipopesquisa_tipopesquisaid_seq'::regclass),
+    "TipoPesquisa" character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    "Desabilitado" boolean NOT NULL DEFAULT false,
+    CONSTRAINT "TipoPesquisaPkey" PRIMARY KEY ("TipoPesquisaId")
 );
 
-COMMENT ON TABLE public.tipopesquisa
+COMMENT ON TABLE public."TipoPesquisa"
     IS 'Tipos de pesquisa: 1=Pesquisa de Campo, 2=Teste';
 
-CREATE TABLE IF NOT EXISTS public.tipousuario
+CREATE TABLE IF NOT EXISTS public."TipoUsuario"
 (
-    tipousuarioid serial NOT NULL,
-    tipousuario character varying(50) COLLATE pg_catalog."default",
-    CONSTRAINT tipousuario_pkey PRIMARY KEY (tipousuarioid)
+    "TipoUsuarioId" integer NOT NULL DEFAULT nextval('tipousuario_tipousuarioid_seq'::regclass),
+    "TipoUsuario" character varying(50) COLLATE pg_catalog."default",
+    CONSTRAINT "TipoUsuarioPkey" PRIMARY KEY ("TipoUsuarioId")
 );
 
-COMMENT ON TABLE public.tipousuario
+COMMENT ON TABLE public."TipoUsuario"
     IS 'Tipos de usuário: 13=Usuário, 14=Usuário Premium, 15=Administrador';
 
-CREATE TABLE IF NOT EXISTS public.tokens
+CREATE TABLE IF NOT EXISTS public."Tokens"
 (
-    tokenid serial NOT NULL,
-    token character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    dataregistro timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    dataexpirado timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP + '24:00:00'::interval),
-    loginid integer,
-    finalidade character varying(30) COLLATE pg_catalog."default",
-    usadoem timestamp with time zone,
-    CONSTRAINT tokens_pkey PRIMARY KEY (tokenid),
-    CONSTRAINT uq_tokens_token UNIQUE (token)
+    "TokenId" integer NOT NULL DEFAULT nextval('tokens_tokenid_seq'::regclass),
+    "Token" character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    "DataRegistro" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "DataExpirado" timestamp with time zone NOT NULL DEFAULT (CURRENT_TIMESTAMP + '24:00:00'::interval),
+    "LoginId" integer,
+    "Finalidade" character varying(30) COLLATE pg_catalog."default",
+    "UsadoEm" timestamp with time zone,
+    CONSTRAINT "TokensPkey" PRIMARY KEY ("TokenId"),
+    CONSTRAINT "UqTokensToken" UNIQUE ("Token")
 );
 
-ALTER TABLE IF EXISTS public.anexos
-    ADD CONSTRAINT anexos_perguntaid_fkey FOREIGN KEY (perguntaid)
-    REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Anexos"
+    ADD CONSTRAINT anexos_perguntaid_fkey FOREIGN KEY ("PerguntaId")
+    REFERENCES public."Perguntas" ("PerguntaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_anexos_perguntaid
-    ON public.anexos(perguntaid);
+    ON public."Anexos"("PerguntaId");
 
 
-ALTER TABLE IF EXISTS public.anexos
-    ADD CONSTRAINT anexos_pesquisaid_fkey FOREIGN KEY (pesquisaid)
-    REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Anexos"
+    ADD CONSTRAINT anexos_pesquisaid_fkey FOREIGN KEY ("PesquisaId")
+    REFERENCES public."Pesquisas" ("PesquisaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_anexos_pesquisaid
-    ON public.anexos(pesquisaid);
+    ON public."Anexos"("PesquisaId");
 
 
-ALTER TABLE IF EXISTS public.externallogins
-    ADD CONSTRAINT fk_externallogins_loginid FOREIGN KEY (loginid)
-    REFERENCES public.login (loginid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."ExternalLogins"
+    ADD CONSTRAINT fk_externallogins_loginid FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_externallogins_loginid
-    ON public.externallogins(loginid);
+    ON public."ExternalLogins"("LoginId");
 
 
-ALTER TABLE IF EXISTS public.login
-    ADD CONSTRAINT fk_login_tipousuarioid FOREIGN KEY (tipousuarioid)
-    REFERENCES public.tipousuario (tipousuarioid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Login"
+    ADD CONSTRAINT "FkLoginTipoUsuarioId" FOREIGN KEY ("TipoUsuarioId")
+    REFERENCES public."TipoUsuario" ("TipoUsuarioId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 
 
-ALTER TABLE IF EXISTS public.loginavatar
-    ADD CONSTRAINT fk_loginavatar_loginid FOREIGN KEY (loginid)
-    REFERENCES public.login (loginid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."LoginAvatar"
+    ADD CONSTRAINT fk_loginavatar_loginid FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS uq_loginavatar_loginid
-    ON public.loginavatar(loginid);
+    ON public."LoginAvatar"("LoginId");
 
 
-ALTER TABLE IF EXISTS public.opcoespergunta
-    ADD CONSTRAINT opcoespergunta_perguntaid_fkey FOREIGN KEY (perguntaid)
-    REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."OpcoesPergunta"
+    ADD CONSTRAINT opcoespergunta_perguntaid_fkey FOREIGN KEY ("PerguntaId")
+    REFERENCES public."Perguntas" ("PerguntaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_opcoespergunta_perguntaid
-    ON public.opcoespergunta(perguntaid);
+    ON public."OpcoesPergunta"("PerguntaId");
 
 
-ALTER TABLE IF EXISTS public.participantes_sessao
-    ADD CONSTRAINT fk_participantes_sessao FOREIGN KEY (sessao_id)
-    REFERENCES public.sessoes_interativas (sessao_id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."ParticipantesSessao"
+    ADD CONSTRAINT "FkParticipantesSessao" FOREIGN KEY ("SessaoId")
+    REFERENCES public."SessoesInterativas" ("SessaoId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 
 
-ALTER TABLE IF EXISTS public.pastas
-    ADD CONSTRAINT fk_pastas_loginid FOREIGN KEY (loginid)
-    REFERENCES public.login (loginid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Pastas"
+    ADD CONSTRAINT fk_pastas_loginid FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 
 
-ALTER TABLE IF EXISTS public.perguntas
-    ADD CONSTRAINT perguntas_pesquisaid_fkey FOREIGN KEY (pesquisaid)
-    REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Perguntas"
+    ADD CONSTRAINT perguntas_pesquisaid_fkey FOREIGN KEY ("PesquisaId")
+    REFERENCES public."Pesquisas" ("PesquisaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_perguntas_pesquisaid
-    ON public.perguntas(pesquisaid);
+    ON public."Perguntas"("PesquisaId");
 
 
-ALTER TABLE IF EXISTS public.perguntas
-    ADD CONSTRAINT perguntas_tipoperguntaid_fkey FOREIGN KEY (tipoperguntaid)
-    REFERENCES public.tipopergunta (tipoperguntaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Perguntas"
+    ADD CONSTRAINT perguntas_tipoperguntaid_fkey FOREIGN KEY ("TipoPerguntaId")
+    REFERENCES public."TipoPergunta" ("TipoPerguntaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 CREATE INDEX IF NOT EXISTS idx_perguntas_tipoperguntaid
-    ON public.perguntas(tipoperguntaid);
+    ON public."Perguntas"("TipoPerguntaId");
 
 
-ALTER TABLE IF EXISTS public.pesquisas
-    ADD CONSTRAINT fk_pesquisas_loginid FOREIGN KEY (loginid)
-    REFERENCES public.login (loginid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Pesquisas"
+    ADD CONSTRAINT fk_pesquisas_loginid FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 CREATE INDEX IF NOT EXISTS idx_pesquisas_loginid
-    ON public.pesquisas(loginid);
+    ON public."Pesquisas"("LoginId");
 
 
-ALTER TABLE IF EXISTS public.pesquisas
-    ADD CONSTRAINT pesquisas_pastaid_fkey FOREIGN KEY (pastaid)
-    REFERENCES public.pastas (pastaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Pesquisas"
+    ADD CONSTRAINT pesquisas_pastaid_fkey FOREIGN KEY ("PastaId")
+    REFERENCES public."Pastas" ("PastaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_pesquisas_pastaid
-    ON public.pesquisas(pastaid);
+    ON public."Pesquisas"("PastaId");
 
 
-ALTER TABLE IF EXISTS public.pesquisas
-    ADD CONSTRAINT pesquisas_tipopesquisaid_fkey FOREIGN KEY (tipopesquisaid)
-    REFERENCES public.tipopesquisa (tipopesquisaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Pesquisas"
+    ADD CONSTRAINT pesquisas_tipopesquisaid_fkey FOREIGN KEY ("TipoPesquisaId")
+    REFERENCES public."TipoPesquisa" ("TipoPesquisaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
 CREATE INDEX IF NOT EXISTS idx_pesquisas_tipopesquisa
-    ON public.pesquisas(tipopesquisaid);
+    ON public."Pesquisas"("TipoPesquisaId");
 
 
-ALTER TABLE IF EXISTS public.respostas
-    ADD CONSTRAINT fk_respostas_participante FOREIGN KEY (participante_id)
-    REFERENCES public.participantes_sessao (participante_id) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Respostas"
+    ADD CONSTRAINT "FkRespostasParticipante" FOREIGN KEY ("ParticipanteId")
+    REFERENCES public."ParticipantesSessao" ("ParticipanteId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE SET NULL;
 
 
-ALTER TABLE IF EXISTS public.respostas
-    ADD CONSTRAINT respostas_perguntaid_fkey FOREIGN KEY (perguntaid)
-    REFERENCES public.perguntas (perguntaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Respostas"
+    ADD CONSTRAINT "RespostasPerguntaIdFkey" FOREIGN KEY ("PerguntaId")
+    REFERENCES public."Perguntas" ("PerguntaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS idx_respostas_perguntaid
-    ON public.respostas(perguntaid);
+CREATE INDEX IF NOT EXISTS "IdxRespostasPerguntaId"
+    ON public."Respostas"("PerguntaId");
 
 
-ALTER TABLE IF EXISTS public.respostas_anexos
-    ADD CONSTRAINT respostas_anexos_anexoid_fkey FOREIGN KEY (anexoid)
-    REFERENCES public.anexos (anexoid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."RespostasAnexos"
+    ADD CONSTRAINT "RespostasAnexosAnexoIdFkey" FOREIGN KEY ("AnexoId")
+    REFERENCES public."Anexos" ("AnexoId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
-CREATE INDEX IF NOT EXISTS idx_respostas_anexos_anexoid
-    ON public.respostas_anexos(anexoid);
+CREATE INDEX IF NOT EXISTS "IdxRespostasAnexosAnexoId"
+    ON public."RespostasAnexos"("AnexoId");
 
 
-ALTER TABLE IF EXISTS public.respostas_anexos
-    ADD CONSTRAINT respostas_anexos_respostaid_fkey FOREIGN KEY (respostaid)
-    REFERENCES public.respostas (respostaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."RespostasAnexos"
+    ADD CONSTRAINT "RespostasAnexosRespostaIdFkey" FOREIGN KEY ("RespostaId")
+    REFERENCES public."Respostas" ("RespostaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 
 
-ALTER TABLE IF EXISTS public.respostas_opcoes
-    ADD CONSTRAINT respostas_opcoes_opcaoid_fkey FOREIGN KEY (opcaoid)
-    REFERENCES public.opcoespergunta (opcaoid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."RespostasOpcoes"
+    ADD CONSTRAINT "RespostasOpcoesOpcaoIdFkey" FOREIGN KEY ("OpcaoId")
+    REFERENCES public."OpcoesPergunta" ("OpcaoId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE NO ACTION;
-CREATE INDEX IF NOT EXISTS idx_respostasopcoes_opcaoid
-    ON public.respostas_opcoes(opcaoid);
+CREATE INDEX IF NOT EXISTS "IdxRespostasOpcoesOpcaoId"
+    ON public."RespostasOpcoes"("OpcaoId");
 
 
-ALTER TABLE IF EXISTS public.respostas_opcoes
-    ADD CONSTRAINT respostas_opcoes_respostaid_fkey FOREIGN KEY (respostaid)
-    REFERENCES public.respostas (respostaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."RespostasOpcoes"
+    ADD CONSTRAINT "RespostasOpcoesRespostaIdFkey" FOREIGN KEY ("RespostaId")
+    REFERENCES public."Respostas" ("RespostaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
-CREATE INDEX IF NOT EXISTS idx_respostasopcoes_respostaid
-    ON public.respostas_opcoes(respostaid);
+CREATE INDEX IF NOT EXISTS "IdxRespostasOpcoesRespostaId"
+    ON public."RespostasOpcoes"("RespostaId");
 
 
-ALTER TABLE IF EXISTS public.sessoes_interativas
-    ADD CONSTRAINT fk_sessoes_pesquisa FOREIGN KEY (pesquisa_id)
-    REFERENCES public.pesquisas (pesquisaid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."SessoesInterativas"
+    ADD CONSTRAINT "FkSessoesPesquisa" FOREIGN KEY ("PesquisaId")
+    REFERENCES public."Pesquisas" ("PesquisaId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 
 
-ALTER TABLE IF EXISTS public.tokens
-    ADD CONSTRAINT fk_tokens_loginid FOREIGN KEY (loginid)
-    REFERENCES public.login (loginid) MATCH SIMPLE
+ALTER TABLE IF EXISTS public."Tokens"
+    ADD CONSTRAINT "FkTokensLoginId" FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
     ON UPDATE NO ACTION
     ON DELETE CASCADE;
 
