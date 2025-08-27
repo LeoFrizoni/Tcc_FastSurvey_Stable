@@ -1,10 +1,14 @@
 ﻿// ===== Services da API =====
 using FASTSURVEY.Services.Analytics;
 using FASTSURVEY.Services.Anexo;
+using FASTSURVEY.Services.Blocklist;
 using FASTSURVEY.Services.Email;
 using FASTSURVEY.Services.Export;
+using FASTSURVEY.Services.ExternalLogins;
+using FASTSURVEY.Services.FeatureFlags;
 using FASTSURVEY.Services.Login; // ILoginService, LoginService, IAvatarService, AvatarService
 using FASTSURVEY.Services.Opcoes;
+using FASTSURVEY.Services.ParticipantesSessao;
 using FASTSURVEY.Services.Pasta;
 using FASTSURVEY.Services.Pergunta;
 using FASTSURVEY.Services.Pesquisa;
@@ -60,6 +64,8 @@ namespace FASTSURVEY
             services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
             services.AddScoped<ISessaoInterativaRepository, SessaoInterativaRepository>();
             services.AddScoped<IParticipanteSessaoRepository, ParticipanteSessaoRepository>();
+            services.AddScoped<IBlocklistRepository, BlocklistRepository>();
+            services.AddScoped<IFeatureFlagsRepository, FeatureFlagsRepository>();
 
             // ===== Services (API) =====
             services.AddScoped<IAnexoService, AnexoService>();
@@ -72,6 +78,7 @@ namespace FASTSURVEY
             services.AddScoped<IRespostaService, RespostaService>();
             services.AddScoped<ITipoPerguntaService, TipoPerguntaService>();
             services.AddScoped<ITipoPesquisaService, TipoPesquisaService>();
+            services.AddScoped<ITipoUsuarioService, TipoUsuarioService>();
             services.AddScoped<ITokenService, TokenService>();
 
             // ===== Novos Services =====
@@ -81,6 +88,12 @@ namespace FASTSURVEY
             services.AddScoped<IExportService, ExportService>();
             services.AddScoped<IAuthorizationService, AuthorizationService>();
             services.AddScoped<IAnalyticsService, AnalyticsService>();
+            
+            // ===== Services de Segurança e Controle =====
+            services.AddScoped<IBlocklistService, BlocklistService>();
+            services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
+            services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
+            services.AddScoped<IParticipantesSessaoService, ParticipantesSessaoService>();
 
             // ===== Email Service =====
             services.AddScoped<IEmailSender, SmtpEmailSender>();

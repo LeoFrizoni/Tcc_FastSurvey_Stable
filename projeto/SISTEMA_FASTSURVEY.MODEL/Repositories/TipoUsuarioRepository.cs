@@ -10,10 +10,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
         public TipoUsuarioRepository(FastSurveyContext context)
             : base(context) { }
 
-        public async Task<List<TipoUsuario>> ListarAsync(
-            bool incluirDesabilitados = false, // mantido por compatibilidade; ignorado
-            CancellationToken ct = default
-        )
+        public async Task<List<TipoUsuario>> ListarAsync(CancellationToken ct = default)
         {
             // Model não tem "Desabilitado": retornamos todos, ordenados por nome
             return await _set.AsNoTracking()

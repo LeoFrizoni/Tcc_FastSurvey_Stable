@@ -25,6 +25,13 @@ public partial class Anexos
 
     public string Base64Data { get; set; }
 
+    /// <summary>
+    /// Tipo do anexo: PESQUISA ou PERGUNTA
+    /// </summary>
+    public string TipoAnexo { get; set; }
+
+    public string Sha256 { get; set; }
+
     public virtual Perguntas Pergunta { get; set; }
 
     public virtual Pesquisas Pesquisa { get; set; }

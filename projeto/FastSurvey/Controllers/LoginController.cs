@@ -3,9 +3,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using FASTSURVEY.Dtos.Login;
 using FASTSURVEY.Services.Login;
+using FASTSURVEY.Services.Email;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FASTSURVEY.Controllers
 {
@@ -143,8 +145,8 @@ namespace FASTSURVEY.Controllers
             {
                 var result = await _loginService.ResetarSenhaAsync(request, ct);
                 return result
-                    ? Ok(new { message = "Senha alterada com sucesso!" })
-                    : BadRequest(new { message = "Token inválido ou expirado." });
+                    ? Ok(new { message = "Senha alterada com sucesso! O link de reset expirou automaticamente." })
+                    : BadRequest(new { message = "Token inválido, expirado ou já foi utilizado. Solicite um novo link de reset de senha." });
             }
             catch (System.Exception ex)
             {
@@ -290,6 +292,45 @@ namespace FASTSURVEY.Controllers
         {
             request.Provider = "google";
             return await LoginExterno(request, ct);
+        }
+
+        // Endpoint de teste para email (remover em produção)
+        [AllowAnonymous]
+        [HttpPost("TestEmail")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> TestEmail(
+            [FromBody] TestEmailRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                _logger.LogInformation("Teste de email solicitado para: {Email}", request.Email);
+                
+                var htmlBody = @"
+                    <h2>Teste de Email - FastSurvey</h2>
+                    <p>Este é um email de teste para verificar se o sistema de email está funcionando.</p>
+                    <p>Se você recebeu este email, o sistema está configurado corretamente!</p>
+                    <p>Data/Hora: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + @"</p>";
+
+                // Injetar o serviço de email via DI
+                var emailSender = HttpContext.RequestServices.GetRequiredService<IEmailSender>();
+                await emailSender.SendAsync(
+                    request.Email,
+                    "Teste de Email - FastSurvey",
+                    htmlBody,
+                    ct
+                );
+
+                _logger.LogInformation("Email de teste enviado com sucesso para: {Email}", request.Email);
+                return Ok(new { message = "Email de teste enviado com sucesso!" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao enviar email de teste para: {Email}", request.Email);
+                return BadRequest(new { message = $"Erro ao enviar email: {ex.Message}" });
+            }
         }
     }
 }

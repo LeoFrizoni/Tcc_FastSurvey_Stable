@@ -39,5 +39,59 @@ namespace FASTSURVEY.Services.Tipos
 
             return list;
         }
+
+        public async Task<TipoPesquisaCatalogDto> CadastrarAsync(string tipoPesquisa, CancellationToken ct = default)
+        {
+            var novo = new SISTEMA_FASTSURVEY.MODEL.Models.TipoPesquisa
+            {
+                TipoPesquisa1 = tipoPesquisa.Trim(),
+                Desabilitado = false
+            };
+
+            _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.TipoPesquisa>().Add(novo);
+            await _ctx.SaveChangesAsync(ct);
+
+            return new TipoPesquisaCatalogDto
+            {
+                TipoPesquisaId = novo.TipoPesquisaId,
+                TipoPesquisa = novo.TipoPesquisa1,
+                Desabilitado = novo.Desabilitado
+            };
+        }
+
+        public async Task<bool> AlterarAsync(int id, string tipoPesquisa, CancellationToken ct = default)
+        {
+            var existente = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.TipoPesquisa>()
+                .FirstOrDefaultAsync(x => x.TipoPesquisaId == id, ct);
+
+            if (existente == null)
+                return false;
+
+            existente.TipoPesquisa1 = tipoPesquisa.Trim();
+            await _ctx.SaveChangesAsync(ct);
+
+            return true;
+        }
+
+        public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
+        {
+            var existente = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.TipoPesquisa>()
+                .FirstOrDefaultAsync(x => x.TipoPesquisaId == id, ct);
+
+            if (existente == null)
+                return false;
+
+            // Verificar se há pesquisas usando este tipo
+            var pesquisasComTipo = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.Pesquisas>()
+                .AnyAsync(x => x.TipoPesquisaId == id, ct);
+
+            if (pesquisasComTipo)
+                throw new InvalidOperationException("Não é possível excluir um tipo de pesquisa que está sendo usado.");
+
+            _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.TipoPesquisa>().Remove(existente);
+            await _ctx.SaveChangesAsync(ct);
+
+            return true;
+        }
     }
 }

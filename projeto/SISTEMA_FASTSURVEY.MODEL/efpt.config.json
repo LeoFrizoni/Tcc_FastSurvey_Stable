@@ -19,7 +19,15 @@
          "ObjectType": 0
       },
       {
+         "Name": "public.Blocklist",
+         "ObjectType": 0
+      },
+      {
          "Name": "public.ExternalLogins",
+         "ObjectType": 0
+      },
+      {
+         "Name": "public.FeatureFlags",
          "ObjectType": 0
       },
       {

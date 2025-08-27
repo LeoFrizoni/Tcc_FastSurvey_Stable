@@ -1,7 +1,7 @@
 // src/pages/perfil/Perfil.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import TopNavbar from '../../components/layouts/TopNavBar';
-import { User, Tag, BadgeCheck, Pencil, Save, X, Image as ImgIcon, Trash2 } from 'lucide-react';
+import { User, Tag, BadgeCheck, Pencil, Save, X, Image as ImgIcon, Trash2, CheckCircle } from 'lucide-react';
 import styles from './perfil.module.css';
 import api from '../../lib/api';
 import AvatarCropModal from '../../components/layouts/AvatarCropModal';
@@ -9,8 +9,8 @@ import '../../components/layouts/global.css';
 
 const EP = {
   getPerfil: '/api/Login/Perfil',
-  putNome: '/api/Login/Perfil/Nome',
-  uploadAvatar: '/api/Avatar/upload',
+  putNome: '/api/Login/Nome',
+  uploadAvatar: '/api/Avatar',
   deleteAvatar: '/api/Avatar',
 };
 
@@ -64,8 +64,21 @@ export default function Perfil() {
 
   // modal exclusão
   const [showDelete, setShowDelete] = useState(false);
+  
+  // notificação de sucesso
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const baseURL = api?.defaults?.baseURL || '';
+
+  // Função para mostrar notificação de sucesso
+  const showSuccessNotification = (message) => {
+    setSuccessMessage(message);
+    setShowSuccess(true);
+    setTimeout(() => {
+      setShowSuccess(false);
+    }, 3000);
+  };
 
   useEffect(() => {
     const carregar = async () => {
@@ -77,8 +90,8 @@ export default function Perfil() {
           tipoUsuarioId: d.tipoUsuarioId ?? d.tipousuarioid ?? d.tipo ?? '',
           status: d.status || 'Ativo',
         });
-        setNovoNome(d.usuario || d.nome || '');
-        setAvatarUrl(resolveAvatarUrlLike(d, baseURL));
+                 setNovoNome(d.usuario || d.nome || '');
+         setAvatarUrl(resolveAvatarUrlLike(d, baseURL));
       } catch (e) {
         console.error('Erro ao buscar perfil:', e);
       } finally {
@@ -106,9 +119,10 @@ export default function Perfil() {
     if (!n1 || n1 === n0) { setEditando(false); return; }
     setSalvando(true);
     try {
-      await api.put(EP.putNome, { usuario: n1 });
-      setUsuario(u => ({ ...u, nome: n1 }));
-      setEditando(false);
+                    await api.put(EP.putNome, { novoNome: n1 });
+       setUsuario(u => ({ ...u, nome: n1 }));
+       setEditando(false);
+       showSuccessNotification('Nome atualizado com sucesso!');
     } catch (e) {
       console.error('Erro ao salvar nome:', e);
       alert('Não foi possível salvar o nome agora.');
@@ -167,12 +181,14 @@ export default function Perfil() {
         setAvatarUrl(abs + (abs.includes('?') ? `&v=${v}` : `?v=${v}`));
       }
 
-      // Recarrega o perfil para sincronizar
-      try {
-        const r2 = await api.get(EP.getPerfil);
-        const resolved = resolveAvatarUrlLike(r2?.data || {}, baseURL);
-        if (resolved) setAvatarUrl(resolved);
-      } catch {}
+             // Recarrega o perfil para sincronizar
+       try {
+         const r2 = await api.get(EP.getPerfil);
+         const resolved = resolveAvatarUrlLike(r2?.data || {}, baseURL);
+         if (resolved) setAvatarUrl(resolved);
+       } catch {}
+       
+       showSuccessNotification('Avatar atualizado com sucesso!');
     } catch (err) {
       console.error('Erro ao enviar avatar:', err);
       alert('Falha ao enviar avatar.');
@@ -186,10 +202,7 @@ export default function Perfil() {
     try {
       await api.delete(EP.deleteAvatar);
       setAvatarUrl(null);
-      try {
-        const r2 = await api.get(EP.getPerfil);
-        setAvatarUrl(resolveAvatarUrlLike(r2?.data || {}, baseURL));
-      } catch {}
+      showSuccessNotification('Avatar removido com sucesso!');
     } catch (e) {
       console.error('Erro ao remover avatar:', e);
       alert('Não foi possível remover o avatar agora.');
@@ -222,12 +235,12 @@ export default function Perfil() {
                   <ImgIcon size={16} />
                   <span>Alterar avatar</span>
                 </button>
-                {avatarUrl && (
-                  <button className={styles.btnGhost} onClick={() => setShowDelete(true)} title="Remover avatar">
-                    <Trash2 size={16} />
-                    <span>Remover</span>
-                  </button>
-                )}
+                                 {avatarUrl && (
+                   <button className={styles.btnDanger} onClick={() => setShowDelete(true)} title="Remover avatar">
+                     <Trash2 size={16} />
+                     <span>Remover</span>
+                   </button>
+                 )}
               </div>
             </div>
 
@@ -290,24 +303,32 @@ export default function Perfil() {
         onConfirm={onConfirmCrop}
       />
 
-      {/* Modal de exclusão simples */}
-      {showDelete && (
-        <div className="cropOverlay" role="dialog" aria-modal="true" aria-label="Remover avatar">
-          <div className="cropModal">
-            <div className="cropHeader">
-              <h3>Remover avatar</h3>
-              <button className="cropClose" onClick={() => setShowDelete(false)} aria-label="Fechar">×</button>
-            </div>
-            <div className="cropBody">
-              <p>Tem certeza que deseja remover seu avatar?</p>
-            </div>
-            <div className="cropFooter">
-              <button className="btnGhost" onClick={() => setShowDelete(false)}>Cancelar</button>
-              <button className="btnPrimary" onClick={removerAvatar}>Remover</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
+             {/* Modal de exclusão simples */}
+       {showDelete && (
+         <div className={styles.cropOverlay} role="dialog" aria-modal="true" aria-label="Remover avatar">
+           <div className={styles.confirmModal}>
+             <div className={styles.confirmHeader}>
+               <h3>Remover avatar</h3>
+               <button className={styles.confirmClose} onClick={() => setShowDelete(false)} aria-label="Fechar">×</button>
+             </div>
+             <div className={styles.confirmBody}>
+               <p>Tem certeza que deseja remover seu avatar?</p>
+             </div>
+             <div className={styles.confirmFooter}>
+               <button className={styles.btnSecondary} onClick={() => setShowDelete(false)}>Cancelar</button>
+               <button className={styles.btnDanger} onClick={removerAvatar}>Remover</button>
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* Notificação de sucesso */}
+       {showSuccess && (
+         <div className={styles.successNotification}>
+           <CheckCircle size={18} />
+           <span>{successMessage}</span>
+         </div>
+       )}
+     </>
+   );
+ }

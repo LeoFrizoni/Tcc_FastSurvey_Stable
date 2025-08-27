@@ -21,5 +21,25 @@ public partial class Tokens
 
     public DateTime? UsadoEm { get; set; }
 
+    /// <summary>
+    /// Tipo do token: JWT, REFRESH, RESET_PASSWORD
+    /// </summary>
+    public string TipoToken { get; set; }
+
+    /// <summary>
+    /// Token de refresh para renovação
+    /// </summary>
+    public string RefreshToken { get; set; }
+
+    /// <summary>
+    /// IP de origem do token
+    /// </summary>
+    public string IPAddress { get; set; }
+
+    /// <summary>
+    /// User agent do dispositivo
+    /// </summary>
+    public string UserAgent { get; set; }
+
     public virtual Login Login { get; set; }
 }

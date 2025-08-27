@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using SISTEMA_FASTSURVEY.MODEL.Interfaces;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 
 namespace SISTEMA_FASTSURVEY.MODEL.Repositories

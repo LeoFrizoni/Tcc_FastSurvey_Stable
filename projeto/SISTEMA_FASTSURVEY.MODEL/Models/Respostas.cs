@@ -21,6 +21,28 @@ public partial class Respostas
 
     public int? ParticipanteId { get; set; }
 
+    /// <summary>
+    /// Pontuação obtida na resposta
+    /// </summary>
+    public int PontuacaoObtida { get; set; }
+
+    /// <summary>
+    /// Tempo gasto para responder em segundos
+    /// </summary>
+    public int? TempoResposta { get; set; }
+
+    /// <summary>
+    /// Se a resposta está correta
+    /// </summary>
+    public bool? Correta { get; set; }
+
+    /// <summary>
+    /// Data/hora da correção automática
+    /// </summary>
+    public DateTime? DataCorrecao { get; set; }
+
+    public string Protocolo { get; set; }
+
     public virtual ParticipantesSessao Participante { get; set; }
 
     public virtual Perguntas Pergunta { get; set; }

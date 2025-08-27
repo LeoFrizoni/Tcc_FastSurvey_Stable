@@ -1,8 +1,8 @@
 ﻿#nullable enable
 using System.Linq.Expressions;
 
-namespace SISTEMA_FASTSURVEY.MODEL.Interfaces;
-
+namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
+{
 /// <summary>
 /// Contrato genérico de repositório, assíncrono e cancelável.
 /// </summary>
@@ -72,4 +72,5 @@ public interface IRepository<T>
 
     /// <summary>Persiste alterações no contexto.</summary>
     Task<int> SaveChangesAsync(CancellationToken ct = default);
+}
 }

@@ -19,7 +19,11 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<Anexos> Anexos { get; set; }
 
+    public virtual DbSet<Blocklist> Blocklist { get; set; }
+
     public virtual DbSet<ExternalLogins> ExternalLogins { get; set; }
+
+    public virtual DbSet<FeatureFlags> FeatureFlags { get; set; }
 
     public virtual DbSet<Login> Login { get; set; }
 
@@ -48,7 +52,7 @@ public partial class FastSurveyContext : DbContext
     public virtual DbSet<Tokens> Tokens { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-//#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
+#warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseNpgsql("Persist Security Info=True;Username=postgres;Password=admin;Host=localhost;Database=FastSurvey");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -61,6 +65,10 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.PesquisaId, "idx_anexos_pesquisaid");
 
+            entity.HasIndex(e => e.Sha256, "idx_anexos_sha");
+
+            entity.HasIndex(e => e.TipoAnexo, "idx_anexos_tipo");
+
             entity.Property(e => e.AnexoId).HasDefaultValueSql("nextval('anexos_anexoid_seq'::regclass)");
             entity.Property(e => e.ContentType).HasMaxLength(150);
             entity.Property(e => e.Extensao)
@@ -70,6 +78,14 @@ public partial class FastSurveyContext : DbContext
                 .IsRequired()
                 .HasMaxLength(255);
             entity.Property(e => e.NomeOriginal).HasMaxLength(255);
+            entity.Property(e => e.Sha256)
+                .HasMaxLength(64)
+                .IsFixedLength();
+            entity.Property(e => e.TipoAnexo)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'PESQUISA'::character varying")
+                .HasComment("Tipo do anexo: PESQUISA ou PERGUNTA");
 
             entity.HasOne(d => d.Pergunta).WithMany(p => p.Anexos)
                 .HasForeignKey(d => d.PerguntaId)
@@ -79,6 +95,14 @@ public partial class FastSurveyContext : DbContext
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.Anexos)
                 .HasForeignKey(d => d.PesquisaId)
                 .HasConstraintName("anexos_pesquisaid_fkey");
+        });
+
+        modelBuilder.Entity<Blocklist>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("Blocklist_pkey");
+
+            entity.Property(e => e.CriadoEm).HasDefaultValueSql("now()");
+            entity.Property(e => e.IPAddress).HasMaxLength(45);
         });
 
         modelBuilder.Entity<ExternalLogins>(entity =>
@@ -103,6 +127,18 @@ public partial class FastSurveyContext : DbContext
                 .HasConstraintName("fk_externallogins_loginid");
         });
 
+        modelBuilder.Entity<FeatureFlags>(entity =>
+        {
+            entity.HasKey(e => new { e.LoginId, e.Flag }).HasName("FeatureFlags_pkey");
+
+            entity.Property(e => e.Flag).HasMaxLength(50);
+            entity.Property(e => e.Ativa).HasDefaultValue(true);
+
+            entity.HasOne(d => d.Login).WithMany(p => p.FeatureFlags)
+                .HasForeignKey(d => d.LoginId)
+                .HasConstraintName("FeatureFlags_LoginId_fkey");
+        });
+
         modelBuilder.Entity<Login>(entity =>
         {
             entity.HasKey(e => e.LoginId).HasName("login_pkey");
@@ -110,14 +146,24 @@ public partial class FastSurveyContext : DbContext
             entity.HasIndex(e => e.Email, "uq_login_email").IsUnique();
 
             entity.Property(e => e.LoginId).HasDefaultValueSql("nextval('login_loginid_seq'::regclass)");
+            entity.Property(e => e.DataAceiteTermos).HasComment("Data/hora em que os termos foram aceitos");
             entity.Property(e => e.DataRegistro).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Email)
                 .IsRequired()
                 .HasMaxLength(100);
             entity.Property(e => e.EmailConfirmado).HasDefaultValue(false);
+            entity.Property(e => e.NomeCompleto)
+                .HasMaxLength(255)
+                .HasComment("Nome completo do usuário (obrigatório para Google)");
+            entity.Property(e => e.PrimeiroAcesso)
+                .HasDefaultValue(true)
+                .HasComment("Indica se é o primeiro acesso do usuário");
             entity.Property(e => e.Senha)
                 .IsRequired()
                 .HasMaxLength(100);
+            entity.Property(e => e.TermosAceitos)
+                .HasDefaultValue(false)
+                .HasComment("Indica se o usuário aceitou os termos de uso");
             entity.Property(e => e.TipoUsuarioId).HasDefaultValue(13);
             entity.Property(e => e.TipoUsuarioTexto).HasMaxLength(50);
             entity.Property(e => e.Usuario)
@@ -138,8 +184,14 @@ public partial class FastSurveyContext : DbContext
             entity.HasIndex(e => e.LoginId, "uq_loginavatar_loginid").IsUnique();
 
             entity.Property(e => e.AvatarId).HasDefaultValueSql("nextval('loginavatar_avatarid_seq'::regclass)");
+            entity.Property(e => e.Altura).HasComment("Altura da imagem em pixels");
+            entity.Property(e => e.Base64Data).HasComment("Dados da imagem em base64 para exibição");
             entity.Property(e => e.ContentType).HasMaxLength(150);
             entity.Property(e => e.CriadoEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.Formato)
+                .HasMaxLength(10)
+                .HasComment("Formato da imagem (jpg, png, etc)");
+            entity.Property(e => e.Largura).HasComment("Largura da imagem em pixels");
             entity.Property(e => e.NomeOriginal).HasMaxLength(255);
             entity.Property(e => e.Versao).HasDefaultValue(0);
 
@@ -154,16 +206,26 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.Ativa, "idx_opcoespergunta_ativa");
 
+            entity.HasIndex(e => new { e.PerguntaId, e.Correta }, "idx_opcoespergunta_correta");
+
             entity.HasIndex(e => e.Ordem, "idx_opcoespergunta_ordem");
 
             entity.HasIndex(e => e.PerguntaId, "idx_opcoespergunta_perguntaid");
+
+            entity.HasIndex(e => new { e.PerguntaId, e.Ordem }, "uq_opcoes_ordem")
+                .IsUnique()
+                .HasFilter("((\"Ativa\" = true) AND (\"DeletadoEm\" IS NULL))");
 
             entity.HasIndex(e => new { e.PerguntaId, e.Texto }, "ux_opcoespergunta_perguntaid_texto").IsUnique();
 
             entity.Property(e => e.OpcaoId).HasDefaultValueSql("nextval('opcoespergunta_opcaoid_seq'::regclass)");
             entity.Property(e => e.Ativa).HasDefaultValue(true);
             entity.Property(e => e.Correta).HasDefaultValue(false);
+            entity.Property(e => e.Explicacao).HasComment("Explicação da resposta correta");
             entity.Property(e => e.Ordem).HasDefaultValue(0);
+            entity.Property(e => e.Pontuacao)
+                .HasDefaultValue(0)
+                .HasComment("Pontuação da opção quando correta");
             entity.Property(e => e.Texto)
                 .IsRequired()
                 .HasMaxLength(200);
@@ -182,9 +244,17 @@ public partial class FastSurveyContext : DbContext
             entity.Property(e => e.NomeParticipante)
                 .IsRequired()
                 .HasMaxLength(100);
+            entity.Property(e => e.PontuacaoTotal)
+                .HasDefaultValue(0)
+                .HasComment("Pontuação total do participante");
+            entity.Property(e => e.Ranking).HasComment("Posição no ranking da sessão");
+            entity.Property(e => e.RespostasCorretas)
+                .HasDefaultValue(0)
+                .HasComment("Número de respostas corretas");
             entity.Property(e => e.SessaoId)
                 .IsRequired()
                 .HasMaxLength(50);
+            entity.Property(e => e.TempoMedioResposta).HasComment("Tempo médio de resposta em segundos");
 
             entity.HasOne(d => d.Sessao).WithMany(p => p.ParticipantesSessao)
                 .HasForeignKey(d => d.SessaoId)
@@ -212,6 +282,8 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.PerguntaId).HasName("perguntas_pkey");
 
+            entity.HasIndex(e => e.PesquisaId, "idx_perguntas_nao_deletadas").HasFilter("(\"DeletadoEm\" IS NULL)");
+
             entity.HasIndex(e => e.Ordem, "idx_perguntas_ordem");
 
             entity.HasIndex(e => e.PesquisaId, "idx_perguntas_pesquisaid");
@@ -219,9 +291,16 @@ public partial class FastSurveyContext : DbContext
             entity.HasIndex(e => e.TipoPerguntaId, "idx_perguntas_tipoperguntaid");
 
             entity.Property(e => e.PerguntaId).HasDefaultValueSql("nextval('perguntas_perguntaid_seq'::regclass)");
+            entity.Property(e => e.MostrarExplicacao)
+                .HasDefaultValue(false)
+                .HasComment("Se deve mostrar explicação após resposta");
             entity.Property(e => e.Ordem).HasDefaultValue(0);
             entity.Property(e => e.PermiteMultiplasSelecao).HasDefaultValue(false);
+            entity.Property(e => e.PontuacaoTotal)
+                .HasDefaultValue(0)
+                .HasComment("Pontuação total da pergunta");
             entity.Property(e => e.TemGabarito).HasDefaultValue(false);
+            entity.Property(e => e.TempoLimite).HasComment("Tempo limite em segundos para responder");
             entity.Property(e => e.Texto).IsRequired();
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.Perguntas)
@@ -240,6 +319,10 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.Ativa, "idx_pesquisas_ativa");
 
+            entity.HasIndex(e => e.ConfiguracaoAvancada, "idx_pesquisas_config_gin").HasMethod("gin");
+
+            entity.HasIndex(e => new { e.CriadoPor, e.AtualizadoPor }, "idx_pesquisas_criado_atualizado");
+
             entity.HasIndex(e => e.DataCriacao, "idx_pesquisas_datacriacao");
 
             entity.HasIndex(e => e.DataFechamento, "idx_pesquisas_datafechamento");
@@ -252,23 +335,50 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.PastaId, "idx_pesquisas_pastaid");
 
+            entity.HasIndex(e => e.Slug, "idx_pesquisas_slug")
+                .IsUnique()
+                .HasFilter("(\"Slug\" IS NOT NULL)");
+
+            entity.HasIndex(e => e.Slug, "idx_pesquisas_slug_like").HasOperators(new[] { "text_pattern_ops" });
+
+            entity.HasIndex(e => e.Slug, "idx_pesquisas_slug_like_dup").HasOperators(new[] { "text_pattern_ops" });
+
+            entity.HasIndex(e => e.Status, "idx_pesquisas_status");
+
             entity.HasIndex(e => e.TipoPesquisaId, "idx_pesquisas_tipopesquisa");
 
             entity.HasIndex(e => e.Titulo, "idx_pesquisas_titulo");
 
             entity.Property(e => e.PesquisaId).HasDefaultValueSql("nextval('pesquisas_pesquisaid_seq'::regclass)");
             entity.Property(e => e.Ativa).HasDefaultValue(true);
+            entity.Property(e => e.ConfiguracaoAvancada)
+                .HasComment("Configurações avançadas em JSON")
+                .HasColumnType("jsonb");
             entity.Property(e => e.DataCriacao).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Descricao)
                 .IsRequired()
                 .HasMaxLength(500);
             entity.Property(e => e.IsInterativa).HasDefaultValue(false);
+            entity.Property(e => e.PermiteEdicao)
+                .HasDefaultValue(true)
+                .HasComment("Se permite edição após publicação");
             entity.Property(e => e.PermiteRespostasAnonimas).HasDefaultValue(true);
+            entity.Property(e => e.RequerIdentificacao)
+                .HasDefaultValue(false)
+                .HasComment("Se a pesquisa requer identificação do respondente");
+            entity.Property(e => e.Slug)
+                .HasMaxLength(100)
+                .HasComment("URL amigável da pesquisa");
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasMaxLength(12)
+                .HasDefaultValueSql("'RASCUNHO'::character varying");
             entity.Property(e => e.TemLimitadorTempo).HasDefaultValue(false);
             entity.Property(e => e.TemplateJson).HasDefaultValueSql("'[]'::text");
             entity.Property(e => e.Titulo)
                 .IsRequired()
                 .HasMaxLength(100);
+            entity.Property(e => e.Versao).HasDefaultValue(0);
 
             entity.HasOne(d => d.Login).WithMany(p => p.Pesquisas)
                 .HasForeignKey(d => d.LoginId)
@@ -298,10 +408,19 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.SessaoId, "IdxRespostasSessao");
 
+            entity.HasIndex(e => e.Protocolo, "uq_respostas_protocolo").IsUnique();
+
             entity.Property(e => e.RespostaId).HasDefaultValueSql("nextval('respostas_respostaid_seq'::regclass)");
+            entity.Property(e => e.Correta).HasComment("Se a resposta está correta");
+            entity.Property(e => e.DataCorrecao).HasComment("Data/hora da correção automática");
             entity.Property(e => e.DataResposta).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.PontuacaoObtida)
+                .HasDefaultValue(0)
+                .HasComment("Pontuação obtida na resposta");
+            entity.Property(e => e.Protocolo).HasMaxLength(12);
             entity.Property(e => e.RespostaAnonima).HasDefaultValue(false);
             entity.Property(e => e.SessaoId).HasMaxLength(50);
+            entity.Property(e => e.TempoResposta).HasComment("Tempo gasto para responder em segundos");
             entity.Property(e => e.Texto).IsRequired();
 
             entity.HasOne(d => d.Participante).WithMany(p => p.Respostas)
@@ -362,7 +481,16 @@ public partial class FastSurveyContext : DbContext
             entity.Property(e => e.CodigoAcesso)
                 .IsRequired()
                 .HasMaxLength(10);
+            entity.Property(e => e.ConfiguracaoGamificacao)
+                .HasComment("Configurações de gamificação em JSON")
+                .HasColumnType("jsonb");
             entity.Property(e => e.CriadaEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.ModoCompeticao)
+                .HasDefaultValue(false)
+                .HasComment("Se a sessão é competitiva");
+            entity.Property(e => e.MostrarRanking)
+                .HasDefaultValue(true)
+                .HasComment("Se deve mostrar ranking em tempo real");
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.SessoesInterativas)
                 .HasForeignKey(d => d.PesquisaId)
@@ -415,6 +543,8 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.Token, "UqTokensToken").IsUnique();
 
+            entity.HasIndex(e => e.RefreshToken, "idx_tokens_refresh");
+
             entity.HasIndex(e => e.Token, "idx_tokens_token_validos").HasFilter("(\"UsadoEm\" IS NULL)");
 
             entity.HasIndex(e => new { e.LoginId, e.Finalidade }, "uq_tokens_loginid_finalidade_ativo")
@@ -425,9 +555,21 @@ public partial class FastSurveyContext : DbContext
             entity.Property(e => e.DataExpirado).HasDefaultValueSql("(CURRENT_TIMESTAMP + '24:00:00'::interval)");
             entity.Property(e => e.DataRegistro).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Finalidade).HasMaxLength(30);
+            entity.Property(e => e.IPAddress)
+                .HasMaxLength(45)
+                .HasComment("IP de origem do token");
+            entity.Property(e => e.RefreshToken)
+                .HasMaxLength(255)
+                .HasComment("Token de refresh para renovação");
+            entity.Property(e => e.TipoToken)
+                .IsRequired()
+                .HasMaxLength(20)
+                .HasDefaultValueSql("'JWT'::character varying")
+                .HasComment("Tipo do token: JWT, REFRESH, RESET_PASSWORD");
             entity.Property(e => e.Token)
                 .IsRequired()
                 .HasMaxLength(255);
+            entity.Property(e => e.UserAgent).HasComment("User agent do dispositivo");
 
             entity.HasOne(d => d.Login).WithMany(p => p.Tokens)
                 .HasForeignKey(d => d.LoginId)

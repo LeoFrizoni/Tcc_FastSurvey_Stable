@@ -216,7 +216,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
 
             var stubList = ids.Select(id => new Respostas { RespostaId = id }).ToList();
             _set.RemoveRange(stubList);
-            return await _context.SaveChangesAsync(ct);
+            return ids.Count;
         }
 
         public async Task<int> RemoverPorSessaoAsync(
@@ -239,7 +239,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
 
             var stubList = ids.Select(id => new Respostas { RespostaId = id }).ToList();
             _set.RemoveRange(stubList);
-            return await _context.SaveChangesAsync(ct);
+            return ids.Count;
         }
     }
 }

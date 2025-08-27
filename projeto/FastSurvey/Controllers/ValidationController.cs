@@ -108,8 +108,9 @@ namespace FASTSURVEY.Controllers
 
         // Upload precisa vir como multipart/form-data
         [HttpPost("file")]
+        [Consumes("multipart/form-data")]
         [RequestSizeLimit(long.MaxValue)]
-        public IActionResult ValidateFile([FromForm] IFormFile file)
+        public IActionResult ValidateFile(IFormFile file)
         {
             var allowed =
                 _options.AllowedFileExtensions ?? new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };

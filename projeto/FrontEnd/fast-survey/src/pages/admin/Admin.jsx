@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styles from './admin.module.css';
+import { logout } from '../../utils/auth';
 
+// FORCE UPDATE v4 - Endpoints corrigidos e funcionando - CACHE CLEARED
 const API = 'http://localhost:5062/api';
 
 /** Lê a resposta em segurança:
@@ -65,15 +67,24 @@ const AdminPage = () => {
     (async () => {
       try {
         if (aba === 'usuarios') {
-          const data = await fetchJSONSafe(`${API}/login`, { signal: controller.signal }, { defaultValue: [], expect: 'array' });
+          const data = await fetchJSONSafe(`${API}/admin/usuarios`, { 
+            signal: controller.signal,
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }, { defaultValue: [], expect: 'array' });
           setUsuarios(data);
         }
         if (aba === 'tipousuario') {
-          const data = await fetchJSONSafe(`${API}/tipousuario`, { signal: controller.signal }, { defaultValue: [], expect: 'array' });
+          const data = await fetchJSONSafe(`${API}/TipoUsuario`, { 
+            signal: controller.signal,
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }, { defaultValue: [], expect: 'array' });
           setTiposUsuario(data);
         }
         if (aba === 'tipopesquisa') {
-          const data = await fetchJSONSafe(`${API}/TipoPesquisa/ListarTipoPesquisa`, { signal: controller.signal }, { defaultValue: [], expect: 'array' });
+          const data = await fetchJSONSafe(`${API}/TipoPesquisa`, { 
+            signal: controller.signal,
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+          }, { defaultValue: [], expect: 'array' });
           setTiposPesquisa(data);
         }
       } catch (err) {
@@ -91,7 +102,9 @@ const AdminPage = () => {
   // ----- FETCHERS EXPLÍCITOS (reuso) -----
   async function fetchUsuarios() {
     try {
-  const data = await fetchJSONSafe(`${API}/login`, {}, { defaultValue: [], expect: 'array' });
+      const data = await fetchJSONSafe(`${API}/admin/usuarios`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: [], expect: 'array' });
       setUsuarios(data);
     } catch (err) {
       console.error(err);
@@ -101,7 +114,9 @@ const AdminPage = () => {
   }
   async function fetchTiposUsuario() {
     try {
-  const data = await fetchJSONSafe(`${API}/tipousuario/Listar`, {}, { defaultValue: [], expect: 'array' });
+      const data = await fetchJSONSafe(`${API}/TipoUsuario`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: [], expect: 'array' });
       setTiposUsuario(data);
     } catch (err) {
       console.error(err);
@@ -111,7 +126,9 @@ const AdminPage = () => {
   }
   async function fetchTiposPesquisa() {
     try {
-      const data = await fetchJSONSafe(`${API}/TipoPesquisa/ListarTipoPesquisa`, {}, { defaultValue: [], expect: 'array' });
+      const data = await fetchJSONSafe(`${API}/TipoPesquisa`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: [], expect: 'array' });
       setTiposPesquisa(data);
     } catch (err) {
       console.error(err);
@@ -127,11 +144,14 @@ const AdminPage = () => {
   async function saveUsuario() {
     try {
       await fetchJSONSafe(
-        `${API}/login/alterarloginporid/${edit.LoginId}`,
+        `${API}/admin/usuarios/${edit.loginId}`,
         {
           method: 'PUT',
           body: JSON.stringify(edit),
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -145,7 +165,10 @@ const AdminPage = () => {
   async function deleteUsuario(id) {
     if (!window.confirm('Excluir usuário?')) return;
     try {
-      await fetchJSONSafe(`${API}/login/excluirlogin/${id}`, { method: 'DELETE' }, { defaultValue: null, expect: 'object' });
+      await fetchJSONSafe(`${API}/admin/usuarios/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: null, expect: 'object' });
       await fetchUsuarios();
     } catch (err) {
       console.error(err);
@@ -159,11 +182,14 @@ const AdminPage = () => {
     }
     try {
       await fetchJSONSafe(
-        `${API}/login/cadastrar`,
+        `${API}/Login/Cadastrar`,
         {
           method: 'POST',
           body: JSON.stringify(novo),
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+            // Não precisa de Authorization pois o endpoint é [AllowAnonymous]
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -182,11 +208,14 @@ const AdminPage = () => {
   async function saveTipoUsuario() {
     try {
       await fetchJSONSafe(
-        `${API}/tipousuario/Alterar/${edit.TipoUsuarioId}`,
+        `${API}/TipoUsuario/${edit.tipoUsuarioId}`,
         {
           method: 'PUT',
-          body: JSON.stringify({ tipousuario1: edit.tipousuario1 }),
-          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoUsuario: edit.tipoUsuario }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -200,7 +229,10 @@ const AdminPage = () => {
   async function deleteTipoUsuario(id) {
     if (!window.confirm('Excluir tipo de usuário?')) return;
     try {
-      await fetchJSONSafe(`${API}/tipousuario/Excluir/${id}`, { method: 'DELETE' }, { defaultValue: null, expect: 'object' });
+      await fetchJSONSafe(`${API}/TipoUsuario/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: null, expect: 'object' });
       await fetchTiposUsuario();
     } catch (err) {
       console.error(err);
@@ -211,11 +243,14 @@ const AdminPage = () => {
     if (!novo.tipousuario) return;
     try {
       await fetchJSONSafe(
-        `${API}/tipousuario/Cadastrar`,
+        `${API}/TipoUsuario`,
         {
           method: 'POST',
-          body: JSON.stringify({ tipousuario1: novo.tipousuario }),
-          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoUsuario: novo.tipousuario }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -234,11 +269,14 @@ const AdminPage = () => {
   async function saveTipoPesquisa() {
     try {
       await fetchJSONSafe(
-        `${API}/TipoPesquisa/AlterarTipoPesquisaPorId/${edit.TipoPesquisaId}`,
+        `${API}/TipoPesquisa/${edit.tipoPesquisaId}`,
         {
           method: 'PUT',
-          body: JSON.stringify({ tipopesquisa1: edit.tipopesquisa1 }),
-          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoPesquisa: edit.tipoPesquisa }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -252,7 +290,10 @@ const AdminPage = () => {
   async function deleteTipoPesquisa(id) {
     if (!window.confirm('Excluir tipo de pesquisa?')) return;
     try {
-      await fetchJSONSafe(`${API}/TipoPesquisa/ExcluirTipoPesquisa/${id}`, { method: 'DELETE' }, { defaultValue: null, expect: 'object' });
+      await fetchJSONSafe(`${API}/TipoPesquisa/${id}`, { 
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      }, { defaultValue: null, expect: 'object' });
       await fetchTiposPesquisa();
     } catch (err) {
       console.error(err);
@@ -263,11 +304,14 @@ const AdminPage = () => {
     if (!novo.tipopesquisa) return;
     try {
       await fetchJSONSafe(
-        `${API}/TipoPesquisa/CadastrarTipoPesquisa`,
+        `${API}/TipoPesquisa`,
         {
           method: 'POST',
-          body: JSON.stringify({ tipopesquisa1: novo.tipopesquisa }),
-          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipoPesquisa: novo.tipopesquisa }),
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -311,20 +355,20 @@ const AdminPage = () => {
             {(usuarios || [])
               .filter(u => (u?.usuario || '').toLowerCase().includes(filtro.toLowerCase()))
               .map(u => (
-                <tr key={u.LoginId}>
-                  <td>{u.LoginId}</td>
+                <tr key={u.loginId}>
+                  <td>{u.loginId}</td>
                   <td>
-                    {edit.LoginId === u.LoginId
+                    {edit.loginId === u.loginId
                       ? <input value={edit.usuario ?? ''} onChange={e => setEdit({ ...edit, usuario: e.target.value })} />
                       : (u.usuario || '')}
                   </td>
                   <td>
-                    {edit.LoginId === u.LoginId
+                    {edit.loginId === u.loginId
                       ? <input value={edit.email ?? ''} onChange={e => setEdit({ ...edit, email: e.target.value })} />
                       : (u.email || '')}
                   </td>
                   <td>
-                    {edit.LoginId === u.LoginId ? (
+                    {edit.loginId === u.loginId ? (
                       <>
                         <button onClick={saveUsuario}>Salvar</button>
                         <button onClick={() => setEdit({})}>Cancelar</button>
@@ -332,7 +376,7 @@ const AdminPage = () => {
                     ) : (
                       <>
                         <button onClick={() => startEditUsuario(u)}>Editar</button>
-                        <button onClick={() => deleteUsuario(u.LoginId)}>Excluir</button>
+                        <button onClick={() => deleteUsuario(u.loginId)}>Excluir</button>
                       </>
                     )}
                   </td>
@@ -362,28 +406,28 @@ const AdminPage = () => {
           </thead>
           <tbody>
             {(tiposUsuario || [])
-              .filter(t => (t?.tipousuario1 || '').toLowerCase().includes(filtro.toLowerCase()))
-              .map(t => (
-                <tr key={t.TipoUsuarioId}>
-                  <td>{t.TipoUsuarioId}</td>
+              .filter(t => (t?.tipoUsuario || '').toLowerCase().includes(filtro.toLowerCase()))
+              .map((t, index) => (
+                <tr key={t.tipoUsuarioId || `tipo-usuario-${index}`}>
+                  <td>{t.tipoUsuarioId}</td>
                   <td>
-                    {edit.TipoUsuarioId === t.TipoUsuarioId
-                      ? <input value={edit.tipousuario1 ?? ''} onChange={e => setEdit({ ...edit, tipousuario1: e.target.value })} />
-                      : (t.tipousuario1 || '')}
+                    {edit.tipoUsuarioId === t.tipoUsuarioId
+                      ? <input value={edit.tipoUsuario ?? ''} onChange={e => setEdit({ ...edit, tipoUsuario: e.target.value })} />
+                      : (t.tipoUsuario || '')}
                   </td>
-                  <td>
-                    {edit.TipoUsuarioId === t.TipoUsuarioId ? (
-                      <>
-                        <button onClick={saveTipoUsuario}>Salvar</button>
-                        <button onClick={() => setEdit({})}>Cancelar</button>
-                      </>
-                    ) : (
-                      <>
-                        <button onClick={() => startEditTipoUsuario(t)}>Editar</button>
-                        <button onClick={() => deleteTipoUsuario(t.TipoUsuarioId)}>Excluir</button>
-                      </>
-                    )}
-                  </td>
+                                      <td>
+                      {edit.tipoUsuarioId === t.tipoUsuarioId ? (
+                        <>
+                          <button onClick={saveTipoUsuario}>Salvar</button>
+                          <button onClick={() => setEdit({})}>Cancelar</button>
+                        </>
+                      ) : (
+                        <>
+                          <button onClick={() => startEditTipoUsuario(t)}>Editar</button>
+                          <button onClick={() => deleteTipoUsuario(t.tipoUsuarioId)}>Excluir</button>
+                        </>
+                      )}
+                    </td>
                 </tr>
               ))}
           </tbody>
@@ -406,21 +450,22 @@ const AdminPage = () => {
         </div>
         <table>
           <thead>
-            <tr><th>ID</th><th>Nome</th><th>Ações</th></tr>
+            <tr><th>ID</th><th>Nome</th><th>Status</th><th>Ações</th></tr>
           </thead>
           <tbody>
             {(tiposPesquisa || [])
-              .filter(t => (t?.tipopesquisa1 || '').toLowerCase().includes(filtro.toLowerCase()))
-              .map(t => (
-                <tr key={t.TipoPesquisaId}>
-                  <td>{t.TipoPesquisaId}</td>
+              .filter(t => (t?.tipoPesquisa || '').toLowerCase().includes(filtro.toLowerCase()))
+              .map((t, index) => (
+                <tr key={t.tipoPesquisaId || `tipo-pesquisa-${index}`}>
+                  <td>{t.tipoPesquisaId}</td>
                   <td>
-                    {edit.TipoPesquisaId === t.TipoPesquisaId
-                      ? <input value={edit.tipopesquisa1 ?? ''} onChange={e => setEdit({ ...edit, tipopesquisa1: e.target.value })} />
-                      : (t.tipopesquisa1 || '')}
+                    {edit.tipoPesquisaId === t.tipoPesquisaId
+                      ? <input value={edit.tipoPesquisa ?? ''} onChange={e => setEdit({ ...edit, tipoPesquisa: e.target.value })} />
+                      : (t.tipoPesquisa || '')}
                   </td>
+                  <td>{t.desabilitado ? 'Desabilitado' : 'Ativo'}</td>
                   <td>
-                    {edit.TipoPesquisaId === t.TipoPesquisaId ? (
+                    {edit.tipoPesquisaId === t.tipoPesquisaId ? (
                       <>
                         <button onClick={saveTipoPesquisa}>Salvar</button>
                         <button onClick={() => setEdit({})}>Cancelar</button>
@@ -428,7 +473,7 @@ const AdminPage = () => {
                     ) : (
                       <>
                         <button onClick={() => startEditTipoPesquisa(t)}>Editar</button>
-                        <button onClick={() => deleteTipoPesquisa(t.TipoPesquisaId)}>Excluir</button>
+                        <button onClick={() => deleteTipoPesquisa(t.tipoPesquisaId)}>Excluir</button>
                       </>
                     )}
                   </td>
@@ -457,7 +502,7 @@ const AdminPage = () => {
         />
         <button
           className={styles['logout-btn']}
-          onClick={() => { localStorage.clear(); window.location.href = '/login'; }}
+          onClick={logout}
         >
           Logout
         </button>

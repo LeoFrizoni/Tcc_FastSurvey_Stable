@@ -116,7 +116,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
                 return true; // já estava usado; idempotente
 
             ent.UsadoEm = quandoUtc ?? DateTime.UtcNow;
-            await _context.SaveChangesAsync(ct);
             return true;
         }
 
@@ -138,7 +137,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
                 return true; // já expirado; idempotente
 
             ent.DataExpirado = now;
-            await _context.SaveChangesAsync(ct);
             return true;
         }
 
@@ -160,7 +158,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
 
             var stubs = ids.Select(id => new Tokens { TokenId = id }).ToList();
             _set.RemoveRange(stubs);
-            return await _context.SaveChangesAsync(ct);
+            return ids.Count;
         }
     }
 }

@@ -208,7 +208,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             ent.QRCodeUrl = novaUrl ?? string.Empty;
             ent.DataAtualizacao = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
             return true;
         }
 
@@ -225,7 +224,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             ent.TemplateJson = templateJson ?? string.Empty;
             ent.DataAtualizacao = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
             return true;
         }
 
@@ -242,7 +240,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             ent.Ativa = ativa;
             ent.DataAtualizacao = DateTime.UtcNow;
 
-            await _context.SaveChangesAsync(ct);
             return true;
         }
 
@@ -257,7 +254,6 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
                 return false;
 
             ent.DataAtualizacao = quandoUtc ?? DateTime.UtcNow;
-            await _context.SaveChangesAsync(ct);
             return true;
         }
     }

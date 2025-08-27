@@ -3,7 +3,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace SISTEMA_FASTSURVEY.MODEL.Repositories
+namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
 {
     public interface IUnitOfWork : IAsyncDisposable
     {

@@ -40,6 +40,9 @@ namespace FASTSURVEY.Dtos.Pesquisas
         public string SessaoId { get; set; } = string.Empty;
 
         [Required]
+        public int ParticipanteId { get; set; }
+
+        [Required]
         public int PerguntaId { get; set; }
 
         /// <summary>

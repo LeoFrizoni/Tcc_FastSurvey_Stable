@@ -134,7 +134,7 @@
 }
 
 /* Botões */
-.btnPrimary, .btnSecondary, .btnGhost {
+.btnPrimary, .btnSecondary, .btnGhost, .btnDanger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -163,6 +163,63 @@
   color: #6c6c80;
 }
 
+.btnDanger {
+  background: #ffffff;
+  border-color: #fecaca;
+  color: #dc2626;
+  transition: all 0.2s ease;
+}
+.btnDanger:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+  color: #b91c1c;
+}
+
+/* Notificação de sucesso */
+.successNotification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #10b981, #34d399);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 1001;
+  animation: slideInRight 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.successNotification.fadeOut {
+  animation: slideOutRight 0.3s ease-in forwards;
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
 /* ====== Modal/Cropper (como estava) ====== */
 .cropOverlay {
   position: fixed;
@@ -182,6 +239,80 @@
   color: #e5e7eb;
   display: flex;
   flex-direction: column;
+}
+
+/* Modal de confirmação de remoção */
+.confirmModal {
+  width: min(90vw, 400px);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+  color: #1f2937;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.confirmHeader {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.confirmHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.confirmClose {
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.confirmClose:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.confirmBody {
+  padding: 20px 24px;
+}
+
+.confirmBody p {
+  margin: 0;
+  font-size: 15px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.confirmFooter {
+  padding: 16px 24px 20px;
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  border-top: 1px solid #f3f4f6;
 }
 
 .cropHeader, .cropFooter {

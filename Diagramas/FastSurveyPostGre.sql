@@ -14,7 +14,22 @@ CREATE TABLE IF NOT EXISTS public."Anexos"
     "ContentType" character varying(150) COLLATE pg_catalog."default",
     "TamanhoBytes" bigint,
     "Base64Data" text COLLATE pg_catalog."default",
+    "TipoAnexo" character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'PESQUISA'::character varying,
+    "Sha256" character(64) COLLATE pg_catalog."default",
     CONSTRAINT anexos_pkey PRIMARY KEY ("AnexoId")
+);
+
+COMMENT ON COLUMN public."Anexos"."TipoAnexo"
+    IS 'Tipo do anexo: PESQUISA ou PERGUNTA';
+
+CREATE TABLE IF NOT EXISTS public."Blocklist"
+(
+    "Id" serial NOT NULL,
+    "IPAddress" character varying(45) COLLATE pg_catalog."default",
+    "UserAgent" text COLLATE pg_catalog."default",
+    "Motivo" text COLLATE pg_catalog."default",
+    "CriadoEm" timestamp with time zone DEFAULT now(),
+    CONSTRAINT "Blocklist_pkey" PRIMARY KEY ("Id")
 );
 
 CREATE TABLE IF NOT EXISTS public."ExternalLogins"
@@ -28,6 +43,14 @@ CREATE TABLE IF NOT EXISTS public."ExternalLogins"
     CONSTRAINT uq_provider_user UNIQUE ("Provider", "ProviderUserId")
 );
 
+CREATE TABLE IF NOT EXISTS public."FeatureFlags"
+(
+    "LoginId" integer NOT NULL,
+    "Flag" character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    "Ativa" boolean NOT NULL DEFAULT true,
+    CONSTRAINT "FeatureFlags_pkey" PRIMARY KEY ("LoginId", "Flag")
+);
+
 CREATE TABLE IF NOT EXISTS public."Login"
 (
     "LoginId" integer NOT NULL DEFAULT nextval('login_loginid_seq'::regclass),
@@ -38,9 +61,25 @@ CREATE TABLE IF NOT EXISTS public."Login"
     "TipoUsuarioId" integer DEFAULT 13,
     "TipoUsuarioTexto" character varying(50) COLLATE pg_catalog."default",
     "EmailConfirmado" boolean NOT NULL DEFAULT false,
+    "NomeCompleto" character varying(255) COLLATE pg_catalog."default",
+    "TermosAceitos" boolean NOT NULL DEFAULT false,
+    "DataAceiteTermos" timestamp with time zone,
+    "PrimeiroAcesso" boolean NOT NULL DEFAULT true,
     CONSTRAINT login_pkey PRIMARY KEY ("LoginId"),
     CONSTRAINT uq_login_email UNIQUE ("Email")
 );
+
+COMMENT ON COLUMN public."Login"."NomeCompleto"
+    IS 'Nome completo do usuário (obrigatório para Google)';
+
+COMMENT ON COLUMN public."Login"."TermosAceitos"
+    IS 'Indica se o usuário aceitou os termos de uso';
+
+COMMENT ON COLUMN public."Login"."DataAceiteTermos"
+    IS 'Data/hora em que os termos foram aceitos';
+
+COMMENT ON COLUMN public."Login"."PrimeiroAcesso"
+    IS 'Indica se é o primeiro acesso do usuário';
 
 CREATE TABLE IF NOT EXISTS public."LoginAvatar"
 (
@@ -53,9 +92,25 @@ CREATE TABLE IF NOT EXISTS public."LoginAvatar"
     "CriadoEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "AtualizadoEm" timestamp with time zone,
     "Versao" integer NOT NULL DEFAULT 0,
+    "Base64Data" text COLLATE pg_catalog."default",
+    "Largura" integer,
+    "Altura" integer,
+    "Formato" character varying(10) COLLATE pg_catalog."default",
     CONSTRAINT loginavatar_pkey PRIMARY KEY ("AvatarId"),
     CONSTRAINT uq_loginavatar_loginid UNIQUE ("LoginId")
 );
+
+COMMENT ON COLUMN public."LoginAvatar"."Base64Data"
+    IS 'Dados da imagem em base64 para exibição';
+
+COMMENT ON COLUMN public."LoginAvatar"."Largura"
+    IS 'Largura da imagem em pixels';
+
+COMMENT ON COLUMN public."LoginAvatar"."Altura"
+    IS 'Altura da imagem em pixels';
+
+COMMENT ON COLUMN public."LoginAvatar"."Formato"
+    IS 'Formato da imagem (jpg, png, etc)';
 
 CREATE TABLE IF NOT EXISTS public."OpcoesPergunta"
 (
@@ -65,8 +120,17 @@ CREATE TABLE IF NOT EXISTS public."OpcoesPergunta"
     "Correta" boolean NOT NULL DEFAULT false,
     "Ordem" integer NOT NULL DEFAULT 0,
     "Ativa" boolean NOT NULL DEFAULT true,
+    "Pontuacao" integer NOT NULL DEFAULT 0,
+    "Explicacao" text COLLATE pg_catalog."default",
+    "DeletadoEm" timestamp with time zone,
     CONSTRAINT opcoespergunta_pkey PRIMARY KEY ("OpcaoId")
 );
+
+COMMENT ON COLUMN public."OpcoesPergunta"."Pontuacao"
+    IS 'Pontuação da opção quando correta';
+
+COMMENT ON COLUMN public."OpcoesPergunta"."Explicacao"
+    IS 'Explicação da resposta correta';
 
 CREATE TABLE IF NOT EXISTS public."ParticipantesSessao"
 (
@@ -75,8 +139,24 @@ CREATE TABLE IF NOT EXISTS public."ParticipantesSessao"
     "NomeParticipante" character varying(100) COLLATE pg_catalog."default" NOT NULL,
     "EntrouEm" timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "SaiuEm" timestamp with time zone,
+    "PontuacaoTotal" integer NOT NULL DEFAULT 0,
+    "RespostasCorretas" integer NOT NULL DEFAULT 0,
+    "TempoMedioResposta" integer,
+    "Ranking" integer,
     CONSTRAINT participantes_sessao_pkey PRIMARY KEY ("ParticipanteId")
 );
+
+COMMENT ON COLUMN public."ParticipantesSessao"."PontuacaoTotal"
+    IS 'Pontuação total do participante';
+
+COMMENT ON COLUMN public."ParticipantesSessao"."RespostasCorretas"
+    IS 'Número de respostas corretas';
+
+COMMENT ON COLUMN public."ParticipantesSessao"."TempoMedioResposta"
+    IS 'Tempo médio de resposta em segundos';
+
+COMMENT ON COLUMN public."ParticipantesSessao"."Ranking"
+    IS 'Posição no ranking da sessão';
 
 CREATE TABLE IF NOT EXISTS public."Pastas"
 (
@@ -96,8 +176,21 @@ CREATE TABLE IF NOT EXISTS public."Perguntas"
     "TemGabarito" boolean NOT NULL DEFAULT false,
     "PermiteMultiplasSelecao" boolean NOT NULL DEFAULT false,
     "Ordem" integer NOT NULL DEFAULT 0,
+    "PontuacaoTotal" integer NOT NULL DEFAULT 0,
+    "TempoLimite" integer,
+    "MostrarExplicacao" boolean NOT NULL DEFAULT false,
+    "DeletadoEm" timestamp with time zone,
     CONSTRAINT perguntas_pkey PRIMARY KEY ("PerguntaId")
 );
+
+COMMENT ON COLUMN public."Perguntas"."PontuacaoTotal"
+    IS 'Pontuação total da pergunta';
+
+COMMENT ON COLUMN public."Perguntas"."TempoLimite"
+    IS 'Tempo limite em segundos para responder';
+
+COMMENT ON COLUMN public."Perguntas"."MostrarExplicacao"
+    IS 'Se deve mostrar explicação após resposta';
 
 CREATE TABLE IF NOT EXISTS public."Pesquisas"
 (
@@ -117,8 +210,28 @@ CREATE TABLE IF NOT EXISTS public."Pesquisas"
     "PermiteRespostasAnonimas" boolean NOT NULL DEFAULT true,
     "LimiteRespostas" integer,
     "Ativa" boolean NOT NULL DEFAULT true,
+    "RequerIdentificacao" boolean NOT NULL DEFAULT false,
+    "PermiteEdicao" boolean NOT NULL DEFAULT true,
+    "ConfiguracaoAvancada" jsonb,
+    "Slug" character varying(100) COLLATE pg_catalog."default",
+    "Versao" integer NOT NULL DEFAULT 0,
+    "Status" character varying(12) COLLATE pg_catalog."default" NOT NULL DEFAULT 'RASCUNHO'::character varying,
+    "CriadoPor" integer,
+    "AtualizadoPor" integer,
     CONSTRAINT pesquisas_pkey PRIMARY KEY ("PesquisaId")
 );
+
+COMMENT ON COLUMN public."Pesquisas"."RequerIdentificacao"
+    IS 'Se a pesquisa requer identificação do respondente';
+
+COMMENT ON COLUMN public."Pesquisas"."PermiteEdicao"
+    IS 'Se permite edição após publicação';
+
+COMMENT ON COLUMN public."Pesquisas"."ConfiguracaoAvancada"
+    IS 'Configurações avançadas em JSON';
+
+COMMENT ON COLUMN public."Pesquisas"."Slug"
+    IS 'URL amigável da pesquisa';
 
 CREATE TABLE IF NOT EXISTS public."Respostas"
 (
@@ -129,8 +242,25 @@ CREATE TABLE IF NOT EXISTS public."Respostas"
     "SessaoId" character varying(50) COLLATE pg_catalog."default",
     "RespostaAnonima" boolean NOT NULL DEFAULT false,
     "ParticipanteId" integer,
+    "PontuacaoObtida" integer NOT NULL DEFAULT 0,
+    "TempoResposta" integer,
+    "Correta" boolean,
+    "DataCorrecao" timestamp with time zone,
+    "Protocolo" character varying(12) COLLATE pg_catalog."default",
     CONSTRAINT "RespostasPkey" PRIMARY KEY ("RespostaId")
 );
+
+COMMENT ON COLUMN public."Respostas"."PontuacaoObtida"
+    IS 'Pontuação obtida na resposta';
+
+COMMENT ON COLUMN public."Respostas"."TempoResposta"
+    IS 'Tempo gasto para responder em segundos';
+
+COMMENT ON COLUMN public."Respostas"."Correta"
+    IS 'Se a resposta está correta';
+
+COMMENT ON COLUMN public."Respostas"."DataCorrecao"
+    IS 'Data/hora da correção automática';
 
 CREATE TABLE IF NOT EXISTS public."RespostasAnexos"
 (
@@ -155,9 +285,21 @@ CREATE TABLE IF NOT EXISTS public."SessoesInterativas"
     "IniciadaEm" timestamp with time zone,
     "FinalizadaEm" timestamp with time zone,
     "Ativa" boolean NOT NULL DEFAULT true,
+    "ConfiguracaoGamificacao" jsonb,
+    "ModoCompeticao" boolean NOT NULL DEFAULT false,
+    "MostrarRanking" boolean NOT NULL DEFAULT true,
     CONSTRAINT "SessoesInterativasPkey" PRIMARY KEY ("SessaoId"),
     CONSTRAINT "UqSessoesCodigo" UNIQUE ("CodigoAcesso")
 );
+
+COMMENT ON COLUMN public."SessoesInterativas"."ConfiguracaoGamificacao"
+    IS 'Configurações de gamificação em JSON';
+
+COMMENT ON COLUMN public."SessoesInterativas"."ModoCompeticao"
+    IS 'Se a sessão é competitiva';
+
+COMMENT ON COLUMN public."SessoesInterativas"."MostrarRanking"
+    IS 'Se deve mostrar ranking em tempo real';
 
 CREATE TABLE IF NOT EXISTS public."TipoPergunta"
 (
@@ -200,9 +342,25 @@ CREATE TABLE IF NOT EXISTS public."Tokens"
     "LoginId" integer,
     "Finalidade" character varying(30) COLLATE pg_catalog."default",
     "UsadoEm" timestamp with time zone,
+    "TipoToken" character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'JWT'::character varying,
+    "RefreshToken" character varying(255) COLLATE pg_catalog."default",
+    "IPAddress" character varying(45) COLLATE pg_catalog."default",
+    "UserAgent" text COLLATE pg_catalog."default",
     CONSTRAINT "TokensPkey" PRIMARY KEY ("TokenId"),
     CONSTRAINT "UqTokensToken" UNIQUE ("Token")
 );
+
+COMMENT ON COLUMN public."Tokens"."TipoToken"
+    IS 'Tipo do token: JWT, REFRESH, RESET_PASSWORD';
+
+COMMENT ON COLUMN public."Tokens"."RefreshToken"
+    IS 'Token de refresh para renovação';
+
+COMMENT ON COLUMN public."Tokens"."IPAddress"
+    IS 'IP de origem do token';
+
+COMMENT ON COLUMN public."Tokens"."UserAgent"
+    IS 'User agent do dispositivo';
 
 ALTER TABLE IF EXISTS public."Anexos"
     ADD CONSTRAINT anexos_perguntaid_fkey FOREIGN KEY ("PerguntaId")
@@ -229,6 +387,13 @@ ALTER TABLE IF EXISTS public."ExternalLogins"
     ON DELETE CASCADE;
 CREATE INDEX IF NOT EXISTS idx_externallogins_loginid
     ON public."ExternalLogins"("LoginId");
+
+
+ALTER TABLE IF EXISTS public."FeatureFlags"
+    ADD CONSTRAINT "FeatureFlags_LoginId_fkey" FOREIGN KEY ("LoginId")
+    REFERENCES public."Login" ("LoginId") MATCH SIMPLE
+    ON UPDATE NO ACTION
+    ON DELETE CASCADE;
 
 
 ALTER TABLE IF EXISTS public."Login"

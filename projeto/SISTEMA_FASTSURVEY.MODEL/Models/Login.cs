@@ -23,7 +23,29 @@ public partial class Login
 
     public bool EmailConfirmado { get; set; }
 
+    /// <summary>
+    /// Nome completo do usuário (obrigatório para Google)
+    /// </summary>
+    public string NomeCompleto { get; set; }
+
+    /// <summary>
+    /// Indica se o usuário aceitou os termos de uso
+    /// </summary>
+    public bool TermosAceitos { get; set; }
+
+    /// <summary>
+    /// Data/hora em que os termos foram aceitos
+    /// </summary>
+    public DateTime? DataAceiteTermos { get; set; }
+
+    /// <summary>
+    /// Indica se é o primeiro acesso do usuário
+    /// </summary>
+    public bool PrimeiroAcesso { get; set; }
+
     public virtual ICollection<ExternalLogins> ExternalLogins { get; set; } = new List<ExternalLogins>();
+
+    public virtual ICollection<FeatureFlags> FeatureFlags { get; set; } = new List<FeatureFlags>();
 
     public virtual LoginAvatar LoginAvatar { get; set; }
 

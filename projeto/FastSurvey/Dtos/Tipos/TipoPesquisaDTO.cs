@@ -9,4 +9,16 @@ namespace FASTSURVEY.Dtos.Tipos
         public string TipoPesquisa { get; set; } = string.Empty;
         public bool Desabilitado { get; set; }
     }
+
+    /// DTO para cadastrar novo tipo de pesquisa
+    public class CadastrarTipoPesquisaRequest
+    {
+        public string TipoPesquisa { get; set; } = string.Empty;
+    }
+
+    /// DTO para alterar tipo de pesquisa existente
+    public class AlterarTipoPesquisaRequest
+    {
+        public string TipoPesquisa { get; set; } = string.Empty;
+    }
 }

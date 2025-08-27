@@ -21,6 +21,23 @@ public partial class Perguntas
 
     public int Ordem { get; set; }
 
+    /// <summary>
+    /// Pontuação total da pergunta
+    /// </summary>
+    public int PontuacaoTotal { get; set; }
+
+    /// <summary>
+    /// Tempo limite em segundos para responder
+    /// </summary>
+    public int? TempoLimite { get; set; }
+
+    /// <summary>
+    /// Se deve mostrar explicação após resposta
+    /// </summary>
+    public bool MostrarExplicacao { get; set; }
+
+    public DateTime? DeletadoEm { get; set; }
+
     public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
     public virtual ICollection<OpcoesPergunta> OpcoesPergunta { get; set; } = new List<OpcoesPergunta>();

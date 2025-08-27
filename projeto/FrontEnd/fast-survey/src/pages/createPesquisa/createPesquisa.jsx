@@ -26,6 +26,7 @@ import styles from "./createPesquisa.module.css";
 import CabecalhoPesquisa from "../../components/layouts/CabecalhoPesquisa";
 import InformacoesPesquisa from "../../components/layouts/InformacoesPesquisa";
 import { API_BASE_URL } from "../../config";
+import { logout } from "../../utils/auth";
 
 /** Util: detectar se o alvo é um elemento editável */
 const isEditableTarget = (el) =>
@@ -189,9 +190,7 @@ const CriarPesquisa = () => {
           console.error("Erro ao buscar usuário:", error);
           // Se o usuário não existe, limpar o localStorage e redirecionar para login
           if (error.response?.status === 404) {
-            localStorage.removeItem("userId");
-            localStorage.removeItem("token");
-            window.location.href = "/login";
+            logout();
           } else {
             setAutorNome("Usuário");
           }

@@ -25,5 +25,25 @@ public partial class LoginAvatar
 
     public int Versao { get; set; }
 
+    /// <summary>
+    /// Dados da imagem em base64 para exibição
+    /// </summary>
+    public string Base64Data { get; set; }
+
+    /// <summary>
+    /// Largura da imagem em pixels
+    /// </summary>
+    public int? Largura { get; set; }
+
+    /// <summary>
+    /// Altura da imagem em pixels
+    /// </summary>
+    public int? Altura { get; set; }
+
+    /// <summary>
+    /// Formato da imagem (jpg, png, etc)
+    /// </summary>
+    public string Formato { get; set; }
+
     public virtual Login Login { get; set; }
 }

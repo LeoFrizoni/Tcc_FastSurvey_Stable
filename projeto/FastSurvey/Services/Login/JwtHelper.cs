@@ -60,6 +60,11 @@ namespace FASTSURVEY.Services.Login
                     EpochTime.GetIntDate(now).ToString(),
                     ClaimValueTypes.Integer64
                 ),
+                new Claim(
+                    JwtRegisteredClaimNames.Exp,
+                    EpochTime.GetIntDate(expires).ToString(),
+                    ClaimValueTypes.Integer64
+                ),
                 // Padrão Microsoft
                 new Claim(ClaimTypes.NameIdentifier, login.LoginId.ToString()),
                 new Claim(ClaimTypes.Name, login.Usuario ?? string.Empty),

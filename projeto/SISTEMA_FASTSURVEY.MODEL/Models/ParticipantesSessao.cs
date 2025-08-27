@@ -17,6 +17,26 @@ public partial class ParticipantesSessao
 
     public DateTime? SaiuEm { get; set; }
 
+    /// <summary>
+    /// Pontuação total do participante
+    /// </summary>
+    public int PontuacaoTotal { get; set; }
+
+    /// <summary>
+    /// Número de respostas corretas
+    /// </summary>
+    public int RespostasCorretas { get; set; }
+
+    /// <summary>
+    /// Tempo médio de resposta em segundos
+    /// </summary>
+    public int? TempoMedioResposta { get; set; }
+
+    /// <summary>
+    /// Posição no ranking da sessão
+    /// </summary>
+    public int? Ranking { get; set; }
+
     public virtual ICollection<Respostas> Respostas { get; set; } = new List<Respostas>();
 
     public virtual SessoesInterativas Sessao { get; set; }

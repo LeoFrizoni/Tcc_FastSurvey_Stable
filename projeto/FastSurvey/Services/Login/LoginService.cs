@@ -9,6 +9,7 @@ using FASTSURVEY.Services.Security;
 using Google.Apis.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using SISTEMA_FASTSURVEY.MODEL.Interfaces;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using ModelExternalLogins = SISTEMA_FASTSURVEY.MODEL.Models.ExternalLogins;
@@ -25,18 +26,21 @@ namespace FASTSURVEY.Services.Login
         private readonly IRepository<ModelLogin> _loginRepository;
         private readonly IConfiguration _configuration;
         private readonly IEmailSender _emailSender;
+        private readonly ILogger<LoginService>? _logger;
 
         public LoginService(
             FastSurveyContext context,
             IRepository<ModelLogin> loginRepository,
             IConfiguration configuration,
-            IEmailSender emailSender
+            IEmailSender emailSender,
+            ILogger<LoginService>? logger = null
         )
         {
             _context = context;
             _loginRepository = loginRepository;
             _configuration = configuration;
             _emailSender = emailSender;
+            _logger = logger;
         }
 
         // =========================================================
@@ -237,7 +241,7 @@ namespace FASTSURVEY.Services.Login
             if (login is null)
                 return true; // não revela existência do email
 
-            // invalida tokens anteriores não usados
+            // Invalida tokens anteriores não usados para garantir que apenas um link seja válido por vez
             var tokensAntigos = await _context
                 .Tokens.Where(t =>
                     t.LoginId == login.LoginId
@@ -247,7 +251,10 @@ namespace FASTSURVEY.Services.Login
                 .ToListAsync(ct);
 
             foreach (var t in tokensAntigos)
+            {
                 t.UsadoEm = DateTime.UtcNow;
+                _logger?.LogInformation($"Token de reset anterior invalidado: {t.Token}");
+            }
 
             // cria novo token
             var novoToken = Guid.NewGuid().ToString("N");
@@ -287,26 +294,45 @@ namespace FASTSURVEY.Services.Login
             var token = request.Token?.Trim() ?? string.Empty;
             var novaSenha = request.NovaSenha ?? string.Empty;
 
+            _logger?.LogInformation($"Tentativa de reset de senha com token: {token.Substring(0, Math.Min(8, token.Length))}...");
+
             var tokenEntity = await _context.Tokens.FirstOrDefaultAsync(
                 t => t.Token == token && t.Finalidade == "ResetSenha",
                 ct
             );
 
-            if (
-                tokenEntity is null
-                || tokenEntity.DataExpirado < DateTime.UtcNow
-                || tokenEntity.UsadoEm.HasValue
-            )
-                return false;
+            if (tokenEntity is null)
+            {
+                _logger?.LogWarning($"Token de reset não encontrado: {token.Substring(0, Math.Min(8, token.Length))}...");
+                return false; // Token não encontrado
+            }
+
+            if (tokenEntity.DataExpirado < DateTime.UtcNow)
+            {
+                _logger?.LogWarning($"Token de reset expirado: {token.Substring(0, Math.Min(8, token.Length))}...");
+                return false; // Token expirado
+            }
+
+            if (tokenEntity.UsadoEm.HasValue)
+            {
+                _logger?.LogWarning($"Token de reset já foi usado: {token.Substring(0, Math.Min(8, token.Length))}...");
+                return false; // Token já foi usado
+            }
 
             var login = await _context.Login.FindAsync(new object?[] { tokenEntity.LoginId }, ct);
             if (login is null)
+            {
+                _logger?.LogError($"Login não encontrado para token de reset: {tokenEntity.LoginId}");
                 return false;
+            }
 
+            // Altera a senha e marca o token como usado
             login.Senha = PasswordHasher.HashPassword(novaSenha);
             tokenEntity.UsadoEm = DateTime.UtcNow;
 
             await _context.SaveChangesAsync(ct);
+            
+            _logger?.LogInformation($"Senha resetada com sucesso para usuário: {login.Usuario} (ID: {login.LoginId})");
             return true;
         }
 
@@ -339,7 +365,10 @@ namespace FASTSURVEY.Services.Login
             foreach (var t in antigos)
                 t.UsadoEm = DateTime.UtcNow;
 
-            var token = Guid.NewGuid().ToString("N");
+            // Gera token numérico de 6 dígitos
+            var random = new Random();
+            var token = random.Next(100000, 999999).ToString();
+            
             var tokenEntity = new ModelTokens
             {
                 Token = token,
@@ -352,15 +381,14 @@ namespace FASTSURVEY.Services.Login
             await _context.Tokens.AddAsync(tokenEntity, ct);
             await _context.SaveChangesAsync(ct);
 
-            var appUrl = _configuration["AppUrl"] ?? "";
-            var confirmUrl = $"{appUrl.TrimEnd('/')}/confirm-email?token={token}";
             var htmlBody =
                 $@"
                 <h2>Confirmação de Email - FastSurvey</h2>
                 <p>Olá {login.Usuario},</p>
-                <p>Clique no link abaixo para confirmar seu email:</p>
-                <p><a href='{confirmUrl}'>Confirmar Email</a></p>
-                <p>Este link expira em 24 horas.</p>";
+                <p>Seu código de confirmação é: <strong style='font-size: 24px; color: #007bff;'>{token}</strong></p>
+                <p>Digite este código no modal de confirmação para ativar sua conta.</p>
+                <p>Este código expira em 24 horas.</p>
+                <p>Se você não solicitou este cadastro, ignore este email.</p>";
 
             await _emailSender.SendAsync(
                 login.Email,

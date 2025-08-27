@@ -29,9 +29,13 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "start:clean": "node clear-cache.js && react-scripts start",
+    "dev": "node dev-start.js",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "clean": "node clear-cache.js",
+    "clean:all": "node clear-cache.js && npm cache clean --force"
   },
   "eslintConfig": {
     "extends": [

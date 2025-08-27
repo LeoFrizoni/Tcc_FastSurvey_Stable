@@ -1,8 +1,8 @@
 ﻿#nullable enable
 using SISTEMA_FASTSURVEY.MODEL.Models;
 
-namespace SISTEMA_FASTSURVEY.MODEL.Interfaces;
-
+namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
+{
 public interface IPesquisaRepository : IRepository<Pesquisas>
 {
     Task<Pesquisas?> GetDetalheAsync(
@@ -93,4 +93,5 @@ public sealed class PesquisaResumoDto
     public bool IsExpirada { get; init; }
     public int QtdPerguntas { get; init; }
     public int QtdRespostas { get; init; }
+}
 }

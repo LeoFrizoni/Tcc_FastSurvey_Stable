@@ -1,45 +1,38 @@
-// src/api.js
+// src/lib/api.js
 import axios from 'axios';
-import { API_BASE_URL, API_TIMEOUT, DEFAULT_HEADERS } from '../config';
+import env from '../config/env';
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: API_TIMEOUT,
-  headers: DEFAULT_HEADERS,
+  baseURL: env.REACT_APP_API_URL,
+  timeout: 30000,
+  headers: {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  },
 });
 
-// Interceptor para adicionar token de autorização
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+// Injeta Bearer se houver
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// Interceptor para tratar erros de resposta
+// Trata 401: limpa sessão e redireciona ao /login (sem loop)
+let isRedirecting = false;
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expirado ou inválido
+    const status = error?.response?.status;
+    if (status === 401 && !isRedirecting) {
+      isRedirecting = true;
       localStorage.removeItem('token');
-      localStorage.removeItem('loginId');
       localStorage.removeItem('userId');
-      localStorage.removeItem('usuario');
       localStorage.removeItem('tipousuarioid');
-      
-      // Redirecionar para login apenas se não estiver já na página de login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+      // opcional: guardar rota pretendida
+      const here = window.location.pathname + window.location.search;
+      if (here && here !== '/login') sessionStorage.setItem('postLoginRedirect', here);
+      if (window.location.pathname !== '/login') window.location.href = '/login';
     }
     return Promise.reject(error);
   }

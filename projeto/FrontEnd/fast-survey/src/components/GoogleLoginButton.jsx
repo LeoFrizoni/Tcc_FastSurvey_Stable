@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { GOOGLE_CONFIG, isGoogleConfigured, getGoogleConfigError } from '../config/google';
 
 const GoogleLoginButton = ({ 
@@ -53,7 +53,7 @@ const GoogleLoginButton = ({
   }, [clientId, onError]);
 
   // Renderiza o botão do Google
-  const renderGoogleButton = () => {
+  const renderGoogleButton = useCallback(() => {
     if (!gisReady || !isGoogleConfigured() || !window.google || !buttonRef.current || buttonRendered) {
       return;
     }
@@ -63,6 +63,15 @@ const GoogleLoginButton = ({
       
       // Limpa o container
       buttonRef.current.innerHTML = '';
+      
+      // Limpa qualquer estado anterior do Google
+      if (window.google.accounts.id) {
+        try {
+          window.google.accounts.id.cancel();
+        } catch (e) {
+          console.log('No previous Google session to cancel');
+        }
+      }
       
       // Inicializa o Google Identity Services
       window.google.accounts.id.initialize({
@@ -96,23 +105,36 @@ const GoogleLoginButton = ({
       console.error('Error rendering Google button:', error);
       onError?.('Error rendering Google button');
     }
-  };
+  }, [gisReady, buttonRendered, clientId, onSuccess, onError, theme, size, type, text, shape, width, logoAlignment]);
 
-  // Tenta renderizar o botão quando o script estiver pronto
-  useEffect(() => {
-    renderGoogleButton();
-  }, [gisReady, clientId]);
-
-  // Tenta renderizar novamente após um pequeno delay
+  // Renderiza o botão quando o script estiver pronto
   useEffect(() => {
     if (gisReady && !buttonRendered) {
+      // Primeira tentativa
+      renderGoogleButton();
+      
+      // Segunda tentativa após delay
       const timer = setTimeout(() => {
-        renderGoogleButton();
+        if (!buttonRendered) {
+          renderGoogleButton();
+        }
       }, 200);
 
-      return () => clearTimeout(timer);
+      // Timeout de segurança
+      const safetyTimer = setTimeout(() => {
+        if (!buttonRendered) {
+          console.log('Forcing Google button render after timeout');
+          setButtonRendered(false);
+          renderGoogleButton();
+        }
+      }, 3000);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(safetyTimer);
+      };
     }
-  }, [gisReady, buttonRendered]);
+  }, [gisReady, renderGoogleButton]);
 
   if (!isGoogleConfigured()) {
     const configError = getGoogleConfigError();
@@ -183,9 +205,14 @@ const GoogleLoginButton = ({
           position: 'absolute',
           fontSize: '12px',
           color: '#666',
-          zIndex: 1
+          zIndex: 1,
+          background: '#f8f9fa',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          border: '1px solid #e9ecef',
+          whiteSpace: 'nowrap'
         }}>
-          Inicializando botão...
+          Carregando botão do Google...
         </div>
       )}
     </div>

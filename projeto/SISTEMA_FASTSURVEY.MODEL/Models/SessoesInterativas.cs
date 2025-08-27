@@ -21,6 +21,21 @@ public partial class SessoesInterativas
 
     public bool Ativa { get; set; }
 
+    /// <summary>
+    /// Configurações de gamificação em JSON
+    /// </summary>
+    public string ConfiguracaoGamificacao { get; set; }
+
+    /// <summary>
+    /// Se a sessão é competitiva
+    /// </summary>
+    public bool ModoCompeticao { get; set; }
+
+    /// <summary>
+    /// Se deve mostrar ranking em tempo real
+    /// </summary>
+    public bool MostrarRanking { get; set; }
+
     public virtual ICollection<ParticipantesSessao> ParticipantesSessao { get; set; } = new List<ParticipantesSessao>();
 
     public virtual Pesquisas Pesquisa { get; set; }

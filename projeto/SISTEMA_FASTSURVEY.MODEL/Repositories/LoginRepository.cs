@@ -59,10 +59,10 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             // (Opcional) ordena tokens em memória se fizer sentido para UI
             if (entity?.Tokens is not null)
             {
-                // Ajuste os campos conforme seu Model (ex.: DataCriacao, ExpiraEm, TokenId)
+                // Ordena por DataRegistro (campo correto do modelo Tokens)
                 entity.Tokens = entity
-                    .Tokens.OrderByDescending(t => EF.Property<DateTime?>(t, "DataCriacao"))
-                    .ThenByDescending(t => EF.Property<int>(t, "TokenId"))
+                    .Tokens.OrderByDescending(t => t.DataRegistro)
+                    .ThenByDescending(t => t.TokenId)
                     .ToList();
             }
 

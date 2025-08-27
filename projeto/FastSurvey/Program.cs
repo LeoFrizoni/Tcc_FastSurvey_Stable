@@ -102,40 +102,47 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "FastSurvey API", Version = "v1" });
-    c.AddSecurityDefinition(
-        "Bearer",
-        new()
+
+    // ✅ Evita conflito de classes com o mesmo nome em namespaces diferentes
+    c.CustomSchemaIds(type => type.FullName!.Replace("+", "."));
+
+    c.AddSecurityDefinition("Bearer", new()
+    {
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Envie: Bearer {seu_token}",
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        BearerFormat = "JWT",
+        Scheme = "Bearer",
+    });
+    c.AddSecurityRequirement(new()
+    {
         {
-            In = Microsoft.OpenApi.Models.ParameterLocation.Header,
-            Description = "Envie: Bearer {seu_token}",
-            Name = "Authorization",
-            Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-            BearerFormat = "JWT",
-            Scheme = "Bearer",
-        }
-    );
-    c.AddSecurityRequirement(
-        new()
-        {
+            new()
             {
-                new()
+                Reference = new()
                 {
-                    Reference = new()
-                    {
-                        Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
-                        Id = "Bearer",
-                    },
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer",
                 },
-                Array.Empty<string>()
             },
-        }
-    );
+            Array.Empty<string>()
+        },
+    });
 });
 
 // ---------- CORS (restringido às origens do config) ----------
 var allowedOrigins =
     builder.Configuration.GetSection("Google:AuthorizedOrigins").Get<string[]>()
     ?? Array.Empty<string>();
+
+// Adiciona localhost:3000 se não estiver na lista
+if (!allowedOrigins.Contains("http://localhost:3000"))
+{
+    var newOrigins = new List<string>(allowedOrigins) { "http://localhost:3000" };
+    allowedOrigins = newOrigins.ToArray();
+}
+
 builder.Services.AddCors(o =>
 {
     o.AddPolicy(

@@ -1,6 +1,10 @@
-# FastSurvey - Sistema de Pesquisas Interativas
+# FastSurvey
 
-Sistema completo para criação, gerenciamento e análise de pesquisas interativas, desenvolvido com ASP.NET Core (Backend) e React (Frontend).
+**FastSurvey** é uma aplicação desenvolvida em C# e React com o objetivo de facilitar a criação, distribuição e análise de pesquisas e questionários de forma rápida e eficiente. Este projeto foi desenvolvido como Trabalho de Conclusão de Curso (TCC) do curso de Sistemas de Informação do Centro Universitário Dom Bosco.
+
+## 🎯 Objetivo
+
+O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva e eficaz para a criação de formulários personalizados, coleta de respostas e geração de relatórios estatísticos, atendendo tanto usuários acadêmicos quanto empresariais.
 
 ## 📚 **DOCUMENTAÇÃO COMPLETA**
 
@@ -40,25 +44,43 @@ Sistema completo para criação, gerenciamento e análise de pesquisas interativ
 
 ## 🛠️ Tecnologias Utilizadas
 
-### Backend
-- **ASP.NET Core 8.0**
-- **Entity Framework Core** com PostgreSQL
-- **JWT Authentication**
-- **AutoMapper** para mapeamento de objetos
-- **FluentValidation** para validações
-- **MailKit** para envio de emails
-- **QRCoder** para geração de QR codes
+### Backend (ASP.NET Core 8.0)
+- **ASP.NET Core 8.0** - Framework web
+- **Entity Framework Core 8.0.2** - ORM para PostgreSQL
+- **Npgsql.EntityFrameworkCore.PostgreSQL 8.0.2** - Provider PostgreSQL
+- **Microsoft.AspNetCore.Authentication.JwtBearer 8.0** - Autenticação JWT
+- **System.IdentityModel.Tokens.Jwt 8.14.0** - Geração e validação de tokens
+- **Google.Apis.Auth 1.70.0** - Autenticação Google OAuth
+- **Swashbuckle.AspNetCore 6.6.2** - Documentação Swagger/OpenAPI
+- **Newtonsoft.Json 13.0.3** - Serialização JSON
+- **QRCoder 1.4.3** - Geração de QR Codes
+- **MailKit 4.13.0** - Cliente SMTP para envio de emails
+- **MimeKit 4.13.0** - Manipulação de MIME types
+- **itext7 8.0.2** - Geração de PDFs
+- **EPPlus 7.0.0** - Manipulação de arquivos Excel
+- **System.Drawing.Common 8.0.0** - Manipulação de imagens
 
-### Frontend
-- **React 18** com Hooks
-- **React Router** para navegação
-- **Axios** para requisições HTTP
-- **React Toastify** para notificações
-- **Lucide React** para ícones
-- **CSS Modules** para estilização
+### Frontend (React 19)
+- **React 19.0.0** - Biblioteca principal com Hooks
+- **React Router DOM 7.5.3** - Roteamento e navegação
+- **Axios 1.9.0** - Cliente HTTP para requisições à API
+- **React Toastify 11.0.5** - Sistema de notificações
+- **Lucide React 0.508.0** - Biblioteca de ícones
+- **React Icons 5.5.0** - Ícones adicionais
+- **Chart.js 4.5.0** - Gráficos e visualizações
+- **React Chart.js 2 5.3.0** - Wrapper React para Chart.js
+- **QRCode React 4.2.0** - Geração de QR Codes no frontend
+- **React Easy Crop 5.5.0** - Cropping de imagens
+- **React Image File Resizer 0.4.8** - Redimensionamento de imagens
+- **React Modal 3.16.3** - Sistema de modais
+- **HTML2Canvas 1.4.1** - Captura de screenshots
+- **jsPDF 3.0.1** - Geração de PDFs no frontend
+- **@react-oauth/google 0.12.1** - Integração Google OAuth
+- **CSS Modules** - Sistema de estilização modular
 
 ### Banco de Dados
-- **PostgreSQL** como banco principal
+- **PostgreSQL 12+** - Banco de dados principal
+- **Entity Framework Core** - ORM e migrations
 
 ## 📋 Pré-requisitos
 
@@ -197,28 +219,37 @@ Para habilitar login com Google:
 ## 📊 Funcionalidades Principais
 
 ### 1. Sistema de Usuários
-- Cadastro e login
-- Recuperação de senha
-- Perfis de usuário
+- Cadastro e login com autenticação JWT
+- Login com Google OAuth
+- Recuperação de senha via email
+- Perfis de usuário com avatar
 - Tipos de usuário (Admin, Usuário)
 
 ### 2. Criação de Pesquisas
-- Interface drag & drop
-- Múltiplos tipos de pergunta
-- Upload de anexos
+- Interface drag & drop intuitiva
+- Múltiplos tipos de pergunta (múltipla escolha, texto, nota, etc.)
+- Upload de anexos (imagens, PDFs)
 - Organização em pastas
+- Geração de QR Codes para distribuição
 
 ### 3. Pesquisas Interativas
-- Modo apresentação
+- Modo apresentação (tipo Kahoot)
 - Resultados em tempo real
-- Códigos de acesso
-- Sessões ativas
+- Códigos de acesso para participantes
+- Sessões ativas com controle de tempo
 
 ### 4. Análise de Resultados
-- Gráficos interativos
-- Exportação de dados
+- Gráficos interativos e estatísticos
+- Exportação de dados (PDF, Excel, CSV)
 - Estatísticas detalhadas
 - Dashboard de métricas
+- Análise de respostas por IA
+
+### 5. Recursos Avançados
+- Armazenamento seguro de respostas
+- Interface amigável para administradores e respondentes
+- Sistema de notificações
+- Backup automático de dados
 
 ## 🚀 Deploy
 
@@ -246,7 +277,12 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ## 👥 Autores
 
-- **Seu Nome** - *Desenvolvimento inicial* - [SeuGitHub](https://github.com/seu-usuario)
+- **Leonardo** - *Desenvolvimento Backend e Frontend*
+- **Lucas** - *Desenvolvimento Backend e Frontend*
+- **Marco** - *Desenvolvimento Backend e Frontend*
+- **Rafael** - *Desenvolvimento Backend e Frontend*
+
+**Trabalho de Conclusão de Curso (TCC)** - Curso de Sistemas de Informação do Centro Universitário Dom Bosco
 
 ## 🙏 Agradecimentos
 
@@ -263,3 +299,13 @@ Para suporte, envie um email para: suporte@fastsurvey.com
 **FastSurvey** - Transformando a forma como você coleta e analisa dados! 📊✨
 
 **📚 [Ver Documentação Completa](./Documentacao_Projeto/DOCUMENTACAO_COMPLETA_FASTSURVEY.md)**
+
+---
+
+## ⚠️ Disclaimer de Direitos Autorais
+
+Este projeto é de autoria dos contribuintes do Repositório (Leonardo, Lucas, Marco e Rafael), desenvolvido como parte de um Trabalho de Conclusão de Curso.
+
+**Todos os direitos reservados.** Este software não é de livre uso, redistribuição ou comercialização.
+
+O código-fonte e demais arquivos disponibilizados aqui servem exclusivamente para fins educacionais e acadêmicos. A cópia, modificação ou uso do sistema para outros propósitos sem a autorização do autor é estritamente proibida.

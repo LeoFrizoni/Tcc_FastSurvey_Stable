@@ -39,6 +39,34 @@ public partial class Pesquisas
 
     public bool Ativa { get; set; }
 
+    /// <summary>
+    /// Se a pesquisa requer identificação do respondente
+    /// </summary>
+    public bool RequerIdentificacao { get; set; }
+
+    /// <summary>
+    /// Se permite edição após publicação
+    /// </summary>
+    public bool PermiteEdicao { get; set; }
+
+    /// <summary>
+    /// Configurações avançadas em JSON
+    /// </summary>
+    public string ConfiguracaoAvancada { get; set; }
+
+    /// <summary>
+    /// URL amigável da pesquisa
+    /// </summary>
+    public string Slug { get; set; }
+
+    public int Versao { get; set; }
+
+    public string Status { get; set; }
+
+    public int? CriadoPor { get; set; }
+
+    public int? AtualizadoPor { get; set; }
+
     public virtual ICollection<Anexos> Anexos { get; set; } = new List<Anexos>();
 
     public virtual Login Login { get; set; }

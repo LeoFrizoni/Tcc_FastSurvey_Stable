@@ -133,7 +133,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                         "Sessão não encontrada ou inativa"
                     );
 
-                var participante = new ParticipantesSessao
+                var participante = new SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao
                 {
                     SessaoId = sessao.SessaoId,
                     NomeParticipante = string.IsNullOrWhiteSpace(request.NomeParticipante)
@@ -412,7 +412,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                     .ToDictionary(g => g.Key, g => g.ToDictionary(k => k.OpcaoId, v => v.Total));
 
                 // 3) participantes ativos
-                var totalParticipantes = await _ctx.Set<ParticipantesSessao>()
+                var totalParticipantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
                     .AsNoTracking()
                     .CountAsync(p => p.SessaoId == sessaoId && p.SaiuEm == null, ct);
 
@@ -484,7 +484,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                 sessao.FinalizadaEm = DateTime.UtcNow;
                 sessao.Ativa = false;
 
-                var participantes = await _ctx.Set<ParticipantesSessao>()
+                var participantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
                     .Where(p => p.SessaoId == request.SessaoId && p.SaiuEm == null)
                     .ToListAsync(ct);
 
@@ -549,7 +549,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
         {
             try
             {
-                var participantes = await _ctx.Set<ParticipantesSessao>()
+                var participantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
                     .Where(p => p.SessaoId == sessaoId)
                     .OrderBy(p => p.EntrouEm)
                     .AsNoTracking()

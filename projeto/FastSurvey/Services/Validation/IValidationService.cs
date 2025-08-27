@@ -42,7 +42,8 @@ namespace FASTSURVEY.Services.Validation
         public int MaxOpcoes { get; set; } = 50;
 
         // Regras de arquivo
-        public string[] AllowedFileExtensions { get; set; } = new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
+        public string[] AllowedFileExtensions { get; set; } =
+            new[] { ".jpg", ".jpeg", ".png", ".gif", ".pdf" };
         public int MaxFileSizeInMB { get; set; } = 10;
     }
 }

@@ -10,6 +10,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './home.module.css';
 import { API_BASE_URL } from '../../config';
+import { logout } from '../../utils/auth';
 
 /* ===================== Helpers ===================== */
 const readLocalMap = (key) => {
@@ -174,7 +175,7 @@ const HomePage = () => {
       try {
         // Buscar tipos + pesquisas + pastas em paralelo
         const [tiposRes, pesqRes, pastasRes] = await Promise.allSettled([
-          axios.get(`${API_BASE_URL}/api/tipos/pesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
+          axios.get(`${API_BASE_URL}/api/TipoPesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, { headers: { Authorization: `Bearer ${token}` } }),
           axios.get(`${API_BASE_URL}/api/pastas`, { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } })
         ]);
@@ -422,11 +423,9 @@ const HomePage = () => {
     return p ? (p.nome || 'Pasta') : 'Pasta';
   }, [pastas]);
 
-  // Ajustar logout para limpar apenas as chaves relacionadas ao login
+  // Usar função centralizada de logout
   const handleLogout = () => {
-    localStorage.removeItem('loginId');
-    localStorage.removeItem('token');
-    navigate('/login');
+    logout();
   };
 
   /* ===================== AÇÕES: Renomear / Excluir ===================== */

@@ -19,6 +19,18 @@ public partial class OpcoesPergunta
 
     public bool Ativa { get; set; }
 
+    /// <summary>
+    /// Pontuação da opção quando correta
+    /// </summary>
+    public int Pontuacao { get; set; }
+
+    /// <summary>
+    /// Explicação da resposta correta
+    /// </summary>
+    public string Explicacao { get; set; }
+
+    public DateTime? DeletadoEm { get; set; }
+
     public virtual Perguntas Pergunta { get; set; }
 
     public virtual ICollection<Respostas> Resposta { get; set; } = new List<Respostas>();

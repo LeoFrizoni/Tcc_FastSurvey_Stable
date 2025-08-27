@@ -29,6 +29,8 @@ namespace FASTSURVEY.Services.Email
             CancellationToken ct = default
         )
         {
+            _logger.LogInformation("Iniciando envio de email para: {ToEmail}", toEmail);
+            
             // === Config ===
             var host = _cfg["Email:SmtpServer"];
             var portStr = _cfg["Email:SmtpPort"];
@@ -37,6 +39,9 @@ namespace FASTSURVEY.Services.Email
             var enableSsl = bool.TryParse(_cfg["Email:EnableSsl"], out var ssl) ? ssl : true;
             var fromName = _cfg["Email:FromName"] ?? "FastSurvey";
             var fromAddress = _cfg["Email:FromAddress"] ?? username; // fallback
+
+            _logger.LogInformation("Configuração SMTP - Host: {Host}, Port: {Port}, Username: {Username}, SSL: {Ssl}", 
+                host, portStr, username, enableSsl);
 
             if (string.IsNullOrWhiteSpace(host))
                 throw new InvalidOperationException("Configuração SMTP ausente: Email:SmtpServer.");
@@ -73,24 +78,49 @@ namespace FASTSURVEY.Services.Email
 
             try
             {
-                // Decide o modo TLS de forma previsível:
-                // - 465: SSL na conexão
-                // - 587: STARTTLS (se enableSsl)
-                // - outros: Auto (ou StartTls se enableSsl=true)
+                _logger.LogInformation("Conectando ao servidor SMTP {Host}:{Port}", host, port);
+                
+                // Para Gmail, usar configurações específicas
                 SecureSocketOptions socketOpts;
-                if (port == 465 && enableSsl)
-                    socketOpts = SecureSocketOptions.SslOnConnect;
-                else if (port == 587 && enableSsl)
-                    socketOpts = SecureSocketOptions.StartTls;
+                if (host.Contains("gmail.com"))
+                {
+                    if (port == 465)
+                        socketOpts = SecureSocketOptions.SslOnConnect;
+                    else if (port == 587)
+                        socketOpts = SecureSocketOptions.StartTls;
+                    else
+                        socketOpts = SecureSocketOptions.StartTls;
+                }
                 else
-                    socketOpts = enableSsl
-                        ? SecureSocketOptions.StartTlsWhenAvailable
-                        : SecureSocketOptions.Auto;
+                {
+                    // Decide o modo TLS de forma previsível para outros servidores:
+                    // - 465: SSL na conexão
+                    // - 587: STARTTLS (se enableSsl)
+                    // - outros: Auto (ou StartTls se enableSsl=true)
+                    if (port == 465 && enableSsl)
+                        socketOpts = SecureSocketOptions.SslOnConnect;
+                    else if (port == 587 && enableSsl)
+                        socketOpts = SecureSocketOptions.StartTls;
+                    else
+                        socketOpts = enableSsl
+                            ? SecureSocketOptions.StartTlsWhenAvailable
+                            : SecureSocketOptions.Auto;
+                }
 
+                _logger.LogInformation("Conectando com opções de socket: {SocketOpts}", socketOpts);
                 await smtp.ConnectAsync(host, port, socketOpts, ct);
+                _logger.LogInformation("Conectado ao servidor SMTP");
+                
+                _logger.LogInformation("Autenticando com usuário: {Username}", username);
                 await smtp.AuthenticateAsync(username, password, ct);
+                _logger.LogInformation("Autenticado com sucesso");
+                
+                _logger.LogInformation("Enviando mensagem...");
                 await smtp.SendAsync(message, ct);
+                _logger.LogInformation("Mensagem enviada com sucesso");
+                
                 await smtp.DisconnectAsync(true, ct);
+                _logger.LogInformation("Desconectado do servidor SMTP");
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -99,15 +129,17 @@ namespace FASTSURVEY.Services.Email
             }
             catch (Exception ex)
             {
-                // Log estruturado sem estourar exceção em produção (ajuste conforme política do app)
+                // Log estruturado e relançar exceção para debug
                 _logger.LogError(
                     ex,
-                    "Erro ao enviar e-mail. Para: {To}; Assunto: {Subject}",
+                    "Erro ao enviar e-mail. Para: {To}; Assunto: {Subject}; Host: {Host}; Port: {Port}",
                     toEmail,
-                    subject
+                    subject,
+                    host,
+                    port
                 );
-                // Se preferir falhar a chamada, re-lance:
-                // throw;
+                // Relançar exceção para debug
+                throw;
             }
         }
 

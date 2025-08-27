@@ -5,10 +5,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
 {
     public interface ITipoUsuarioRepository : IRepository<TipoUsuario>
     {
-        Task<List<TipoUsuario>> ListarAsync(
-            bool incluirDesabilitados = false,
-            CancellationToken ct = default
-        );
+        Task<List<TipoUsuario>> ListarAsync(CancellationToken ct = default);
 
         /// <summary>Busca por ID.</summary>
         Task<TipoUsuario?> ObterAsync(int id, CancellationToken ct = default);

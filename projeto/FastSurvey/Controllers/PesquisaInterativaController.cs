@@ -1,91 +1,263 @@
+#nullable enable
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using FASTSURVEY.Dtos.Pesquisas;
 using FASTSURVEY.Services.PesquisaInterativa;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace FASTSURVEY.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/[controller]")] // /api/PesquisaInterativa
+    [Produces("application/json")]
     public class PesquisaInterativaController : ControllerBase
     {
         private readonly IPesquisaInterativaService _service;
+        private readonly ILogger<PesquisaInterativaController> _logger;
 
-        public PesquisaInterativaController(IPesquisaInterativaService service)
+        public PesquisaInterativaController(
+            IPesquisaInterativaService service,
+            ILogger<PesquisaInterativaController> logger
+        )
         {
             _service = service;
+            _logger = logger;
         }
 
-        // POST: api/pesquisainterativa/iniciar
+        /// <summary>Inicia uma nova sessão de pesquisa interativa.</summary>
         [HttpPost("iniciar")]
         [Authorize]
+        [ProducesResponseType(typeof(SessaoInterativaResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> IniciarSessao(
             [FromBody] PesquisaInterativaRequest request,
             CancellationToken ct
         )
         {
-            var result = await _service.IniciarSessaoAsync(request, ct);
-            return Ok(result);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.IniciarSessaoAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao iniciar sessão de pesquisa interativa");
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // POST: api/pesquisainterativa/entrar
+        /// <summary>Permite que um participante entre em uma sessão existente.</summary>
         [HttpPost("entrar")]
         [AllowAnonymous]
+        [ProducesResponseType(typeof(ParticipanteResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> EntrarSessao(
             [FromBody] EntrarSessaoRequest request,
             CancellationToken ct
         )
         {
-            var result = await _service.EntrarSessaoAsync(request, ct);
-            return Ok(result);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.EntrarSessaoAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao entrar na sessão {Codigo}", request.CodigoAcesso);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // GET: api/pesquisainterativa/sessao/{codigo}
+        /// <summary>Obtém informações de uma sessão pelo código de acesso.</summary>
         [HttpGet("sessao/{codigo}")]
         [AllowAnonymous]
+        [ProducesResponseType(typeof(SessaoInterativaResponse), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> ObterSessao(
             [FromRoute] string codigo,
             CancellationToken ct
         )
         {
-            var result = await _service.ObterSessaoAsync(codigo, ct);
-            return Ok(result);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(codigo))
+                    return BadRequest(new { message = "Código de acesso é obrigatório" });
+
+                var result = await _service.ObterSessaoAsync(codigo, ct);
+                if (!result.Success)
+                    return NotFound(new { message = "Sessão não encontrada" });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao obter sessão com código {Codigo}", codigo);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // POST: api/pesquisainterativa/responder
+        /// <summary>Registra a resposta de um participante a uma pergunta.</summary>
         [HttpPost("responder")]
         [AllowAnonymous]
+        [ProducesResponseType(typeof(RespostaInterativaResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> ResponderPergunta(
             [FromBody] RespostaInterativaRequest request,
             CancellationToken ct
         )
         {
-            var result = await _service.ResponderPerguntaAsync(request, ct);
-            return Ok(result);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.ResponderPerguntaAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao registrar resposta do participante {ParticipanteId}", request.ParticipanteId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // GET: api/pesquisainterativa/resultados/{sessaoId}
+        /// <summary>Obtém resultados em tempo real de uma sessão.</summary>
         [HttpGet("resultados/{sessaoId}")]
         [Authorize]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> ObterResultadosTempoReal(
             [FromRoute] string sessaoId,
             CancellationToken ct
         )
         {
-            var result = await _service.ObterResultadosTempoRealAsync(sessaoId, ct);
-            return Ok(result);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessaoId))
+                    return BadRequest(new { message = "ID da sessão é obrigatório" });
+
+                var result = await _service.ObterResultadosTempoRealAsync(sessaoId, ct);
+                if (!result.Success)
+                    return NotFound(new { message = "Resultados não encontrados" });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao obter resultados da sessão {SessaoId}", sessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
 
-        // POST: api/pesquisainterativa/finalizar
+        /// <summary>Finaliza uma sessão de pesquisa interativa.</summary>
         [HttpPost("finalizar")]
         [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(500)]
         public async Task<IActionResult> FinalizarSessao(
             [FromBody] FinalizarSessaoRequest request,
             CancellationToken ct
         )
         {
-            var result = await _service.FinalizarSessaoAsync(request, ct);
-            return Ok(result);
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.FinalizarSessaoAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(new { message = "Sessão finalizada com sucesso" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao finalizar sessão {SessaoId}", request.SessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Obtém o status atual de uma sessão.</summary>
+        [HttpGet("status/{sessaoId}")]
+        [Authorize]
+        [ProducesResponseType(typeof(object), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> ObterStatusSessao(
+            [FromRoute] string sessaoId,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessaoId))
+                    return BadRequest(new { message = "ID da sessão é obrigatório" });
+
+                var result = await _service.ObterStatusSessaoAsync(sessaoId, ct);
+                if (!result.Success)
+                    return NotFound(new { message = "Sessão não encontrada" });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao obter status da sessão {SessaoId}", sessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Obtém lista de participantes de uma sessão.</summary>
+        [HttpGet("participantes/{sessaoId}")]
+        [Authorize]
+        [ProducesResponseType(typeof(List<ParticipanteResponse>), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> ObterParticipantes(
+            [FromRoute] string sessaoId,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(sessaoId))
+                    return BadRequest(new { message = "ID da sessão é obrigatório" });
+
+                var result = await _service.ObterParticipantesAsync(sessaoId, ct);
+                if (!result.Success)
+                    return NotFound(new { message = "Sessão não encontrada" });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao obter participantes da sessão {SessaoId}", sessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
         }
     }
 }
