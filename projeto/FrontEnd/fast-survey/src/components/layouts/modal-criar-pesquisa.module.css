@@ -84,6 +84,113 @@
   background: linear-gradient(135deg, #6c48e6, #503ed6);
 }
 
+/* ===== Radio Buttons Melhorados ===== */
+
+.radio-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.radio-row label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+  position: relative;
+}
+
+.radio-row label:hover {
+  border-color: #7c3aed;
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.1);
+}
+
+.radio-row input[type="radio"] {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.radio-row input[type="radio"]:checked {
+  border-color: #7c3aed;
+  background: #7c3aed;
+}
+
+.radio-row input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: white;
+  border-radius: 50%;
+}
+
+.radio-row input[type="radio"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+}
+
+.radio-row label:has(input[type="radio"]:checked) {
+  border-color: #7c3aed;
+  background: #f0f9ff;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+.radio-icon {
+  font-size: 18px;
+  color: #7c3aed;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.radio-text {
+  flex: 1;
+  font-weight: 500;
+}
+
+/* ===== Input de Horas Melhorado ===== */
+
+.horas-input-container {
+  position: relative;
+}
+
+.horas-input-container input[type="number"] {
+  padding-right: 60px;
+}
+
+.horas-input-container::after {
+  content: 'horas';
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

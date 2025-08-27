@@ -33,6 +33,26 @@ export function validateUsername(username) {
     };
 }
 
+export async function checkUsernameAvailability(username, api) {
+    if (!username || username.length < 3) {
+        return { available: false, message: "Nome de usuário deve ter pelo menos 3 caracteres" };
+    }
+
+    try {
+        const response = await api.post('/api/login/ValidarUsuario', { usuario: username });
+        return {
+            available: response.data.disponivel,
+            message: response.data.message
+        };
+    } catch (error) {
+        console.error('Erro ao verificar disponibilidade:', error);
+        return { 
+            available: false, 
+            message: "Erro ao verificar disponibilidade do nome de usuário" 
+        };
+    }
+}
+
 export function sanitizeInput(input) {
     return input.trim().replace(/[<>]/g, '');
 }

@@ -207,7 +207,7 @@ namespace FASTSURVEY.Services.Login
                 Senha = PasswordHasher.HashPassword(senha),
                 TipoUsuarioId = 13,
                 DataRegistro = DateTime.UtcNow,
-                EmailConfirmado = false,
+                EmailConfirmado = false, // Email precisa ser confirmado manualmente
             };
 
             await _loginRepository.AddAsync(login, ct);
@@ -653,8 +653,10 @@ namespace FASTSURVEY.Services.Login
                 Senha = PasswordHasher.HashPassword(Guid.NewGuid().ToString()),
                 TipoUsuarioId = 13,
                 DataRegistro = DateTime.UtcNow,
-                EmailConfirmado = true,
+                EmailConfirmado = true, // Email confirmado automaticamente via Google
             };
+
+            _logger?.LogInformation($"Criando usuário externo via {provider}: {email} (EmailConfirmado: true)");
 
             await _loginRepository.AddAsync(login, ct);
             await _context.SaveChangesAsync(ct);

@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { Trash2, Plus } from "lucide-react";
+import React, { useMemo, useCallback } from "react";
+import { Trash2, Plus, Paperclip } from "lucide-react";
 import styles from "./pergunta.module.css";
 
 function applyBlockStyle(estilo = {}, override = {}) {
@@ -33,6 +33,7 @@ const MultiplaEscolhaBase = ({
   bloco,
   onChangeTexto,
   onChangeOpcoes,
+  onChangeBloco,
   onRemoveImagem,
   style,
   onClick,
@@ -55,22 +56,35 @@ const MultiplaEscolhaBase = ({
     [b.estilo, style]
   );
 
-  const atualizarOpcao = (index, valor) => {
-    const novas = [...opcoes];
-    if (typeof novas[index] === "object" && novas[index] !== null) {
-      novas[index] = { ...novas[index], texto: valor };
-    } else {
-      novas[index] = valor;
-    }
-    onChangeOpcoes(b.id, novas);
-  };
 
-  const removerOpcao = (index) => {
+
+  const isCorreta = useCallback((idx) => {
+    const result = Array.isArray(b.corretas) && b.corretas.includes(idx);
+    return result;
+  }, [b.corretas]);
+
+  const handleToggleCorreta = useCallback((index) => {
+    onToggleCorreta(b.id, index);
+  }, [onToggleCorreta, b.id]);
+
+  const handleAdicionarOpcao = useCallback(() => {
+    onChangeOpcoes(b.id, [...opcoes, ""]);
+  }, [onChangeOpcoes, b.id, opcoes]);
+
+  const handleRemoverOpcao = useCallback((index) => {
     const novas = opcoes.filter((_, i) => i !== index);
     onChangeOpcoes(b.id, novas);
-  };
+  }, [opcoes, onChangeOpcoes, b.id]);
 
-  const isCorreta = (idx) => Array.isArray(b.corretas) && b.corretas.includes(idx);
+  const handleAtualizarOpcao = useCallback((index, value) => {
+    const novas = [...opcoes];
+    if (typeof novas[index] === "object" && novas[index] !== null) {
+      novas[index] = { ...novas[index], texto: value };
+    } else {
+      novas[index] = value;
+    }
+    onChangeOpcoes(b.id, novas);
+  }, [opcoes, onChangeOpcoes, b.id]);
 
   return (
     <div
@@ -154,27 +168,36 @@ const MultiplaEscolhaBase = ({
             <input
               type="text"
               value={valor}
-              onChange={(e) => atualizarOpcao(index, e.target.value)}
+              onChange={(e) => handleAtualizarOpcao(index, e.target.value)}
               placeholder={`Opção ${index + 1}`}
               className={styles["input-opcao"]}
             />
 
             {b.TemGabarito && (
-              <label className={styles["marcar-correta"]}>
+              <div 
+                className={styles["marcar-correta"]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleToggleCorreta(index);
+                }}
+              >
                 <input
                   type={b.permitirMultiplaSelecao ? "checkbox" : "radio"}
                   name={`gabarito-multipla-${b.id}`}
                   checked={isCorreta(index)}
-                  onChange={() => onToggleCorreta(b.id, index)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleToggleCorreta(index);
+                  }}
                 />
                 <span>Correta</span>
-              </label>
+              </div>
             )}
 
             <button
               type="button"
               className={styles["btn-remover"]}
-              onClick={() => removerOpcao(index)}
+              onClick={() => handleRemoverOpcao(index)}
               title="Remover opção"
               aria-label={`Remover opção ${index + 1}`}
             >
@@ -189,11 +212,49 @@ const MultiplaEscolhaBase = ({
         className={styles["adicionar-opcao-btn"]}
         onClick={(e) => {
           e.stopPropagation();
-          onChangeOpcoes(b.id, [...opcoes, ""]);
+          handleAdicionarOpcao();
         }}
       >
         <Plus size={16} /> Adicionar Opção
       </button>
+
+      {/* Anexos da Pergunta */}
+      {Array.isArray(b.attachments) && b.attachments.length > 0 && (
+        <div className={styles["anexos-container"]}>
+          <h4 className={styles["anexos-titulo"]}>Anexos da Pergunta</h4>
+          <ul className={styles["anexos-lista"]}>
+            {b.attachments.map((f, i) => (
+              <li key={i} className={styles["anexo-item"]}>
+                <span className={styles["anexo-icon"]}>
+                  <Paperclip size={16} />
+                </span>
+                <div className={styles["anexo-info"]}>
+                  <span className={styles["anexo-nome"]}>{f.name}</span>
+                  <span className={styles["anexo-tamanho"]}>
+                    {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles["btn-remover-anexo"]}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Remover anexo da lista
+                    const novasAttachments = b.attachments.filter((_, index) => index !== i);
+                    // Atualizar o bloco com as novas attachments
+                    if (onChangeBloco) {
+                      onChangeBloco(b.id, { attachments: novasAttachments });
+                    }
+                  }}
+                  title="Remover anexo"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -210,10 +271,12 @@ function areEqualMult(a, b) {
     A.opcoes === B.opcoes &&         // referência
     A.corretas === B.corretas &&     // referência
     A.imagens === B.imagens &&       // referência
+    A.attachments === B.attachments && // referência
     A.estilo === B.estilo &&
     a.style === b.style &&
     a.onChangeTexto === b.onChangeTexto &&
     a.onChangeOpcoes === b.onChangeOpcoes &&
+    a.onChangeBloco === b.onChangeBloco &&
     a.onRemoveImagem === b.onRemoveImagem &&
     a.onToggleGabarito === b.onToggleGabarito &&
     a.onTogglePermiteMultipla === b.onTogglePermiteMultipla &&

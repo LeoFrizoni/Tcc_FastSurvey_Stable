@@ -120,20 +120,27 @@ namespace FASTSURVEY.Services.Pesquisa
         public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
         {
             var entity = await _ctx
-                .Pesquisas.Select(x => new { x.PesquisaId, x.LoginId })
+                .Pesquisas
                 .FirstOrDefaultAsync(x => x.PesquisaId == id, ct);
             if (entity is null)
                 return false;
 
-            var deleted = await _ctx.Database.ExecuteSqlInterpolatedAsync(
-                $@"DELETE FROM pesquisas WHERE pesquisaid = {id}",
-                ct
-            );
+            try
+            {
+                _ctx.Pesquisas.Remove(entity);
+                var deleted = await _ctx.SaveChangesAsync(ct);
 
-            if (deleted > 0)
-                await InvalidatePesquisaCache(id, entity.LoginId, ct);
+                if (deleted > 0)
+                    await InvalidatePesquisaCache(id, entity.LoginId, ct);
 
-            return deleted > 0;
+                return deleted > 0;
+            }
+            catch (Exception ex)
+            {
+                // Log do erro para debug
+                Console.WriteLine($"Erro ao excluir pesquisa {id}: {ex.Message}");
+                return false;
+            }
         }
 
         // ------------------ GET BY ID ------------------

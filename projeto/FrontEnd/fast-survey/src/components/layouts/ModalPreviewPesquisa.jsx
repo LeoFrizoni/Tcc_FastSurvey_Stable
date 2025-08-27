@@ -48,8 +48,18 @@ function pickImgAlt(img, i) {
 
 function GaleriaPreview({ imagens }) {
   if (!Array.isArray(imagens) || imagens.length === 0) return null;
+  
+  // Se há apenas uma imagem, centralizar
+  const isSingleImage = imagens.length === 1;
+  
   return (
-    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "10px 0 12px 0" }}>
+    <div style={{ 
+      display: "flex", 
+      gap: 12, 
+      flexWrap: "wrap", 
+      margin: "10px 0 12px 0",
+      justifyContent: isSingleImage ? "center" : "flex-start"
+    }}>
       {imagens.map((img, i) => {
         const src = pickImgSrc(img);
         const alt = pickImgAlt(img, i);
@@ -91,6 +101,12 @@ function GaleriaPreview({ imagens }) {
   );
 }
 
+const PaperclipIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+  </svg>
+);
+
 const DiscursivaPreview = ({ bloco }) => (
   <div className="bloco-pergunta" style={applyBlockStyle(bloco?.estilo)}>
     <div className="cabecalho-pergunta"><h4>Pergunta Discursiva</h4></div>
@@ -98,12 +114,73 @@ const DiscursivaPreview = ({ bloco }) => (
 
     <GaleriaPreview imagens={bloco?.imagens} />
 
-    <textarea
-      disabled
-      placeholder="Resposta do usuário..."
-      className="resposta-simulada"
-      style={{ width: "100%", minHeight: 48 }}
-    />
+    {/* Exemplo de resposta (para futura IA) */}
+    <div style={{ marginTop: 16 }}>
+      <div style={{ marginBottom: 12 }}>
+        <label style={{ display: "block", marginBottom: 4, fontWeight: 500, color: "#374151" }}>
+          Exemplo de resposta (para IA no futuro)
+        </label>
+        <textarea
+          value={bloco?.respostaExemplo || ""}
+          disabled
+          style={{
+            width: "100%",
+            minHeight: 80,
+            padding: 12,
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontFamily: "inherit",
+            fontSize: 14,
+            resize: "vertical",
+            background: "#f9fafb"
+          }}
+          placeholder="Escreva aqui um exemplo de boa resposta..."
+        />
+      </div>
+
+      <div>
+        <label style={{ display: "block", marginBottom: 4, fontWeight: 500, color: "#374151" }}>
+          Resposta do usuário...
+        </label>
+        <textarea
+          disabled
+          style={{
+            width: "100%",
+            minHeight: 80,
+            padding: 12,
+            border: "1px solid #d1d5db",
+            borderRadius: 6,
+            fontFamily: "inherit",
+            fontSize: 14,
+            resize: "vertical",
+            background: "#f9fafb"
+          }}
+          placeholder="Resposta do usuário..."
+        />
+      </div>
+    </div>
+
+    {/* Anexos da Pergunta */}
+    {Array.isArray(bloco?.attachments) && bloco.attachments.length > 0 && (
+      <div style={{ marginTop: "16px", padding: "16px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Anexos da Pergunta</h4>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+          {bloco.attachments.map((f, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+              <span style={{ fontSize: "18px", color: "#7c3aed", flexShrink: 0 }}>
+                <PaperclipIcon />
+              </span>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151", wordBreak: "break-word", lineHeight: "1.4" }}>{f.name}</span>
+                <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "400" }}>
+                  {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
 );
 
@@ -114,15 +191,66 @@ const MultiplaEscolhaPreview = ({ bloco }) => (
 
     <GaleriaPreview imagens={bloco?.imagens} />
 
+    {/* Configurações da pergunta */}
+    {(bloco?.TemGabarito || bloco?.permitirMultiplaSelecao) && (
+      <div style={{ margin: "16px 0", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid #e9ecef" }}>
+        {bloco?.TemGabarito && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+            <div style={{ width: "44px", height: "24px", background: "#7c3aed", borderRadius: "12px", position: "relative" }}>
+              <div style={{ position: "absolute", top: "2px", left: "22px", width: "20px", height: "20px", background: "white", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}></div>
+            </div>
+            <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Há gabarito?</span>
+          </div>
+        )}
+        {bloco?.permitirMultiplaSelecao && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ width: "44px", height: "24px", background: "#7c3aed", borderRadius: "12px", position: "relative" }}>
+              <div style={{ position: "absolute", top: "2px", left: "22px", width: "20px", height: "20px", background: "white", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}></div>
+            </div>
+            <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Permitir múltipla seleção</span>
+          </div>
+        )}
+      </div>
+    )}
+
     {(bloco?.opcoes || []).map((opcao, idx) => {
       const label = typeof opcao === "object" ? (opcao?.texto ?? opcao?.opcao ?? "") : opcao;
+      const isCorreta = Array.isArray(bloco?.corretas) && bloco.corretas.includes(idx);
       return (
         <div key={idx} className="opcao-input" style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
           <input type="checkbox" disabled style={{ marginRight: 8 }} />
           <span>{safeText(label, "—")}</span>
+          {bloco?.TemGabarito && (
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px", background: isCorreta ? "#f0f9ff" : "#f8f9fa", border: `1px solid ${isCorreta ? "#bae6fd" : "#e9ecef"}`, borderRadius: "8px", fontSize: "13px", color: isCorreta ? "#0369a1" : "#6b7280" }}>
+              <input type="checkbox" checked={isCorreta} disabled style={{ margin: 0, accentColor: "#7c3aed" }} />
+              <span style={{ fontWeight: "500" }}>Correta</span>
+            </div>
+          )}
         </div>
       );
     })}
+
+    {/* Anexos da Pergunta */}
+    {Array.isArray(bloco?.attachments) && bloco.attachments.length > 0 && (
+      <div style={{ marginTop: "16px", padding: "16px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Anexos da Pergunta</h4>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+          {bloco.attachments.map((f, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+              <span style={{ fontSize: "18px", color: "#7c3aed", flexShrink: 0 }}>
+                <PaperclipIcon />
+              </span>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151", wordBreak: "break-word", lineHeight: "1.4" }}>{f.name}</span>
+                <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "400" }}>
+                  {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
 );
 
@@ -133,15 +261,56 @@ const ObjetivaPreview = ({ bloco }) => (
 
     <GaleriaPreview imagens={bloco?.imagens} />
 
+    {/* Configurações da pergunta */}
+    {bloco?.TemGabarito && (
+      <div style={{ margin: "16px 0", padding: "12px", background: "#f8f9fa", borderRadius: "8px", border: "1px solid #e9ecef" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ width: "44px", height: "24px", background: "#7c3aed", borderRadius: "12px", position: "relative" }}>
+            <div style={{ position: "absolute", top: "2px", left: "22px", width: "20px", height: "20px", background: "white", borderRadius: "50%", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}></div>
+          </div>
+          <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151" }}>Há gabarito?</span>
+        </div>
+      </div>
+    )}
+
     {(bloco?.opcoes || []).map((opcao, idx) => {
       const label = typeof opcao === "object" ? (opcao?.texto ?? opcao?.opcao ?? "") : opcao;
+      const isCorreta = bloco?.corretaIndex === idx;
       return (
         <div key={idx} className="opcao-input" style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
           <input type="radio" disabled style={{ marginRight: 8 }} />
           <span>{safeText(label, "—")}</span>
+          {bloco?.TemGabarito && (
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "8px", padding: "6px 12px", background: isCorreta ? "#f0f9ff" : "#f8f9fa", border: `1px solid ${isCorreta ? "#bae6fd" : "#e9ecef"}`, borderRadius: "8px", fontSize: "13px", color: isCorreta ? "#0369a1" : "#6b7280" }}>
+              <input type="radio" checked={isCorreta} disabled style={{ margin: 0, accentColor: "#7c3aed" }} />
+              <span style={{ fontWeight: "500" }}>Correta</span>
+            </div>
+          )}
         </div>
       );
     })}
+
+    {/* Anexos da Pergunta */}
+    {Array.isArray(bloco?.attachments) && bloco.attachments.length > 0 && (
+      <div style={{ marginTop: "16px", padding: "16px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+        <h4 style={{ margin: "0 0 12px 0", fontSize: "14px", fontWeight: "600", color: "#374151" }}>Anexos da Pergunta</h4>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+          {bloco.attachments.map((f, i) => (
+            <li key={i} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px", background: "white", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
+              <span style={{ fontSize: "18px", color: "#7c3aed", flexShrink: 0 }}>
+                <PaperclipIcon />
+              </span>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "2px", minWidth: 0 }}>
+                <span style={{ fontSize: "14px", fontWeight: "500", color: "#374151", wordBreak: "break-word", lineHeight: "1.4" }}>{f.name}</span>
+                <span style={{ fontSize: "12px", color: "#6b7280", fontWeight: "400" }}>
+                  {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
   </div>
 );
 

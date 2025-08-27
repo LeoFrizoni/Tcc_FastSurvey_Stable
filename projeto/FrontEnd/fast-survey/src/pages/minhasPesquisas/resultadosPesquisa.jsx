@@ -97,8 +97,34 @@ function buildBlocoInlineStyle(estilo) {
 
 function resolveImgSrcFromJSON(img){
   if (!img) return null;
-  const guess = img.previewUrl || img.url || (img.nome ? `${API_BASE}/Uploads/${img.nome}${img.extensao || ''}` : null);
-  return guess || null;
+  
+  // Tentar diferentes formatos de URL
+  const possibleUrls = [
+    img.previewUrl,
+    img.url,
+    img.src,
+    img.imageUrl,
+    img.fileUrl,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}${img.extensao || ''}` : null,
+    img.nome ? `${API_BASE}/uploads/${img.nome}${img.extensao || ''}` : null,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}` : null,
+    img.nome ? `${API_BASE}/uploads/${img.nome}` : null,
+    // Tentar com diferentes extensões comuns
+    img.nome ? `${API_BASE}/Uploads/${img.nome}.jpg` : null,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}.jpeg` : null,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}.png` : null,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}.gif` : null,
+    img.nome ? `${API_BASE}/Uploads/${img.nome}.webp` : null,
+  ].filter(Boolean);
+  
+  // Retornar a primeira URL válida
+  for (const url of possibleUrls) {
+    if (url && typeof url === 'string' && url.trim()) {
+      return url;
+    }
+  }
+  
+  return null;
 }
 
 function getTipoPesquisaLabel(p){
@@ -160,23 +186,65 @@ function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onIntera
 }
 
 function GaleriaResultados({ imagensJSON, anexosImg }) {
-  const itens = [
-    ...(Array.isArray(imagensJSON)
-      ? imagensJSON.map((img, i) => ({
-          src: resolveImgSrcFromJSON(img),
+  // Processar imagens do JSON
+  const imagensFromJSON = [];
+  if (Array.isArray(imagensJSON)) {
+    imagensJSON.forEach((img, i) => {
+      const src = resolveImgSrcFromJSON(img);
+      if (src) {
+        imagensFromJSON.push({
+          src,
           alt: img?.nome || img?.file?.name || `imagem-${i}`,
-        }))
-      : []),
-    ...(Array.isArray(anexosImg) ? anexosImg : []),
-  ].filter(it => !!it.src);
+        });
+      }
+    });
+  }
+  
+  // Processar anexos
+  const imagensFromAnexos = [];
+  if (Array.isArray(anexosImg)) {
+    anexosImg.forEach((anexo, i) => {
+      if (anexo.src) {
+        imagensFromAnexos.push({
+          src: anexo.src,
+          alt: anexo.alt || `anexo-${i}`,
+        });
+      }
+    });
+  }
+  
+  const itens = [...imagensFromJSON, ...imagensFromAnexos];
 
+  // Se não há itens, retornar null para que o placeholder seja mostrado
   if (itens.length === 0) return null;
 
   return (
     <div className={styles.previewRow}>
       {itens.map((it, i) => (
         <figure key={i} className={styles.thumb}>
-          <img src={it.src} alt={it.alt} loading="lazy" />
+          <img 
+            src={it.src} 
+            alt={it.alt} 
+            loading="lazy"
+            onError={(e) => {
+              console.log('Erro ao carregar imagem:', it.src);
+              e.target.style.display = 'none';
+              // Se a imagem falhou, mostrar placeholder no lugar
+              const placeholder = document.createElement('div');
+              placeholder.className = styles.imagePlaceholder;
+              placeholder.innerHTML = `
+                <div class="${styles.placeholderContent}">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                  </svg>
+                  <span>Imagem não disponível</span>
+                </div>
+              `;
+              e.target.parentElement.appendChild(placeholder);
+            }}
+          />
         </figure>
       ))}
     </div>
@@ -226,14 +294,16 @@ const ResultadosPesquisa = () => {
       }
     }
 
-    async function carregarAnexos() {
-      try {
-        const { data } = await api.get(`/Anexos/pesquisa/${id}`);
-        setAnexos(Array.isArray(data) ? data : []);
-      } catch {
-        setAnexos([]);
-      }
-    }
+         async function carregarAnexos() {
+       try {
+         const { data } = await api.get(`/Anexos/pesquisa/${id}`);
+         setAnexos(Array.isArray(data) ? data : []);
+       } catch (error) {
+         // Ignorar erro 404 do endpoint de anexos
+         console.log('Endpoint de anexos não disponível, continuando sem anexos...');
+         setAnexos([]);
+       }
+     }
 
     buscarPesquisa();
     carregarAnexos();
@@ -369,6 +439,8 @@ const ResultadosPesquisa = () => {
   const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
   const tipoPesquisaDesc = getTipoPesquisaLabel(pesquisa);
 
+
+
   return (
     <>
       <TopNavbar />
@@ -376,24 +448,25 @@ const ResultadosPesquisa = () => {
         <div className={styles.grid}>
           {/* ===== Coluna esquerda — entra no PDF ===== */}
           <section ref={pdfRef} className={styles.exportArea}>
-            <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-              <CabecalhoPesquisa autor={autor} data={dataStr} />
-              <InformacoesPesquisa
-                titulo={pesquisa.titulo}
-                descricao={pesquisa.descricao}
-                tipoPesquisa={tipoPesquisaDesc}
-              />
-            </section>
+                         <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
+               <CabecalhoPesquisa autor={autor} data={dataStr} />
+               <InformacoesPesquisa
+                 titulo={pesquisa.titulo || "Sem título"}
+                 descricao={pesquisa.descricao || "Sem descrição"}
+                 tipoPesquisa={tipoPesquisaDesc}
+               />
+             </section>
 
             <section className={styles.formArea} aria-label="Estrutura da pesquisa">
               {blocos.length === 0 && (
                 <div className={styles.emptyBox}>Nenhum bloco cadastrado nesta pesquisa.</div>
               )}
-              {blocos.map((bloco, index) => {
-                const { style: blocoInline } = buildBlocoInlineStyle(bloco?.estilo);
-                const tipo = normalizeTipo(bloco.tipo);
-                const key = bloco.perguntaid ?? bloco.id ?? index;
-                return (
+                             {blocos.map((bloco, index) => {
+                 const { style: blocoInline } = buildBlocoInlineStyle(bloco?.estilo);
+                 const tipo = normalizeTipo(bloco.tipo);
+                 const key = bloco.perguntaid ?? bloco.id ?? index;
+                 
+                 return (
                   <div key={key} className={`${styles.blockWrapper} ${styles.avoidBreak}`}>
                     <article className={styles.block} style={blocoInline}>
                       <div className={styles.blockHeader}>
@@ -401,28 +474,91 @@ const ResultadosPesquisa = () => {
                         <h4 className={styles.qText}>{bloco.texto}</h4>
                       </div>
 
-                      <GaleriaResultados
-                        imagensJSON={bloco.imagens}
-                        anexosImg={imagensPorPergunta.get(key)}
-                      />
+                                             {/* Verificar se há imagens válidas */}
+                       {(() => {
+                         const temImagensJSON = Array.isArray(bloco.imagens) && bloco.imagens.length > 0;
+                         const temAnexos = imagensPorPergunta.get(key) && imagensPorPergunta.get(key).length > 0;
+                         
+                         if (temImagensJSON || temAnexos) {
+                           return (
+                             <GaleriaResultados
+                               imagensJSON={bloco.imagens}
+                               anexosImg={imagensPorPergunta.get(key)}
+                             />
+                           );
+                         } else {
+                           // Mostrar placeholder apenas se não há imagens
+                           return (
+                             <div className={styles.imagePlaceholder}>
+                               <div className={styles.placeholderContent}>
+                                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                   <circle cx="8.5" cy="8.5" r="1.5"/>
+                                   <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+                                 </svg>
+                                 <span>Imagem não disponível</span>
+                               </div>
+                             </div>
+                           );
+                         }
+                       })()}
+                      
+                      {/* Anexos da pergunta */}
+                      {(bloco.imagens && bloco.imagens.length > 0) && (
+                        <div className={styles.questionAttachments}>
+                          <div className={styles.attachmentsTitle}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+                            </svg>
+                            Anexos da Pergunta
+                          </div>
+                        </div>
+                      )}
 
                       {tipo === 'discursiva' && (
-                        <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
-                          Resposta do usuário...
+                        <div className={styles.discursiveContainer}>
+                          {bloco.respostaExemplo && (
+                            <div className={styles.exampleAnswer}>
+                              <label className={styles.exampleLabel}>Exemplo de resposta (para IA no futuro)</label>
+                              <div className={styles.exampleText}>{bloco.respostaExemplo}</div>
+                            </div>
+                          )}
+                          <div className={styles.answerBoxMuted} aria-label="Resposta do usuário (discursiva)">
+                            Resposta do usuário...
+                          </div>
                         </div>
                       )}
 
                       {(tipo === 'objetiva' || tipo === 'multipla') && Array.isArray(bloco.opcoes) && (
-                        <ul className={styles.optionsList}>
-                          {bloco.opcoes.map((op, i) => {
-                            const label = (op && typeof op === 'object') ? (op.texto ?? String(i + 1)) : String(op);
-                            return (
-                              <li key={op?.opcaoid ?? i} className={styles.optionChip}>
-                                {label}
-                              </li>
-                            );
-                          })}
-                        </ul>
+                        <div className={styles.optionsContainer}>
+                          {/* Configurações da pergunta */}
+                          {(bloco.temGabarito || bloco.permitirMultiplaSelecao) && (
+                            <div className={styles.questionConfig}>
+                              {bloco.temGabarito && (
+                                <span className={styles.configBadge}>Há gabarito</span>
+                              )}
+                              {bloco.permitirMultiplaSelecao && (
+                                <span className={styles.configBadge}>Permitir múltipla seleção</span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Opções */}
+                          <ul className={styles.optionsList}>
+                            {bloco.opcoes.map((op, i) => {
+                              const label = (op && typeof op === 'object') ? (op.texto ?? String(i + 1)) : String(op);
+                              const isCorrect = op && typeof op === 'object' ? op.correta : false;
+                              return (
+                                <li key={op?.opcaoid ?? i} className={`${styles.optionChip} ${isCorrect ? styles.correctOption : ''}`}>
+                                  <span className={styles.optionText}>{label}</span>
+                                  {isCorrect && (
+                                    <span className={styles.correctBadge}>Correta</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
                       )}
 
                       {!['discursiva', 'objetiva', 'multipla'].includes(tipo) && (

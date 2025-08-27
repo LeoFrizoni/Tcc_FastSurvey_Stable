@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { Trash2, Plus } from "lucide-react";
+import React, { useMemo, useCallback } from "react";
+import { Trash2, Plus, Paperclip } from "lucide-react";
 import styles from "./pergunta.module.css";
 import '../layouts/global.css';
 
@@ -34,6 +34,7 @@ const ObjetivaBase = ({
   bloco,
   onChangeTexto,
   onChangeOpcoes,
+  onChangeBloco,
   onRemoveImagem,
   style,
   onClick,
@@ -69,6 +70,10 @@ const ObjetivaBase = ({
     const novas = opcoes.filter((_, i) => i !== index);
     onChangeOpcoes(b.id, novas);
   };
+
+  const handleSetCorretaIndex = useCallback((index) => {
+    onSetCorretaIndex(b.id, index);
+  }, [onSetCorretaIndex, b.id]);
 
   return (
     <div
@@ -143,15 +148,24 @@ const ObjetivaBase = ({
             />
 
             {b.TemGabarito && (
-              <label className={styles["marcar-correta"]}>
+              <div 
+                className={styles["marcar-correta"]}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSetCorretaIndex(index);
+                }}
+              >
                 <input
                   type="radio"
                   name={`gabarito-objetiva-${b.id}`}
                   checked={b.corretaIndex === index}
-                  onChange={() => onSetCorretaIndex(b.id, index)}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    handleSetCorretaIndex(index);
+                  }}
                 />
                 <span>Correta</span>
-              </label>
+              </div>
             )}
 
             <button
@@ -177,6 +191,44 @@ const ObjetivaBase = ({
       >
         <Plus size={16} /> Adicionar Opção
       </button>
+
+      {/* Anexos da Pergunta */}
+      {Array.isArray(b.attachments) && b.attachments.length > 0 && (
+        <div className={styles["anexos-container"]}>
+          <h4 className={styles["anexos-titulo"]}>Anexos da Pergunta</h4>
+          <ul className={styles["anexos-lista"]}>
+            {b.attachments.map((f, i) => (
+              <li key={i} className={styles["anexo-item"]}>
+                <span className={styles["anexo-icon"]}>
+                  <Paperclip size={16} />
+                </span>
+                <div className={styles["anexo-info"]}>
+                  <span className={styles["anexo-nome"]}>{f.name}</span>
+                  <span className={styles["anexo-tamanho"]}>
+                    {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles["btn-remover-anexo"]}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Remover anexo da lista
+                    const novasAttachments = b.attachments.filter((_, index) => index !== i);
+                    // Atualizar o bloco com as novas attachments
+                    if (onChangeBloco) {
+                      onChangeBloco(b.id, { attachments: novasAttachments });
+                    }
+                  }}
+                  title="Remover anexo"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -192,10 +244,12 @@ function areEqualObj(a, b) {
     A.corretaIndex === B.corretaIndex &&
     A.opcoes === B.opcoes &&       // referência
     A.imagens === B.imagens &&     // referência
+    A.attachments === B.attachments && // referência
     A.estilo === B.estilo &&
     a.style === b.style &&
     a.onChangeTexto === b.onChangeTexto &&
     a.onChangeOpcoes === b.onChangeOpcoes &&
+    a.onChangeBloco === b.onChangeBloco &&
     a.onRemoveImagem === b.onRemoveImagem &&
     a.onToggleGabarito === b.onToggleGabarito &&
     a.onSetCorretaIndex === b.onSetCorretaIndex &&

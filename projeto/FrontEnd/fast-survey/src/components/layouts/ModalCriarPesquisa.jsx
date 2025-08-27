@@ -149,7 +149,8 @@ export default function ModalCriarPesquisa({ onConfirm }) {
                 checked={expiracaoModo === "sem_limite"}
                 onChange={() => setExpiracaoModo("sem_limite")}
               />
-              Sem expiração
+              <span className={styles["radio-icon"]}>∞</span>
+              <span className={styles["radio-text"]}>Sem expiração</span>
             </label>
             <label>
               <input
@@ -159,23 +160,26 @@ export default function ModalCriarPesquisa({ onConfirm }) {
                 checked={expiracaoModo === "com_tempo"}
                 onChange={() => setExpiracaoModo("com_tempo")}
               />
-              Com tempo limite
+              <span className={styles["radio-icon"]}>⏰</span>
+              <span className={styles["radio-text"]}>Com tempo limite</span>
             </label>
           </div>
         </div>
 
         {expiracaoModo === "com_tempo" && (
           <div className={styles["form-group"]}>
-            <label htmlFor="horas">Validade (em horas)</label>
-            <input
-              id="horas"
-              type="number"
-              min="1"
-              value={horasValidade}
-              onChange={(e) => setHorasValidade(e.target.value)}
-              placeholder="Ex.: 24"
-              style={erros.horasValidade ? { borderColor: "#e74c3c" } : {}}
-            />
+            <label htmlFor="horas">Validade</label>
+            <div className={styles["horas-input-container"]}>
+              <input
+                id="horas"
+                type="number"
+                min="1"
+                value={horasValidade}
+                onChange={(e) => setHorasValidade(e.target.value)}
+                placeholder="Ex.: 24"
+                style={erros.horasValidade ? { borderColor: "#e74c3c" } : {}}
+              />
+            </div>
             {erros.horasValidade && <span className={styles.erro}>{erros.horasValidade}</span>}
           </div>
         )}

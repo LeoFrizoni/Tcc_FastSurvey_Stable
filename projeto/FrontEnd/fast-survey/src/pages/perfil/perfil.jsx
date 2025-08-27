@@ -1,11 +1,12 @@
 // src/pages/perfil/Perfil.jsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import { User, Tag, BadgeCheck, Pencil, Save, X, Image as ImgIcon, Trash2, CheckCircle } from 'lucide-react';
 import styles from './perfil.module.css';
 import api from '../../lib/api';
 import AvatarCropModal from '../../components/layouts/AvatarCropModal';
 import '../../components/layouts/global.css';
+import { checkUsernameAvailability } from '../../helpers/validateEmail';
 
 const EP = {
   getPerfil: '/api/Login/Perfil',
@@ -57,6 +58,11 @@ export default function Perfil() {
   const [editando, setEditando] = useState(false);
   const [novoNome, setNovoNome] = useState('');
   const [salvando, setSalvando] = useState(false);
+  
+  // Validação de usuário
+  const [validandoUsuario, setValidandoUsuario] = useState(false);
+  const [usuarioDisponivel, setUsuarioDisponivel] = useState(null);
+  const [usuarioMensagem, setUsuarioMensagem] = useState("");
 
   // avatar cropper
   const [showCropper, setShowCropper] = useState(false);
@@ -101,6 +107,15 @@ export default function Perfil() {
     carregar();
   }, [baseURL]);
 
+  // Cleanup do debounce quando componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
   const iniciais = useMemo(() => {
     const n = (usuario.nome || '').trim();
     if (!n) return '??';
@@ -111,12 +126,70 @@ export default function Perfil() {
   const tipoUsuarioLabel = mapTipoUsuario[usuario.tipoUsuarioId] || usuario.tipoUsuarioId || '—';
 
   const iniciarEdicao = () => setEditando(true);
-  const cancelarEdicao = () => { setEditando(false); setNovoNome(usuario.nome || ''); };
+  const cancelarEdicao = () => { 
+    setEditando(false); 
+    setNovoNome(usuario.nome || ''); 
+    setUsuarioDisponivel(null);
+    setUsuarioMensagem("");
+  };
+
+  // Validação de nome de usuário em tempo real
+  const validarNomeUsuario = async (nome) => {
+    if (!nome || nome.length < 3) {
+      setUsuarioDisponivel(null);
+      setUsuarioMensagem("");
+      return;
+    }
+
+    // Se o nome não mudou, não precisa validar
+    if (nome === usuario.nome) {
+      setUsuarioDisponivel(true);
+      setUsuarioMensagem("Nome atual");
+      return;
+    }
+
+    setValidandoUsuario(true);
+    try {
+      const resultado = await checkUsernameAvailability(nome, api);
+      setUsuarioDisponivel(resultado.available);
+      setUsuarioMensagem(resultado.message);
+    } catch (error) {
+      console.error('Erro na validação:', error);
+      setUsuarioDisponivel(false);
+      setUsuarioMensagem("Erro ao verificar disponibilidade");
+    } finally {
+      setValidandoUsuario(false);
+    }
+  };
+
+  // Debounce para validação de usuário
+  const debounceRef = useRef(null);
+  const handleNomeChange = (value) => {
+    setNovoNome(value);
+    
+    // Limpa o timeout anterior
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Define novo timeout para validar após 500ms
+    debounceRef.current = setTimeout(() => {
+      validarNomeUsuario(value);
+    }, 500);
+  };
 
   const salvar = async () => {
     const n1 = (novoNome || '').trim();
     const n0 = (usuario.nome || '').trim();
     if (!n1 || n1 === n0) { setEditando(false); return; }
+    if (usuarioDisponivel === false) {
+      alert("Nome de usuário já está em uso. Escolha outro nome.");
+      return;
+    }
+    if (validandoUsuario) {
+      alert("Aguarde a validação do nome de usuário.");
+      return;
+    }
     setSalvando(true);
     try {
                     await api.put(EP.putNome, { novoNome: n1 });
@@ -248,14 +321,35 @@ export default function Perfil() {
               <li>
                 <User size={18} /><strong>Nome:</strong>
                 {editando ? (
-                  <input
-                    className={styles.input}
-                    type="text"
-                    value={novoNome}
-                    onChange={(e) => setNovoNome(e.target.value)}
-                    maxLength={80}
-                    autoFocus
-                  />
+                  <div>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      value={novoNome}
+                      onChange={(e) => handleNomeChange(e.target.value)}
+                      maxLength={80}
+                      autoFocus
+                    />
+                    {editando && novoNome && (
+                      <div style={{ marginTop: '5px' }}>
+                        {validandoUsuario && (
+                          <p style={{ color: "orange", fontSize: "12px", margin: "3px 0" }}>
+                            ⏳ Verificando disponibilidade...
+                          </p>
+                        )}
+                        {!validandoUsuario && usuarioDisponivel === true && (
+                          <p style={{ color: "green", fontSize: "12px", margin: "3px 0" }}>
+                            ✓ {usuarioMensagem}
+                          </p>
+                        )}
+                        {!validandoUsuario && usuarioDisponivel === false && (
+                          <p style={{ color: "red", fontSize: "12px", margin: "3px 0" }}>
+                            ✗ {usuarioMensagem}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <span>{loading ? '…' : (usuario.nome || '—')}</span>
                 )}

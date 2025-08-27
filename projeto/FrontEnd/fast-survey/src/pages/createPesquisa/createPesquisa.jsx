@@ -8,7 +8,7 @@ import ModalPreviewPesquisa from "../../components/layouts/ModalPreviewPesquisa"
 import Discursiva from "../../components/perguntas/discursiva";
 import MultiplaEscolha from "../../components/perguntas/multiplaEscolha";
 import Objetiva from "../../components/perguntas/objetiva";
-import axios from "axios";
+import axios from "../../config/axios";
 import {
   FileText,
   Circle,
@@ -144,16 +144,6 @@ const CardWrapper = React.memo(function CardWrapper({
       </div>
 
       {children}
-
-      {Array.isArray(bloco.attachments) && bloco.attachments.length > 0 && (
-        <ul style={{ marginTop: 8 }}>
-          {bloco.attachments.map((f, i) => (
-            <li key={i} style={{ fontSize: 12, opacity: 0.8 }}>
-              {f.name}
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 });
@@ -163,6 +153,7 @@ const CriarPesquisa = () => {
   const [isPerguntasAberto, setIsPerguntasAberto] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
   const [mostrarModalPreview, setMostrarModalPreview] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [mostrarModalQr, setMostrarModalQr] = useState(false);
 
@@ -181,32 +172,73 @@ const CriarPesquisa = () => {
   const [tiposPesquisa, setTiposPesquisa] = useState([]);
 
   useEffect(() => {
-    const loginId = localStorage.getItem("userId");
-    if (loginId) {
+    const loginId = localStorage.getItem("userId") || localStorage.getItem("loginId");
+    const token = localStorage.getItem("token");
+    
+    console.log('🔍 CreatePesquisa - Verificando autenticação');
+    console.log('🔍 CreatePesquisa - loginId:', loginId);
+    console.log('🔍 CreatePesquisa - token:', token ? 'existe' : 'não existe');
+    
+    if (loginId && token) {
+      console.log('✅ CreatePesquisa - LoginId e token encontrados, fazendo requisição...');
       axios
-        .get(`${API_BASE_URL}/api/login/${loginId}`)
-        .then((res) => setAutorNome(res.data.usuario || "Usuário"))
+        .get(`${API_BASE_URL}/api/login/Perfil`)
+        .then((res) => {
+          console.log('✅ CreatePesquisa - Usuário carregado com sucesso');
+          console.log('✅ CreatePesquisa - Dados do usuário:', res.data);
+          setAutorNome(res.data.usuario || res.data.nome || "Usuário");
+        })
         .catch((error) => {
-          console.error("Erro ao buscar usuário:", error);
-          // Se o usuário não existe, limpar o localStorage e redirecionar para login
-          if (error.response?.status === 404) {
-            logout();
+          console.error("❌ CreatePesquisa - Erro ao buscar usuário:", error);
+          console.error("❌ CreatePesquisa - Status:", error.response?.status);
+          console.error("❌ CreatePesquisa - Data:", error.response?.data);
+          
+          // Se o usuário não existe, usar nome padrão em vez de fazer logout
+          if (error.response?.status === 404 || error.response?.status === 401) {
+            console.log('⚠️ CreatePesquisa - Usuário não encontrado ou não autorizado, usando nome padrão');
+            setAutorNome("Usuário");
           } else {
+            console.log('⚠️ CreatePesquisa - Erro não crítico, usando nome padrão');
             setAutorNome("Usuário");
           }
         });
+    } else {
+      console.log('❌ CreatePesquisa - Sem loginId ou token, redirecionando para login');
+      console.log('❌ CreatePesquisa - loginId:', loginId);
+      console.log('❌ CreatePesquisa - token:', token);
+      // Não fazer logout aqui, deixar o PrivateRoute cuidar disso
     }
   }, []);
 
   useEffect(() => {
+    console.log('🔍 CreatePesquisa - Carregando tipos de pesquisa...');
     axios
       .get(`${API_BASE_URL}/api/TipoPesquisa/ListarTipoPesquisa`)
-      .then((res) => setTiposPesquisa(res.data))
-      .catch(() => setTiposPesquisa([]));
+      .then((res) => {
+        console.log('✅ CreatePesquisa - Tipos carregados:', res.data);
+        console.log('✅ CreatePesquisa - Estrutura do primeiro item:', res.data[0]);
+        setTiposPesquisa(res.data);
+      })
+      .catch((error) => {
+        console.error('❌ CreatePesquisa - Erro ao carregar tipos:', error);
+        setTiposPesquisa([]);
+      });
   }, []);
 
   // --- Handlers estáveis ---
   const adicionarBloco = useCallback((tipo) => {
+    console.log('🔍 adicionarBloco - Chamado com tipo:', tipo);
+    
+    // Evitar cliques duplos
+    if (tipo === "anexo") {
+      console.log('🔍 adicionarBloco - Abrindo file picker para anexo');
+      // Usar setTimeout para evitar cliques duplos
+      setTimeout(() => {
+        inputFileRef.current?.click();
+      }, 0);
+      return;
+    }
+    
     const base = {
       id: Date.now(),
       tipo,
@@ -237,18 +269,22 @@ const CriarPesquisa = () => {
           ...prev,
           { ...base, opcoes: [""], TemGabarito: false, corretaIndex: null },
         ];
-      if (tipo === "anexo") {
-        inputFileRef.current?.click();
-        return prev;
-      }
       return prev;
     });
   }, []);
 
   const handleArquivoSelecionado = useCallback((event) => {
+    console.log('🔍 handleArquivoSelecionado - Chamado');
+    console.log('🔍 handleArquivoSelecionado - Files:', event.target.files);
+    
     const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+    if (files.length === 0) {
+      console.log('🔍 handleArquivoSelecionado - Nenhum arquivo selecionado');
+      return;
+    }
 
+    console.log('🔍 handleArquivoSelecionado - Processando', files.length, 'arquivos');
+    
     const novos = files.map((file, i) => ({
       id: Date.now() + i,
       tipo: "anexo",
@@ -258,6 +294,7 @@ const CriarPesquisa = () => {
     setBlocos((prev) => [...prev, ...novos]);
 
     event.target.value = "";
+    console.log('🔍 handleArquivoSelecionado - Concluído');
   }, []);
 
   const abrirFilePickerPergunta = useCallback((blockId) => {
@@ -354,10 +391,26 @@ const CriarPesquisa = () => {
     [atualizarBloco]
   );
 
-  const toggleCorretaMultipla = useCallback(() => {
+  const toggleCorretaMultipla = useCallback((blocoId, index) => {
     setBlocos((prev) =>
       prev.map((b) => {
-        return b; // manipulado dentro de componentes filhos
+        if (b.id === blocoId) {
+          const corretas = Array.isArray(b.corretas) ? [...b.corretas] : [];
+          
+          if (b.permitirMultiplaSelecao) {
+            // Para múltipla seleção: toggle do índice
+            const indexExists = corretas.includes(index);
+            if (indexExists) {
+              return { ...b, corretas: corretas.filter(i => i !== index) };
+            } else {
+              return { ...b, corretas: [...corretas, index] };
+            }
+          } else {
+            // Para seleção única: apenas um índice
+            return { ...b, corretas: [index] };
+          }
+        }
+        return b;
       })
     );
   }, []);
@@ -379,6 +432,8 @@ const CriarPesquisa = () => {
     setBlocos((prev) => prev.filter((bloco) => bloco.id !== id));
     setSelectedBlockId((sel) => (sel === id ? null : sel));
   }, []);
+
+
 
   // ---------- uploads ----------
   const getAnexoBlocos = useCallback(
@@ -408,10 +463,29 @@ const CriarPesquisa = () => {
   );
 
   const fetchPerguntasDaPesquisa = useCallback(async (pesquisaId) => {
-    const resp = await axios.get(
-      `${API_BASE_URL}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`
-    );
-    return resp.data?.perguntas ?? [];
+    try {
+      // Aguarda um pouco para dar tempo do backend processar
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const resp = await axios.get(
+        `${API_BASE_URL}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`
+      );
+      return resp.data?.perguntas ?? [];
+    } catch (error) {
+      console.error("Erro ao buscar perguntas da pesquisa:", error);
+      console.log("Tentando endpoint alternativo...");
+      
+      try {
+        // Tenta endpoint alternativo
+        const resp = await axios.get(
+          `${API_BASE_URL}/api/pesquisas/${pesquisaId}`
+        );
+        return resp.data?.perguntas ?? [];
+      } catch (error2) {
+        console.error("Erro no endpoint alternativo:", error2);
+        return [];
+      }
+    }
   }, []);
 
   const fetchOpcoesDaPergunta = useCallback(async (perguntaId) => {
@@ -505,14 +579,14 @@ const CriarPesquisa = () => {
          return {
            texto: b.texto,
            tipo: "objetiva",
-           temGabarito: !!b.temGabarito,
+           temGabarito: !!b.TemGabarito,
            permitirMultiplaSelecao: false,
            pesquisaId: 2147483647,
            perguntaId: 2147483647 + idxPergunta,
            id: 0,
            opcoes: ops.map((o, idx) => ({
              texto: o,
-             correta: !!b.temGabarito && b.corretaIndex === idx,
+             correta: !!b.TemGabarito && b.corretaIndex === idx,
              perguntaId: 2147483647 + idxPergunta,
              id: 0,
            })),
@@ -527,14 +601,14 @@ const CriarPesquisa = () => {
         return {
           texto: b.texto,
           tipo: "multipla",
-          temGabarito: !!b.temGabarito,
+          temGabarito: !!b.TemGabarito,
           permitirMultiplaSelecao: !!b.permitirMultiplaSelecao,
           pesquisaId: 2147483647,
           perguntaId: 2147483647 + idxPergunta,
           id: 0,
           opcoes: ops.map((o, idx) => ({
             texto: o,
-            correta: !!b.temGabarito && corretas.includes(idx),
+            correta: !!b.TemGabarito && corretas.includes(idx),
             perguntaId: 2147483647 + idxPergunta,
             id: 0,
           })),
@@ -556,12 +630,12 @@ const CriarPesquisa = () => {
         if (b.tipo === "objetiva") {
           return {
             ...base,
-            temGabarito: !!b.temGabarito,
+            temGabarito: !!b.TemGabarito,
             corretaIndex: b.corretaIndex ?? null,
             opcoes: opcoesLimpa.map((texto, idx) => ({
               opcaoid: idx + 1,
               texto,
-              correta: !!b.temGabarito && b.corretaIndex === idx,
+              correta: !!b.TemGabarito && b.corretaIndex === idx,
             })),
           };
         }
@@ -570,12 +644,12 @@ const CriarPesquisa = () => {
           const corretas = Array.isArray(b.corretas) ? b.corretas : [];
           return {
             ...base,
-            temGabarito: !!b.temGabarito,
+            temGabarito: !!b.TemGabarito,
             permitirMultiplaSelecao: !!b.permitirMultiplaSelecao,
             opcoes: opcoesLimpa.map((texto, idx) => ({
               opcaoid: idx + 1,
               texto,
-              correta: !!b.temGabarito && corretas.includes(idx),
+              correta: !!b.TemGabarito && corretas.includes(idx),
             })),
           };
         }
@@ -614,7 +688,7 @@ const CriarPesquisa = () => {
         if (!Array.isArray(opcoes) || opcoes.length === 0) continue;
 
         const dto = {
-          temGabarito: !!b.temGabarito,
+          temGabarito: !!b.TemGabarito,
           permiteMultiplaSelecao: b.tipo === "multipla" ? !!b.permitirMultiplaSelecao : false,
           opcoesCorretas: [],
         };
@@ -648,12 +722,18 @@ const CriarPesquisa = () => {
   // ---------- salvar ----------
   const salvarPesquisaComPerguntas = useCallback(
     async () => {
+      if (isSaving) {
+        console.log("Salvamento já em andamento, ignorando clique");
+        return;
+      }
+      
+      setIsSaving(true);
       try {
         const pesquisaVM = montarPesquisaVM();
         console.log("[LOG] Estado dos blocos antes do envio:", JSON.stringify(blocos, null, 2));
         console.log("[LOG] JSON da pesquisa a ser enviado:", JSON.stringify(pesquisaVM, null, 2));
         const response = await axios.post(`${API_BASE_URL}/api/pesquisas`, pesquisaVM);
-        const id = response.data?.pesquisaid ?? response.data?.pesquisa?.pesquisaid;
+        const id = response.data?.pesquisaid ?? response.data?.pesquisa?.pesquisaid ?? response.data?.id;
         if (!id) {
           toast.error("Não foi possível obter o ID da pesquisa criada.", {
             position: "top-center",
@@ -666,14 +746,29 @@ const CriarPesquisa = () => {
         const r1 = await uploadAnexosPesquisa(id);
 
         // 2) Buscar perguntas geradas e mapear IDs
-        const perguntas = await fetchPerguntasDaPesquisa(id);
-        const mapa = mapBlocosToPerguntaIds(perguntas);
+        let perguntas = [];
+        let mapa = new Map();
+        try {
+          perguntas = await fetchPerguntasDaPesquisa(id);
+          mapa = mapBlocosToPerguntaIds(perguntas);
+        } catch (error) {
+          console.warn("Não foi possível buscar perguntas, mas a pesquisa foi salva:", error);
+        }
 
         // 3) Aplicar gabaritos (se houver)
-        await aplicarGabaritosNoBackend(perguntas, mapa);
+        try {
+          await aplicarGabaritosNoBackend(perguntas, mapa);
+        } catch (error) {
+          console.warn("Não foi possível aplicar gabaritos:", error);
+        }
 
         // 4) Uploads por pergunta
-        const r2 = await uploadAnexosPergunta(id, mapa);
+        let r2 = { ok: 0, fail: 0 };
+        try {
+          r2 = await uploadAnexosPergunta(id, mapa);
+        } catch (error) {
+          console.warn("Não foi possível fazer upload de anexos:", error);
+        }
 
         const urlResposta = `${window.location.origin}/responder/${id}`;
         setQrUrl(urlResposta);
@@ -697,7 +792,7 @@ const CriarPesquisa = () => {
             autoClose: 5000,
           });
         } else {
-          toast.success("Pesquisa salva com sucesso!", {
+          toast.success(`Pesquisa salva com sucesso! ID: ${id}`, {
             position: "top-center",
             autoClose: 3000,
           });
@@ -708,6 +803,8 @@ const CriarPesquisa = () => {
           position: "top-center",
           autoClose: 4000,
         });
+      } finally {
+        setIsSaving(false);
       }
     },
     [
@@ -718,6 +815,7 @@ const CriarPesquisa = () => {
       uploadAnexosPergunta,
       uploadAnexosPesquisa,
       blocos,
+      isSaving,
     ]
   );
 
@@ -758,9 +856,45 @@ const CriarPesquisa = () => {
 
   // --- render helpers memoizados ---
   const nomeTipoPesquisa = useMemo(
-    () =>
-      tiposPesquisa.find((tp) => tp.tipopesquisaid === parseInt(dadosPesquisa.tipo))?.tipopesquisa1 ||
-      "—",
+    () => {
+      console.log('🔍 nomeTipoPesquisa - Calculando...');
+      console.log('🔍 nomeTipoPesquisa - tiposPesquisa:', tiposPesquisa);
+      console.log('🔍 nomeTipoPesquisa - dadosPesquisa.tipo:', dadosPesquisa.tipo);
+      
+      if (!dadosPesquisa.tipo || !tiposPesquisa.length) {
+        console.log('🔍 nomeTipoPesquisa - Sem tipo selecionado ou tipos não carregados');
+        return "—";
+      }
+      
+      const tipoId = parseInt(dadosPesquisa.tipo);
+      console.log('🔍 nomeTipoPesquisa - tipoId:', tipoId);
+      
+      // Tentar diferentes propriedades possíveis
+      const tipoEncontrado = tiposPesquisa.find((tp) => 
+        tp.tipopesquisaid === tipoId || 
+        tp.TipoPesquisaId === tipoId || 
+        tp.tipoPesquisaId === tipoId ||
+        tp.id === tipoId ||
+        tp.Id === tipoId
+      );
+      
+      console.log('🔍 nomeTipoPesquisa - tipoEncontrado:', tipoEncontrado);
+      
+      if (tipoEncontrado) {
+        const nome = tipoEncontrado.tipopesquisa1 || 
+                    tipoEncontrado.Tipopesquisa1 || 
+                    tipoEncontrado.tipopesquisa || 
+                    tipoEncontrado.tipoPesquisa ||
+                    tipoEncontrado.nome ||
+                    tipoEncontrado.Nome ||
+                    "Nome não encontrado";
+        console.log('🔍 nomeTipoPesquisa - nome encontrado:', nome);
+        return nome;
+      }
+      
+      console.log('🔍 nomeTipoPesquisa - Tipo não encontrado');
+      return "—";
+    },
     [tiposPesquisa, dadosPesquisa.tipo]
   );
 
@@ -782,6 +916,7 @@ const CriarPesquisa = () => {
         bloco: { ...bloco, selecionado: isSelected },
         onChangeTexto: atualizarTexto,
         onChangeOpcoes: atualizarOpcoes,
+        onChangeBloco: atualizarBloco,
         onRemove: removerBloco,
         onRemoveImagem: (blockId, imgIndex) => {
           setBlocos((prev) =>
@@ -822,21 +957,21 @@ const CriarPesquisa = () => {
           );
         case "multipla":
           return (
-            <CardWrapper
-              key={bloco.id}
-              bloco={bloco}
-              titulo="Pergunta Múltipla Escolha"
-              estilo={estilo}
-              isSelected={isSelected}
-              onSelect={onSelect}
-              onMoverCima={moverCima}
-              onMoverBaixo={moverBaixo}
-              onAbrirFilePergunta={abrirFilePickerPergunta}
-              onAbrirImagemPergunta={abrirImagemPickerPergunta}
-              onRemover={removerBloco}
-              canMoveUp={canMoveUp}
-              canMoveDown={canMoveDown}
-            >
+                         <CardWrapper
+               key={bloco.id}
+               bloco={bloco}
+               titulo="Pergunta Múltipla Escolha"
+               estilo={estilo}
+               isSelected={isSelected}
+               onSelect={onSelect}
+               onMoverCima={moverCima}
+               onMoverBaixo={moverBaixo}
+               onAbrirFilePergunta={abrirFilePickerPergunta}
+               onAbrirImagemPergunta={abrirImagemPickerPergunta}
+               onRemover={removerBloco}
+               canMoveUp={canMoveUp}
+               canMoveDown={canMoveDown}
+             >
               <MemoMultipla
                 {...commonProps}
                 onToggleGabarito={toggleGabarito}
@@ -1018,7 +1153,6 @@ const CriarPesquisa = () => {
               <li
                 className={styles["item-clique"]}
                 onClick={() => adicionarBloco("anexo")}
-                onMouseDown={preventMouseDown}
               >
                 <Paperclip size={18} /> Anexo (da pesquisa)
               </li>
@@ -1047,8 +1181,10 @@ const CriarPesquisa = () => {
               onClick={salvarPesquisaComPerguntas}
               onMouseDown={preventMouseDown}
               type="button"
+              disabled={isSaving}
             >
-              <Save size={18} style={{ marginRight: "6px" }} /> Salvar Pesquisa
+              <Save size={18} style={{ marginRight: "6px" }} /> 
+              {isSaving ? "Salvando..." : "Salvar Pesquisa"}
             </button>
             {qrUrl && (
               <>

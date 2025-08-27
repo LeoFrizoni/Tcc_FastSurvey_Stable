@@ -6,20 +6,24 @@
   margin-bottom: 1.5rem;
   padding: 1.2rem 1.5rem;
   font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+  text-align: left;
 }
 .info-pesquisa-titulo {
   margin: 0 0 0.5rem 0;
   font-size: 1.35rem;
   font-weight: 700;
   color: #2d3875;
+  text-align: left;
 }
 .info-pesquisa-descricao {
   margin: 0 0 0.7rem 0;
   font-size: 1.05rem;
   color: #444;
+  text-align: left;
 }
 .info-pesquisa-tipo {
   font-size: 1.05rem;
   color: #6c63ff;
   font-weight: 500;
+  text-align: left;
 }

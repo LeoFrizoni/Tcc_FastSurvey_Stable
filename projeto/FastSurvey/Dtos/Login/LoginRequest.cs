@@ -158,6 +158,16 @@ namespace FASTSURVEY.Dtos.Login
         public string NovoNome { get; set; } = string.Empty;
     }
 
+    /// <summary>
+    /// DTO para validar disponibilidade de nome de usuário
+    /// </summary>
+    public class ValidarUsuarioRequest
+    {
+        [Required(ErrorMessage = "Nome de usuário é obrigatório")]
+        [StringLength(100, ErrorMessage = "Nome de usuário deve ter no máximo 100 caracteres")]
+        public string Usuario { get; set; } = string.Empty;
+    }
+
     // =========================================================
     //                    DTOs DE RESPOSTA GENÉRICA
     // =========================================================

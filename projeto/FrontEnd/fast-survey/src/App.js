@@ -1,5 +1,6 @@
 import React from 'react';
 import AppRoutes from './routes/routes';
+import './config/axios'; // Importar axios configurado globalmente
 
 // TESTE - Verificar variáveis de ambiente no App.js
 console.log('🔧 TESTE APP.JS - Variáveis de ambiente:', {

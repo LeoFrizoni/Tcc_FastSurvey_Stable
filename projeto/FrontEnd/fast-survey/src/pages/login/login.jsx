@@ -8,6 +8,7 @@ import { Eye, EyeOff } from "lucide-react";
 import GoogleLoginButton from "../../components/GoogleLoginButton";
 import api from "../../lib/api";
 import env from "../../config/env";
+import { checkUsernameAvailability } from "../../helpers/validateEmail";
 
 /* ===================== Endpoints (mantidos) ===================== */
 const ENDPOINTS = {
@@ -306,6 +307,11 @@ export default function Login() {
   const [novoEmail, setNovoEmail] = useState("");
   const [loadingCadastro, setLoadingCadastro] = useState(false);
   const [showPassCadastro, setShowPassCadastro] = useState(false);
+  
+  // Validação de usuário
+  const [validandoUsuario, setValidandoUsuario] = useState(false);
+  const [usuarioDisponivel, setUsuarioDisponivel] = useState(null);
+  const [usuarioMensagem, setUsuarioMensagem] = useState("");
 
   // LGPD
   const [showLgpd, setShowLgpd] = useState(false);
@@ -325,6 +331,44 @@ export default function Login() {
   const [loadingForgot, setLoadingForgot] = useState(false);
 
   const validarSenhaForte = (s) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(s);
+
+  // Validação de nome de usuário em tempo real
+  const validarNomeUsuario = async (nome) => {
+    if (!nome || nome.length < 3) {
+      setUsuarioDisponivel(null);
+      setUsuarioMensagem("");
+      return;
+    }
+
+    setValidandoUsuario(true);
+    try {
+      const resultado = await checkUsernameAvailability(nome, api);
+      setUsuarioDisponivel(resultado.available);
+      setUsuarioMensagem(resultado.message);
+    } catch (error) {
+      console.error('Erro na validação:', error);
+      setUsuarioDisponivel(false);
+      setUsuarioMensagem("Erro ao verificar disponibilidade");
+    } finally {
+      setValidandoUsuario(false);
+    }
+  };
+
+  // Debounce para validação de usuário
+  const debounceRef = useRef(null);
+  const handleUsuarioChange = (value) => {
+    setNovoUsuario(value);
+    
+    // Limpa o timeout anterior
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    // Define novo timeout para validar após 500ms
+    debounceRef.current = setTimeout(() => {
+      validarNomeUsuario(value);
+    }, 500);
+  };
 
   // Se já autenticado, redireciona
   useEffect(() => {
@@ -368,6 +412,15 @@ export default function Login() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  }, []);
+
+  // Cleanup do debounce quando componente for desmontado
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
   }, []);
 
   async function handleGoogleCredentialResponse(response) {
@@ -508,6 +561,10 @@ export default function Login() {
       return toast.error("Preencha todos os campos de cadastro.");
     if (!validarSenhaForte(novaSenha))
       return toast.error("A senha deve ter no mínimo 8 caracteres, com ao menos uma letra maiúscula e um número.");
+    if (usuarioDisponivel === false)
+      return toast.error("Nome de usuário já está em uso. Escolha outro nome.");
+    if (validandoUsuario)
+      return toast.error("Aguarde a validação do nome de usuário.");
     setShowLgpd(true);
     setScrolledToEnd(false);
     setAccepted(false);
@@ -666,10 +723,29 @@ export default function Login() {
               type="text"
               placeholder="Nome de usuário"
               value={novoUsuario}
-              onChange={(e) => setNovoUsuario(e.target.value)}
+              onChange={(e) => handleUsuarioChange(e.target.value)}
               required
               autoComplete="username"
             />
+            {novoUsuario && (
+              <div className={styles["validacao-usuario"]}>
+                {validandoUsuario && (
+                  <p style={{ color: "orange", fontSize: "12px", margin: "3px 0" }}>
+                    ⏳ Verificando disponibilidade...
+                  </p>
+                )}
+                {!validandoUsuario && usuarioDisponivel === true && (
+                  <p style={{ color: "green", fontSize: "12px", margin: "3px 0" }}>
+                    ✓ {usuarioMensagem}
+                  </p>
+                )}
+                {!validandoUsuario && usuarioDisponivel === false && (
+                  <p style={{ color: "red", fontSize: "12px", margin: "3px 0" }}>
+                    ✗ {usuarioMensagem}
+                  </p>
+                )}
+              </div>
+            )}
             <input
               type="email"
               placeholder="E-mail"

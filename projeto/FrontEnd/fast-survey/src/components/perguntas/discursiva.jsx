@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Paperclip } from "lucide-react";
 import styles from "./pergunta.module.css";
 
 /** Util: aplica TemplateJson + style externo */
@@ -44,6 +44,7 @@ function handleMouseDownContainer(e) {
 const DiscursivaBase = ({
   bloco,
   onChangeTexto,
+  onChangeBloco,
   onRemoveImagem,
   style,
   onClick,
@@ -130,6 +131,44 @@ const DiscursivaBase = ({
         className={styles["resposta-simulada"]}
         onClick={(e) => e.stopPropagation()}
       />
+
+      {/* Anexos da Pergunta */}
+      {Array.isArray(b.attachments) && b.attachments.length > 0 && (
+        <div className={styles["anexos-container"]}>
+          <h4 className={styles["anexos-titulo"]}>Anexos da Pergunta</h4>
+          <ul className={styles["anexos-lista"]}>
+            {b.attachments.map((f, i) => (
+              <li key={i} className={styles["anexo-item"]}>
+                <span className={styles["anexo-icon"]}>
+                  <Paperclip size={16} />
+                </span>
+                <div className={styles["anexo-info"]}>
+                  <span className={styles["anexo-nome"]}>{f.name}</span>
+                  <span className={styles["anexo-tamanho"]}>
+                    {f.size ? `${(f.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className={styles["btn-remover-anexo"]}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Remover anexo da lista
+                    const novasAttachments = b.attachments.filter((_, index) => index !== i);
+                    // Atualizar o bloco com as novas attachments
+                    if (onChangeBloco) {
+                      onChangeBloco(b.id, { attachments: novasAttachments });
+                    }
+                  }}
+                  title="Remover anexo"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
@@ -145,8 +184,10 @@ function areEqualDisc(a, b) {
     A.respostaExemplo === B.respostaExemplo &&
     A.estilo === B.estilo &&           // referência já é memoizada no pai
     A.imagens === B.imagens &&         // referência
+    A.attachments === B.attachments && // referência
     a.style === b.style &&             // referência
     a.onChangeTexto === b.onChangeTexto &&
+    a.onChangeBloco === b.onChangeBloco &&
     a.onRemoveImagem === b.onRemoveImagem &&
     a.onChangeRespostaExemplo === b.onChangeRespostaExemplo &&
     a.onClick === b.onClick

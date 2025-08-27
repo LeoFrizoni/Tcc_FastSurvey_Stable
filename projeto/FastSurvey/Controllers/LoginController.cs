@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace FASTSURVEY.Controllers
 {
@@ -17,8 +18,13 @@ namespace FASTSURVEY.Controllers
     public class LoginController : BaseController
     {
         private readonly ILoginService _loginService;
+        private readonly ILogger<LoginController> _logger;
 
-        public LoginController(ILoginService loginService) => _loginService = loginService;
+        public LoginController(ILoginService loginService, ILogger<LoginController> logger)
+        {
+            _loginService = loginService;
+            _logger = logger;
+        }
 
         // ======================== AUTENTICAÇÃO ========================
 
@@ -278,6 +284,37 @@ namespace FASTSURVEY.Controllers
             }
         }
 
+        // ======================== VALIDAÇÕES ========================
+
+        [AllowAnonymous]
+        [HttpPost("ValidarUsuario")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ValidarUsuario(
+            [FromBody] ValidarUsuarioRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                var usuario = request.Usuario?.Trim() ?? string.Empty;
+                
+                if (string.IsNullOrEmpty(usuario))
+                    return BadRequest(new { success = false, message = "Nome de usuário é obrigatório" });
+
+                var existe = await _loginService.UsuarioExisteAsync(usuario, ct);
+                return Ok(new { 
+                    success = true, 
+                    disponivel = !existe,
+                    message = existe ? "Nome de usuário já está em uso" : "Nome de usuário disponível"
+                });
+            }
+            catch (System.Exception ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+        }
+
         // ======================== COMPATIBILIDADE ========================
 
         [AllowAnonymous]
@@ -312,7 +349,7 @@ namespace FASTSURVEY.Controllers
                     <h2>Teste de Email - FastSurvey</h2>
                     <p>Este é um email de teste para verificar se o sistema de email está funcionando.</p>
                     <p>Se você recebeu este email, o sistema está configurado corretamente!</p>
-                    <p>Data/Hora: " + DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + @"</p>";
+                    <p>Data/Hora: " + System.DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") + @"</p>";
 
                 // Injetar o serviço de email via DI
                 var emailSender = HttpContext.RequestServices.GetRequiredService<IEmailSender>();
@@ -326,7 +363,7 @@ namespace FASTSURVEY.Controllers
                 _logger.LogInformation("Email de teste enviado com sucesso para: {Email}", request.Email);
                 return Ok(new { message = "Email de teste enviado com sucesso!" });
             }
-            catch (Exception ex)
+            catch (System.Exception ex)
             {
                 _logger.LogError(ex, "Erro ao enviar email de teste para: {Email}", request.Email);
                 return BadRequest(new { message = $"Erro ao enviar email: {ex.Message}" });

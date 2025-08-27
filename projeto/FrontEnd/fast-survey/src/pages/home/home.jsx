@@ -5,7 +5,7 @@ import {
   Plus, User, LogOut, Info, Search, Filter, ChevronRight, Tag,
   FolderPlus, Folder, FolderOpen, X, Pencil, Trash2
 } from 'lucide-react';
-import axios from 'axios';
+import axios from '../../config/axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import styles from './home.module.css';
@@ -117,13 +117,32 @@ const HomePage = () => {
   const [isExcluirPesquisaOpen, setIsExcluirPesquisaOpen] = useState(false);
   const [pesquisaAlvo, setPesquisaAlvo] = useState(null);
 
-  // loginId seguro (aceita 'loginId' ou 'userId')
-  const loginId = useMemo(() => {
-    const v = localStorage.getItem('loginId') ?? localStorage.getItem('userId');
-    const n = v ? parseInt(v, 10) : NaN;
-    return Number.isFinite(n) ? n : null;
-  }, []);
-  const token = useMemo(() => localStorage.getItem('token'), []);
+  // loginId e token com useState para garantir atualização
+  const [loginId, setLoginId] = useState(null);
+  const [token, setToken] = useState(null);
+  
+  // Atualizar loginId e token quando localStorage mudar
+  useEffect(() => {
+    const updateAuth = () => {
+      const v = localStorage.getItem('loginId') ?? localStorage.getItem('userId');
+      const n = v ? parseInt(v, 10) : NaN;
+      const newLoginId = Number.isFinite(n) ? n : null;
+      const newToken = localStorage.getItem('token');
+      
+      console.log('🔍 HomePage - Atualizando auth:', { newLoginId, newToken: newToken ? 'existe' : 'não existe' });
+      
+      setLoginId(newLoginId);
+      setToken(newToken);
+    };
+    
+    updateAuth();
+    
+    // Listener para mudanças no localStorage
+    const handleStorageChange = () => updateAuth();
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []); // Dependências vazias para executar apenas uma vez
 
   const MAP_STORAGE_KEY = useMemo(
     () => `fs_pastas_map_user_${loginId || 'anon'}`,
@@ -165,8 +184,19 @@ const HomePage = () => {
 
   /* === Carregamento inicial === */
   useEffect(() => {
+    // Evitar execução se ainda não temos os dados de autenticação
+    if (loginId === null || token === null) {
+      console.log('🔍 HomePage - Aguardando dados de autenticação...');
+      return;
+    }
+    
     const bootstrap = async () => {
+      console.log('🔍 HomePage - Bootstrap iniciado');
+      console.log('🔍 HomePage - loginId:', loginId);
+      console.log('🔍 HomePage - token:', token ? 'existe' : 'não existe');
+      
       if (!loginId || !token) {
+        console.log('❌ HomePage - Sem loginId ou token, redirecionando para login');
         toast.error('Você precisa estar logado para acessar esta página.');
         navigate('/login');
         return;
@@ -510,6 +540,10 @@ const HomePage = () => {
     if (!pesquisaAlvo) return;
     try {
       const pesquisaId = getPid(pesquisaAlvo);
+      console.log('[DEBUG] Tentando excluir pesquisa:', pesquisaId);
+      console.log('[DEBUG] pesquisaAlvo:', pesquisaAlvo);
+      console.log('[DEBUG] URL:', `${API_BASE_URL}/api/pesquisas/${pesquisaId}`);
+      
       await axios.delete(
         `${API_BASE_URL}/api/pesquisas/${pesquisaId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -519,6 +553,12 @@ const HomePage = () => {
       toast.success('Pesquisa excluída com sucesso!');
     } catch (err) {
       console.error('Falha ao excluir pesquisa:', err);
+      console.error('Detalhes do erro:', {
+        status: err.response?.status,
+        statusText: err.response?.statusText,
+        data: err.response?.data,
+        url: err.config?.url
+      });
       toast.error('Falha ao excluir a pesquisa.');
     } finally {
       setIsExcluirPesquisaOpen(false);
@@ -557,7 +597,11 @@ const HomePage = () => {
             <p className={styles.subtitle}>Crie, gerencie e acompanhe seus formulários.</p>
           </div>
           <div className={styles.headerRight}>
-            <button className={styles.cta} onClick={() => navigate('/criar')}>
+            <button className={styles.cta} onClick={() => {
+              console.log('🔍 HomePage - Botão Criar Pesquisa clicado');
+              console.log('🔍 HomePage - Navegando para /criar');
+              navigate('/criar');
+            }}>
               <Plus size={18} /> Criar Pesquisa
             </button>
             <button className={styles.ctaSecondary} onClick={abrirModalPasta} title="Nova pasta">
