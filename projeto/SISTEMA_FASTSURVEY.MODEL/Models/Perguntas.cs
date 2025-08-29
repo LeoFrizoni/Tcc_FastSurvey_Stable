@@ -46,5 +46,7 @@ public partial class Perguntas
 
     public virtual ICollection<Respostas> Respostas { get; set; } = new List<Respostas>();
 
+    public virtual ICollection<SessoesInterativas> SessoesInterativas { get; set; } = new List<SessoesInterativas>();
+
     public virtual TipoPergunta TipoPergunta { get; set; }
 }

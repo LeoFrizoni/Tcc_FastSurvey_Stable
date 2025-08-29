@@ -38,52 +38,21 @@ namespace FASTSURVEY.Services.PesquisaInterativa
             string sessaoId,
             CancellationToken ct = default
         );
-    }
-
-    public class SessaoInterativaResponse
-    {
-        public string SessaoId { get; set; } = string.Empty;
-        public string CodigoAcesso { get; set; } = string.Empty;
-        public int PesquisaId { get; set; }
-        public string TituloPesquisa { get; set; } = string.Empty;
-        public bool Ativa { get; set; }
-        public DateTime CriadaEm { get; set; }
-        public DateTime? IniciadaEm { get; set; }
-        public DateTime? FinalizadaEm { get; set; }
-        public int TotalParticipantes { get; set; }
-        public List<PerguntaInterativaResponse> Perguntas { get; set; } = new();
-    }
-
-    public class PerguntaInterativaResponse
-    {
-        public int PerguntaId { get; set; }
-        public string Texto { get; set; } = string.Empty;
-        public int Tipo { get; set; }
-        public int Ordem { get; set; }
-        public List<OpcaoInterativaResponse> Opcoes { get; set; } = new();
-    }
-
-    public class OpcaoInterativaResponse
-    {
-        public int OpcaoId { get; set; }
-        public string Texto { get; set; } = string.Empty;
-        public int Ordem { get; set; }
-    }
-
-    public class ParticipanteResponse
-    {
-        public int ParticipanteId { get; set; }
-        public string Nome { get; set; } = string.Empty;
-        public string SessaoId { get; set; } = string.Empty;
-        public DateTime EntrouEm { get; set; }
-        public bool Ativo { get; set; }
-    }
-
-    public class RespostaInterativaResponse
-    {
-        public bool Sucesso { get; set; }
-        public string Mensagem { get; set; } = string.Empty;
-        public int? RespostaId { get; set; }
-        public object? ResultadosTempoReal { get; set; }
+        Task<ServiceResult<PerguntaAtualResponse>> AvancarPerguntaAsync(
+            AvancarPerguntaRequest request,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<PerguntaAtualResponse>> VoltarPerguntaAsync(
+            VoltarPerguntaRequest request,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<PerguntaAtualResponse>> IrParaPerguntaAsync(
+            IrParaPerguntaRequest request,
+            CancellationToken ct = default
+        );
+        Task<ServiceResult<bool>> AtivarPerguntaAsync(
+            AtivarPerguntaRequest request,
+            CancellationToken ct = default
+        );
     }
 }

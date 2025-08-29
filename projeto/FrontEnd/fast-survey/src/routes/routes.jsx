@@ -27,10 +27,10 @@ const MobileAdmin = lazy(() => import('../pages/mobile/mobile-admin'));
 const MobileResponderPesquisa = lazy(() => import('../pages/mobile/mobile-responder-pesquisa'));
 const MobileMinhasPesquisas = lazy(() => import('../pages/mobile/mobile-minhas-pesquisas'));
 
-// Game
-const GameHost = lazy(() => import('../pages/game/GameHost'));
-const GamePlayer = lazy(() => import('../pages/game/GamePlayer'));
-const GameJoin = lazy(() => import('../pages/game/GameJoin'));
+// Interactive Session
+const InteractiveHost = lazy(() => import('../pages/interactive/InteractiveHost'));
+const InteractivePlayer = lazy(() => import('../pages/interactive/InteractivePlayer'));
+const InteractiveJoin = lazy(() => import('../pages/interactive/InteractiveJoin'));
 
 // Analytics
 const AnalyticsDashboard = lazy(() => import('../pages/analytics/AnalyticsDashboard'));
@@ -233,17 +233,17 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Game */}
+        {/* Interactive Session */}
         <Route
-          path="/game/host/:sessionId"
+          path="/interactive/host/:sessionId"
           element={
             <PrivateRoute>
-              <GameHost />
+              <InteractiveHost />
             </PrivateRoute>
           }
         />
-        <Route path="/game/player/:sessionId" element={<GamePlayer />} />
-        <Route path="/game/join/:accessCode" element={<GameJoin />} />
+        <Route path="/interactive/player/:sessionId" element={<InteractivePlayer />} />
+        <Route path="/interactive/join/:accessCode" element={<InteractiveJoin />} />
 
         {/* Analytics */}
         <Route

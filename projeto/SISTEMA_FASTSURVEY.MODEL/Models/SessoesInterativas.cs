@@ -22,21 +22,28 @@ public partial class SessoesInterativas
     public bool Ativa { get; set; }
 
     /// <summary>
-    /// Configurações de gamificação em JSON
+    /// ID da pergunta atual sendo exibida para todos os participantes
     /// </summary>
-    public string ConfiguracaoGamificacao { get; set; }
+    public int? PerguntaAtualId { get; set; }
 
     /// <summary>
-    /// Se a sessão é competitiva
+    /// Ordem da pergunta atual (para facilitar navegação)
     /// </summary>
-    public bool ModoCompeticao { get; set; }
+    public int? OrdemPerguntaAtual { get; set; }
 
     /// <summary>
-    /// Se deve mostrar ranking em tempo real
+    /// Se a sessão está em modo de apresentação (criador controla o avanço)
     /// </summary>
-    public bool MostrarRanking { get; set; }
+    public bool ModoApresentacao { get; set; }
+
+    /// <summary>
+    /// Se a pergunta atual está ativa para respostas
+    /// </summary>
+    public bool PerguntaAtiva { get; set; }
 
     public virtual ICollection<ParticipantesSessao> ParticipantesSessao { get; set; } = new List<ParticipantesSessao>();
+
+    public virtual Perguntas PerguntaAtual { get; set; }
 
     public virtual Pesquisas Pesquisa { get; set; }
 }

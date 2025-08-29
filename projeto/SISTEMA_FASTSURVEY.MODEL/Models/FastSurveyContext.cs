@@ -239,22 +239,19 @@ public partial class FastSurveyContext : DbContext
         {
             entity.HasKey(e => e.ParticipanteId).HasName("participantes_sessao_pkey");
 
+            entity.HasIndex(e => e.Ativo, "idx_participantes_ativo");
+
             entity.Property(e => e.ParticipanteId).HasDefaultValueSql("nextval('participantes_sessao_participante_id_seq'::regclass)");
+            entity.Property(e => e.Ativo)
+                .HasDefaultValue(true)
+                .HasComment("Se o participante está ativo na sessão");
             entity.Property(e => e.EntrouEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.NomeParticipante)
                 .IsRequired()
                 .HasMaxLength(100);
-            entity.Property(e => e.PontuacaoTotal)
-                .HasDefaultValue(0)
-                .HasComment("Pontuação total do participante");
-            entity.Property(e => e.Ranking).HasComment("Posição no ranking da sessão");
-            entity.Property(e => e.RespostasCorretas)
-                .HasDefaultValue(0)
-                .HasComment("Número de respostas corretas");
             entity.Property(e => e.SessaoId)
                 .IsRequired()
                 .HasMaxLength(50);
-            entity.Property(e => e.TempoMedioResposta).HasComment("Tempo médio de resposta em segundos");
 
             entity.HasOne(d => d.Sessao).WithMany(p => p.ParticipantesSessao)
                 .HasForeignKey(d => d.SessaoId)
@@ -408,6 +405,8 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.SessaoId, "IdxRespostasSessao");
 
+            entity.HasIndex(e => e.ParticipanteId, "idx_respostas_participante");
+
             entity.HasIndex(e => e.Protocolo, "uq_respostas_protocolo").IsUnique();
 
             entity.Property(e => e.RespostaId).HasDefaultValueSql("nextval('respostas_respostaid_seq'::regclass)");
@@ -418,6 +417,7 @@ public partial class FastSurveyContext : DbContext
                 .HasDefaultValue(0)
                 .HasComment("Pontuação obtida na resposta");
             entity.Property(e => e.Protocolo).HasMaxLength(12);
+            entity.Property(e => e.RespondidaEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.RespostaAnonima).HasDefaultValue(false);
             entity.Property(e => e.SessaoId).HasMaxLength(50);
             entity.Property(e => e.TempoResposta).HasComment("Tempo gasto para responder em segundos");
@@ -476,21 +476,31 @@ public partial class FastSurveyContext : DbContext
 
             entity.HasIndex(e => e.CodigoAcesso, "UqSessoesCodigo").IsUnique();
 
+            entity.HasIndex(e => e.OrdemPerguntaAtual, "idx_sessoes_ordem_pergunta");
+
+            entity.HasIndex(e => e.PerguntaAtiva, "idx_sessoes_pergunta_ativa");
+
+            entity.HasIndex(e => e.PerguntaAtualId, "idx_sessoes_pergunta_atual");
+
             entity.Property(e => e.SessaoId).HasMaxLength(50);
             entity.Property(e => e.Ativa).HasDefaultValue(true);
             entity.Property(e => e.CodigoAcesso)
                 .IsRequired()
                 .HasMaxLength(10);
-            entity.Property(e => e.ConfiguracaoGamificacao)
-                .HasComment("Configurações de gamificação em JSON")
-                .HasColumnType("jsonb");
             entity.Property(e => e.CriadaEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
-            entity.Property(e => e.ModoCompeticao)
-                .HasDefaultValue(false)
-                .HasComment("Se a sessão é competitiva");
-            entity.Property(e => e.MostrarRanking)
+            entity.Property(e => e.ModoApresentacao)
                 .HasDefaultValue(true)
-                .HasComment("Se deve mostrar ranking em tempo real");
+                .HasComment("Se a sessão está em modo de apresentação (criador controla o avanço)");
+            entity.Property(e => e.OrdemPerguntaAtual).HasComment("Ordem da pergunta atual (para facilitar navegação)");
+            entity.Property(e => e.PerguntaAtiva)
+                .HasDefaultValue(false)
+                .HasComment("Se a pergunta atual está ativa para respostas");
+            entity.Property(e => e.PerguntaAtualId).HasComment("ID da pergunta atual sendo exibida para todos os participantes");
+
+            entity.HasOne(d => d.PerguntaAtual).WithMany(p => p.SessoesInterativas)
+                .HasForeignKey(d => d.PerguntaAtualId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FkSessoesPerguntaAtual");
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.SessoesInterativas)
                 .HasForeignKey(d => d.PesquisaId)

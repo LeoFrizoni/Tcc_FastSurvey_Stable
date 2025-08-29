@@ -5,9 +5,8 @@ namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
 {
     public interface IParticipanteSessaoRepository : IRepository<ParticipantesSessao>
     {
-        Task<ParticipantesSessao?> ObterPorNomeESessaoAsync(
-            string nome,
-            string sessaoId,
+        Task<ParticipantesSessao?> ObterParticipanteAsync(
+            int participanteId,
             CancellationToken ct = default
         );
         Task<List<ParticipantesSessao>> ObterParticipantesAtivosAsync(
@@ -19,6 +18,12 @@ namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
             string sessaoId,
             CancellationToken ct = default
         );
+        Task<List<ParticipantesSessao>> ObterParticipantesPorPeriodoAsync(
+            string sessaoId,
+            DateTime inicio,
+            DateTime fim,
+            CancellationToken ct = default
+        );
 
         // Conveniências (sem SaveChanges aqui):
         Task<ParticipantesSessao> RegistrarEntradaAsync(
@@ -27,14 +32,26 @@ namespace SISTEMA_FASTSURVEY.MODEL.Interfaces
             DateTime entrouEmUtc,
             CancellationToken ct = default
         );
-        Task<int> MarcarSaidaParticipanteAsync(
+        Task<bool> MarcarSaidaParticipanteAsync(
             int participanteId,
             DateTime saiuEmUtc,
             CancellationToken ct = default
         );
-        Task<int> MarcarSaidaParticipantesAsync(
-            string sessaoId,
-            DateTime saiuEmUtc,
+        Task<bool> AtualizarParticipanteAsync(
+            int participanteId,
+            string nome,
+            CancellationToken ct = default
+        );
+        Task<bool> RemoverParticipanteAsync(
+            int participanteId,
+            CancellationToken ct = default
+        );
+        Task<bool> AtivarParticipanteAsync(
+            int participanteId,
+            CancellationToken ct = default
+        );
+        Task<bool> DesativarParticipanteAsync(
+            int participanteId,
             CancellationToken ct = default
         );
 

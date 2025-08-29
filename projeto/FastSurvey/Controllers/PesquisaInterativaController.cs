@@ -88,10 +88,6 @@ namespace FASTSURVEY.Controllers
 
         /// <summary>Obtém informações de uma sessão pelo código de acesso.</summary>
         [HttpGet("sessao/{codigo}")]
-        [AllowAnonymous]
-        [ProducesResponseType(typeof(SessaoInterativaResponse), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
         public async Task<IActionResult> ObterSessao(
             [FromRoute] string codigo,
             CancellationToken ct
@@ -140,6 +136,129 @@ namespace FASTSURVEY.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Erro ao registrar resposta do participante {ParticipanteId}", request.ParticipanteId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Avança para a próxima pergunta na sessão.</summary>
+        [HttpPost("avancar")]
+        [Authorize]
+        [ProducesResponseType(typeof(PerguntaAtualResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> AvancarPergunta(
+            [FromBody] AvancarPerguntaRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.AvancarPerguntaAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao avançar pergunta na sessão {SessaoId}", request.SessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Volta para a pergunta anterior na sessão.</summary>
+        [HttpPost("voltar")]
+        [Authorize]
+        [ProducesResponseType(typeof(PerguntaAtualResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> VoltarPergunta(
+            [FromBody] VoltarPerguntaRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.VoltarPerguntaAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao voltar pergunta na sessão {SessaoId}", request.SessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Vai para uma pergunta específica na sessão.</summary>
+        [HttpPost("ir-para")]
+        [Authorize]
+        [ProducesResponseType(typeof(PerguntaAtualResponse), 200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> IrParaPergunta(
+            [FromBody] IrParaPerguntaRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.IrParaPerguntaAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(result.Data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao ir para pergunta {PerguntaId} na sessão {SessaoId}", request.PerguntaId, request.SessaoId);
+                return StatusCode(500, new { message = "Erro interno do servidor" });
+            }
+        }
+
+        /// <summary>Ativa ou desativa a pergunta atual para respostas.</summary>
+        [HttpPost("ativar-pergunta")]
+        [Authorize]
+        [ProducesResponseType(200)]
+        [ProducesResponseType(400)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<IActionResult> AtivarPergunta(
+            [FromBody] AtivarPerguntaRequest request,
+            CancellationToken ct
+        )
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                    return BadRequest(ModelState);
+
+                var result = await _service.AtivarPerguntaAsync(request, ct);
+                if (!result.Success)
+                    return BadRequest(new { message = result.Message });
+
+                return Ok(new { 
+                    message = request.Ativar ? "Pergunta ativada" : "Pergunta desativada",
+                    ativa = result.Data 
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Erro ao ativar/desativar pergunta na sessão {SessaoId}", request.SessaoId);
                 return StatusCode(500, new { message = "Erro interno do servidor" });
             }
         }

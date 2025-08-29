@@ -62,7 +62,7 @@ namespace FASTSURVEY.Controllers
         {
             try
             {
-                var participante = await _service.ObterPorIdAsync(id, ct);
+                var participante = await _service.ObterParticipanteAsync(id, ct);
                 if (participante == null)
                     return NotFound(new { message = "Participante não encontrado" });
 
@@ -91,21 +91,7 @@ namespace FASTSURVEY.Controllers
             }
         }
 
-        [HttpGet("sessao/{sessaoId}/ranking")]
-        [ProducesResponseType(typeof(List<ParticipanteRankingResponse>), 200)]
-        public async Task<IActionResult> ObterRanking(string sessaoId, CancellationToken ct)
-        {
-            try
-            {
-                var ranking = await _service.ObterRankingAsync(sessaoId, ct);
-                return Ok(ranking);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao obter ranking da sessão {SessaoId}", sessaoId);
-                return StatusCode(500, new { message = "Erro interno do servidor" });
-            }
-        }
+
 
         [HttpPut("{id:int}/sair")]
         [ProducesResponseType(200)]
@@ -126,34 +112,7 @@ namespace FASTSURVEY.Controllers
             }
         }
 
-        /// <summary>Busca participante por nome e sessão.</summary>
-        [HttpGet("buscar")]
-        [ProducesResponseType(typeof(ParticipanteResponse), 200)]
-        [ProducesResponseType(404)]
-        [ProducesResponseType(500)]
-        public async Task<IActionResult> ObterPorNomeESessao(
-            [FromQuery] string nome,
-            [FromQuery] string sessaoId,
-            CancellationToken ct
-        )
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(nome) || string.IsNullOrWhiteSpace(sessaoId))
-                    return BadRequest(new { message = "Nome e sessão são obrigatórios" });
 
-                var participante = await _service.ObterPorNomeESessaoAsync(nome, sessaoId, ct);
-                if (participante == null)
-                    return NotFound(new { message = "Participante não encontrado" });
-
-                return Ok(participante);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao buscar participante {Nome} na sessão {SessaoId}", nome, sessaoId);
-                return StatusCode(500, new { message = "Erro interno do servidor" });
-            }
-        }
 
         /// <summary>Lista participantes ativos de uma sessão.</summary>
         [HttpGet("sessao/{sessaoId}/ativos")]
@@ -197,28 +156,6 @@ namespace FASTSURVEY.Controllers
             }
         }
 
-        /// <summary>Marca saída de todos os participantes de uma sessão.</summary>
-        [HttpPut("sessao/{sessaoId}/sair-todos")]
-        [ProducesResponseType(200)]
-        [ProducesResponseType(500)]
-        public async Task<IActionResult> MarcarSaidaTodos(string sessaoId, CancellationToken ct)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(sessaoId))
-                    return BadRequest(new { message = "ID da sessão é obrigatório" });
 
-                var sucesso = await _service.MarcarSaidaTodosAsync(sessaoId, ct);
-                if (!sucesso)
-                    return NotFound(new { message = "Sessão não encontrada" });
-
-                return Ok(new { message = "Saída de todos os participantes registrada com sucesso" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Erro ao marcar saída de todos os participantes da sessão {SessaoId}", sessaoId);
-                return StatusCode(500, new { message = "Erro interno do servidor" });
-            }
-        }
     }
 }

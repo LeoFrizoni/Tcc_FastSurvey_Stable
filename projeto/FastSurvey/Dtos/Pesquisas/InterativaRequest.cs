@@ -3,65 +3,141 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FASTSURVEY.Dtos.Pesquisas
 {
-    /// <summary>
-    /// Iniciar uma sessão interativa para uma pesquisa.
-    /// </summary>
-    public sealed class PesquisaInterativaRequest
+    public class PesquisaInterativaRequest
     {
         [Required]
         public int PesquisaId { get; set; }
-
-        /// <summary>
-        /// Se true, a sessão já começa marcada como iniciada (IniciadaEm = agora).
-        /// </summary>
-        public bool IsAtiva { get; set; } = true;
+        
+        public bool IsAtiva { get; set; } = false;
     }
 
-    /// <summary>
-    /// Entrar em uma sessão existente usando o código de acesso.
-    /// </summary>
-    public sealed class EntrarSessaoRequest
+    public class EntrarSessaoRequest
     {
-        [Required, MinLength(4)]
+        [Required]
         public string CodigoAcesso { get; set; } = string.Empty;
-
-        /// <summary>
-        /// Opcional; se vazio, será salvo como "Participante".
-        /// </summary>
+        
         public string? NomeParticipante { get; set; }
     }
 
-    /// <summary>
-    /// Enviar resposta para uma pergunta durante a sessão.
-    /// </summary>
-    public sealed class RespostaInterativaRequest
+    public class RespostaInterativaRequest
     {
         [Required]
         public string SessaoId { get; set; } = string.Empty;
-
+        
         [Required]
         public int ParticipanteId { get; set; }
-
+        
         [Required]
         public int PerguntaId { get; set; }
-
-        /// <summary>
-        /// Para perguntas discursivas (Texto obrigatório).
-        /// </summary>
+        
         public string? TextoResposta { get; set; }
-
-        /// <summary>
-        /// Para objetiva/múltipla: ids das opções selecionadas.
-        /// </summary>
+        
         public List<int> OpcoesSelecionadas { get; set; } = new();
     }
 
-    /// <summary>
-    /// Finalizar (encerrar) uma sessão em andamento.
-    /// </summary>
-    public sealed class FinalizarSessaoRequest
+    public class AvancarPerguntaRequest
     {
         [Required]
         public string SessaoId { get; set; } = string.Empty;
+        
+        public int? PerguntaId { get; set; }
+        
+        public bool AtivarPergunta { get; set; } = false;
+    }
+
+    public class VoltarPerguntaRequest
+    {
+        [Required]
+        public string SessaoId { get; set; } = string.Empty;
+        
+        public bool AtivarPergunta { get; set; } = false;
+    }
+
+    public class IrParaPerguntaRequest
+    {
+        [Required]
+        public string SessaoId { get; set; } = string.Empty;
+        
+        [Required]
+        public int PerguntaId { get; set; }
+        
+        public bool AtivarPergunta { get; set; } = false;
+    }
+
+    public class AtivarPerguntaRequest
+    {
+        [Required]
+        public string SessaoId { get; set; } = string.Empty;
+        
+        public bool Ativar { get; set; } = true;
+    }
+
+    public class FinalizarSessaoRequest
+    {
+        [Required]
+        public string SessaoId { get; set; } = string.Empty;
+    }
+
+    public class SessaoInterativaResponse
+    {
+        public string SessaoId { get; set; } = string.Empty;
+        public int PesquisaId { get; set; }
+        public string CodigoAcesso { get; set; } = string.Empty;
+        public string TituloPesquisa { get; set; } = string.Empty;
+        public bool Ativa { get; set; }
+        public DateTime CriadaEm { get; set; }
+        public DateTime? IniciadaEm { get; set; }
+        public int TotalParticipantes { get; set; }
+        public int? PerguntaAtualId { get; set; }
+        public int? OrdemPerguntaAtual { get; set; }
+        public bool ModoApresentacao { get; set; }
+        public bool PerguntaAtiva { get; set; }
+        public List<PerguntaInterativaResponse> Perguntas { get; set; } = new();
+        public PerguntaInterativaResponse? PerguntaAtual { get; set; }
+    }
+
+    public class PerguntaInterativaResponse
+    {
+        public int PerguntaId { get; set; }
+        public string Texto { get; set; } = string.Empty;
+        public string Tipo { get; set; } = string.Empty;
+        public int Ordem { get; set; }
+        public List<OpcaoInterativaResponse> Opcoes { get; set; } = new();
+    }
+
+    public class OpcaoInterativaResponse
+    {
+        public int OpcaoId { get; set; }
+        public string Texto { get; set; } = string.Empty;
+        public int Ordem { get; set; }
+    }
+
+    public class ParticipanteResponse
+    {
+        public int ParticipanteId { get; set; }
+        public string Nome { get; set; } = string.Empty;
+        public string SessaoId { get; set; } = string.Empty;
+        public DateTime EntrouEm { get; set; }
+        public bool Ativo { get; set; }
+    }
+
+    public class RespostaInterativaResponse
+    {
+        public bool Sucesso { get; set; }
+        public string Mensagem { get; set; } = string.Empty;
+        public int RespostaId { get; set; }
+    }
+
+    public class PerguntaAtualResponse
+    {
+        public int PerguntaId { get; set; }
+        public int Ordem { get; set; }
+        public string Texto { get; set; } = string.Empty;
+        public string Tipo { get; set; } = string.Empty;
+        public bool Ativa { get; set; }
+        public int TotalPerguntas { get; set; }
+        public bool TemProxima { get; set; }
+        public bool TemAnterior { get; set; }
+        public List<OpcaoInterativaResponse> Opcoes { get; set; } = new();
     }
 }

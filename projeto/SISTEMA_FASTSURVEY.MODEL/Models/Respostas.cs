@@ -43,6 +43,10 @@ public partial class Respostas
 
     public string Protocolo { get; set; }
 
+    public DateTime? RespondidaEm { get; set; }
+
+    public string TextoResposta { get; set; }
+
     public virtual ParticipantesSessao Participante { get; set; }
 
     public virtual Perguntas Pergunta { get; set; }

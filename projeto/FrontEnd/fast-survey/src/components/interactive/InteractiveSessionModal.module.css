@@ -1,0 +1,255 @@
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 24px 0 24px;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 16px;
+}
+
+.modalTitle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1f2937;
+}
+
+.modalTitle h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  color: #6b7280;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.modalContent {
+  padding: 24px;
+}
+
+.createSession {
+  text-align: center;
+}
+
+.sessionInfo h3 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.sessionInfo p {
+  margin: 0 0 24px 0;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #f9fafb;
+  border-radius: 8px;
+  color: #374151;
+}
+
+.feature span {
+  font-weight: 500;
+}
+
+.createButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+
+.createButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.createButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.error {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.sessionCreated {
+  text-align: center;
+}
+
+.successMessage {
+  margin-bottom: 24px;
+}
+
+.successMessage h3 {
+  margin: 0 0 12px 0;
+  color: #059669;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.successMessage p {
+  margin: 0;
+  color: #374151;
+  font-size: 16px;
+}
+
+.sessionActions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.hostButton {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  padding: 14px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.hostButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+}
+
+.joinSection {
+  text-align: left;
+}
+
+.joinSection h4 {
+  margin: 0 0 12px 0;
+  color: #374151;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.urlContainer {
+  display: flex;
+  gap: 8px;
+}
+
+.urlInput {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+.urlInput:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.copyButton {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.copyButton:hover {
+  background: #5a67d8;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+  .modal {
+    margin: 20px;
+    max-width: none;
+  }
+  
+  .modalHeader {
+    padding: 16px 16px 0 16px;
+  }
+  
+  .modalContent {
+    padding: 16px;
+  }
+  
+  .urlContainer {
+    flex-direction: column;
+  }
+  
+  .copyButton {
+    width: 100%;
+  }
+}

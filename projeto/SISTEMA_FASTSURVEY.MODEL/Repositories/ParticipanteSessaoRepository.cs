@@ -13,23 +13,13 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
         public ParticipanteSessaoRepository(FastSurveyContext context)
             : base(context) { }
 
-        public async Task<ParticipantesSessao?> ObterPorNomeESessaoAsync(
-            string nome,
-            string sessaoId,
+        public async Task<ParticipantesSessao?> ObterParticipanteAsync(
+            int participanteId,
             CancellationToken ct = default
         )
         {
-            // Comparação exata mantida (contrato atual). Normalizamos espaços.
-            var nomeTrim = nome?.Trim() ?? string.Empty;
-            var sessaoTrim = sessaoId?.Trim() ?? string.Empty;
-
             return await _set.AsNoTracking()
-                .Where(p =>
-                    p.SaiuEm == null && p.SessaoId == sessaoTrim && p.NomeParticipante == nomeTrim
-                )
-                .OrderByDescending(p => p.EntrouEm) // se houver duplicatas, pega a mais recente
-                .ThenByDescending(p => p.ParticipanteId)
-                .FirstOrDefaultAsync(ct);
+                .FirstOrDefaultAsync(p => p.ParticipanteId == participanteId, ct);
         }
 
         public async Task<List<ParticipantesSessao>> ObterParticipantesAtivosAsync(
@@ -40,7 +30,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             var sessaoTrim = sessaoId?.Trim() ?? string.Empty;
 
             return await _set.AsNoTracking()
-                .Where(p => p.SessaoId == sessaoTrim && p.SaiuEm == null)
+                .Where(p => p.SessaoId == sessaoTrim && p.SaiuEm == null && p.Ativo)
                 .OrderBy(p => p.EntrouEm)
                 .ThenBy(p => p.ParticipanteId)
                 .ToListAsync(ct);
@@ -54,7 +44,7 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
             var sessaoTrim = sessaoId?.Trim() ?? string.Empty;
 
             return await _set.AsNoTracking()
-                .CountAsync(p => p.SessaoId == sessaoTrim && p.SaiuEm == null, ct);
+                .CountAsync(p => p.SessaoId == sessaoTrim && p.SaiuEm == null && p.Ativo, ct);
         }
 
         public async Task<List<ParticipantesSessao>> ObterParticipantesPorSessaoAsync(
@@ -66,6 +56,24 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
 
             return await _set.AsNoTracking()
                 .Where(p => p.SessaoId == sessaoTrim)
+                .OrderBy(p => p.EntrouEm)
+                .ThenBy(p => p.ParticipanteId)
+                .ToListAsync(ct);
+        }
+
+        public async Task<List<ParticipantesSessao>> ObterParticipantesPorPeriodoAsync(
+            string sessaoId,
+            DateTime inicio,
+            DateTime fim,
+            CancellationToken ct = default
+        )
+        {
+            var sessaoTrim = sessaoId?.Trim() ?? string.Empty;
+            var inicioUtc = DateTime.SpecifyKind(inicio, DateTimeKind.Utc);
+            var fimUtc = DateTime.SpecifyKind(fim, DateTimeKind.Utc);
+
+            return await _set.AsNoTracking()
+                .Where(p => p.SessaoId == sessaoTrim && p.EntrouEm >= inicioUtc && p.EntrouEm <= fimUtc)
                 .OrderBy(p => p.EntrouEm)
                 .ThenBy(p => p.ParticipanteId)
                 .ToListAsync(ct);
@@ -121,13 +129,14 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
                 NomeParticipante = (nome ?? string.Empty).Trim(),
                 EntrouEm = utc,
                 SaiuEm = null,
+                Ativo = true,
             };
 
             await _set.AddAsync(entity, ct);
             return entity; // SaveChangesAsync é responsabilidade do Service/UoW
         }
 
-        public async Task<int> MarcarSaidaParticipanteAsync(
+        public async Task<bool> MarcarSaidaParticipanteAsync(
             int participanteId,
             DateTime saiuEmUtc,
             CancellationToken ct = default
@@ -141,38 +150,56 @@ namespace SISTEMA_FASTSURVEY.MODEL.Repositories
                 )
                 .ExecuteUpdateAsync(updates => updates.SetProperty(p => p.SaiuEm, utc), ct);
 
-            // Não requer SaveChangesAsync; já executado no banco
-            return affected;
-
-            // Versão antiga (carregando em memória):
-            // var participante = await _set.FirstOrDefaultAsync(
-            //     p => p.ParticipanteId == participanteId && p.SaiuEm == null, ct);
-            // if (particiante is null) return 0;
-            // participante.SaiuEm = utc;
-            // return 1;
+            return affected > 0;
         }
 
-        public async Task<int> MarcarSaidaParticipantesAsync(
-            string sessaoId,
-            DateTime saiuEmUtc,
+        public async Task<bool> AtualizarParticipanteAsync(
+            int participanteId,
+            string nome,
             CancellationToken ct = default
         )
         {
-            var sessaoTrim = sessaoId?.Trim() ?? string.Empty;
-            var utc = DateTime.SpecifyKind(saiuEmUtc, DateTimeKind.Utc);
+            var nomeTrim = (nome ?? string.Empty).Trim();
 
-            // Atualiza em massa no banco (mais performático que materializar)
-            var affected = await _set.Where(p => p.SessaoId == sessaoTrim && p.SaiuEm == null)
-                .ExecuteUpdateAsync(updates => updates.SetProperty(p => p.SaiuEm, utc), ct);
+            var affected = await _set.Where(p => p.ParticipanteId == participanteId)
+                .ExecuteUpdateAsync(updates => updates.SetProperty(p => p.NomeParticipante, nomeTrim), ct);
 
-            return affected;
+            return affected > 0;
+        }
 
-            // Versão antiga (materializando):
-            // var participantes = await _set
-            //     .Where(p => p.SessaoId == sessaoTrim && p.SaiuEm == null)
-            //     .ToListAsync(ct);
-            // foreach (var p in participantes) p.SaiuEm = utc;
-            // return participantes.Count;
+        public async Task<bool> RemoverParticipanteAsync(
+            int participanteId,
+            CancellationToken ct = default
+        )
+        {
+            var participante = await _set.FirstOrDefaultAsync(p => p.ParticipanteId == participanteId, ct);
+            if (participante == null)
+                return false;
+
+            _set.Remove(participante);
+            return true;
+        }
+
+        public async Task<bool> AtivarParticipanteAsync(
+            int participanteId,
+            CancellationToken ct = default
+        )
+        {
+            var affected = await _set.Where(p => p.ParticipanteId == participanteId)
+                .ExecuteUpdateAsync(updates => updates.SetProperty(p => p.Ativo, true), ct);
+
+            return affected > 0;
+        }
+
+        public async Task<bool> DesativarParticipanteAsync(
+            int participanteId,
+            CancellationToken ct = default
+        )
+        {
+            var affected = await _set.Where(p => p.ParticipanteId == participanteId)
+                .ExecuteUpdateAsync(updates => updates.SetProperty(p => p.Ativo, false), ct);
+
+            return affected > 0;
         }
     }
 }

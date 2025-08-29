@@ -64,6 +64,8 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                     CriadaEm = agora,
                     IniciadaEm = request.IsAtiva ? agora : null,
                     Ativa = true,
+                    ModoApresentacao = true,
+                    PerguntaAtiva = false,
                 };
 
                 _ctx.Add(sessao);
@@ -79,13 +81,17 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                     CriadaEm = sessao.CriadaEm,
                     IniciadaEm = sessao.IniciadaEm,
                     TotalParticipantes = 0,
+                    PerguntaAtualId = sessao.PerguntaAtualId,
+                    OrdemPerguntaAtual = sessao.OrdemPerguntaAtual,
+                    ModoApresentacao = sessao.ModoApresentacao,
+                    PerguntaAtiva = sessao.PerguntaAtiva,
                     Perguntas = pesquisa
                         .Perguntas.OrderBy(p => p.Ordem)
                         .Select(p => new PerguntaInterativaResponse
                         {
                             PerguntaId = p.PerguntaId,
                             Texto = p.Texto,
-                            Tipo = p.TipoPerguntaId,
+                            Tipo = p.TipoPerguntaId.ToString(),
                             Ordem = p.Ordem,
                             Opcoes = (p.OpcoesPergunta ?? new List<OpcoesPergunta>())
                                 .OrderBy(o => o.Ordem)
@@ -140,6 +146,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                         ? "Participante"
                         : request.NomeParticipante,
                     EntrouEm = DateTime.UtcNow,
+                    Ativo = true,
                 };
 
                 _ctx.Add(participante);
@@ -198,15 +205,18 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                     Ativa = sessao.Ativa,
                     CriadaEm = sessao.CriadaEm,
                     IniciadaEm = sessao.IniciadaEm,
-                    FinalizadaEm = sessao.FinalizadaEm,
                     TotalParticipantes = sessao.ParticipantesSessao.Count,
-                    Perguntas = (sessao.Pesquisa?.Perguntas ?? new List<Perguntas>())
+                    PerguntaAtualId = sessao.PerguntaAtualId,
+                    OrdemPerguntaAtual = sessao.OrdemPerguntaAtual,
+                    ModoApresentacao = sessao.ModoApresentacao,
+                    PerguntaAtiva = sessao.PerguntaAtiva,
+                    Perguntas = sessao.Pesquisa?.Perguntas
                         .OrderBy(p => p.Ordem)
                         .Select(p => new PerguntaInterativaResponse
                         {
                             PerguntaId = p.PerguntaId,
                             Texto = p.Texto,
-                            Tipo = p.TipoPerguntaId,
+                            Tipo = p.TipoPerguntaId.ToString(),
                             Ordem = p.Ordem,
                             Opcoes = (p.OpcoesPergunta ?? new List<OpcoesPergunta>())
                                 .OrderBy(o => o.Ordem)
@@ -218,7 +228,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                                 })
                                 .ToList(),
                         })
-                        .ToList(),
+                        .ToList() ?? new List<PerguntaInterativaResponse>(),
                 };
 
                 return ServiceResult<SessaoInterativaResponse>.Ok(resp);
@@ -233,7 +243,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
         }
 
         // =========================
-        // RESPONDER
+        // RESPONDER PERGUNTA
         // =========================
         public async Task<ServiceResult<RespostaInterativaResponse>> ResponderPerguntaAsync(
             RespostaInterativaRequest request,
@@ -242,9 +252,7 @@ namespace FASTSURVEY.Services.PesquisaInterativa
         {
             try
             {
-                // Sessão precisa existir e estar ativa
                 var sessao = await _ctx.Set<SessoesInterativas>()
-                    .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
 
                 if (sessao is null)
@@ -253,80 +261,61 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                         "Sessão não encontrada ou inativa"
                     );
 
-                var pergunta = await _ctx
-                    .Perguntas.Include(p => p.OpcoesPergunta)
-                    .FirstOrDefaultAsync(p => p.PerguntaId == request.PerguntaId, ct);
-
-                if (pergunta is null)
+                if (!sessao.PerguntaAtiva)
                     return ServiceResult<RespostaInterativaResponse>.Fail(
-                        "NOT_FOUND",
-                        "Pergunta não encontrada"
+                        "QUESTION_NOT_ACTIVE",
+                        "A pergunta atual não está ativa para respostas"
                     );
 
-                // Validações de tipo x payload
-                var opcoesSelecionadas =
-                    request.OpcoesSelecionadas?.Distinct().ToList() ?? new List<int>();
+                if (sessao.PerguntaAtualId != request.PerguntaId)
+                    return ServiceResult<RespostaInterativaResponse>.Fail(
+                        "WRONG_QUESTION",
+                        "A pergunta respondida não é a pergunta atual"
+                    );
 
-                if (pergunta.TipoPerguntaId == 1) // Discursiva
-                {
-                    if (string.IsNullOrWhiteSpace(request.TextoResposta))
-                        return ServiceResult<RespostaInterativaResponse>.Fail(
-                            "VALIDATION_ERROR",
-                            "Resposta discursiva deve conter texto."
-                        );
-                    opcoesSelecionadas.Clear();
-                }
-                else
-                {
-                    // Objetiva/Multipla: pelo menos uma opção
-                    if (opcoesSelecionadas.Count == 0)
-                        return ServiceResult<RespostaInterativaResponse>.Fail(
-                            "VALIDATION_ERROR",
-                            "Selecione ao menos uma opção."
-                        );
+                var participante = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
+                    .FirstOrDefaultAsync(p => p.ParticipanteId == request.ParticipanteId && p.Ativo, ct);
 
-                    // Todas as opções selecionadas devem pertencer à pergunta
-                    var opcoesValidas = (pergunta.OpcoesPergunta ?? new List<OpcoesPergunta>())
-                        .Select(o => o.OpcaoId)
-                        .ToHashSet();
-                    if (!opcoesSelecionadas.All(id => opcoesValidas.Contains(id)))
-                        return ServiceResult<RespostaInterativaResponse>.Fail(
-                            "VALIDATION_ERROR",
-                            "Há opção inválida para esta pergunta."
-                        );
-                }
+                if (participante is null)
+                    return ServiceResult<RespostaInterativaResponse>.Fail(
+                        "NOT_FOUND",
+                        "Participante não encontrado"
+                    );
 
-                // Persistência (transação simples)
-                using var tx = await _ctx.Database.BeginTransactionAsync(ct);
+                // Verificar se já respondeu esta pergunta
+                var respostaExistente = await _ctx.Set<Respostas>()
+                    .FirstOrDefaultAsync(r => r.ParticipanteId == request.ParticipanteId && r.PerguntaId == request.PerguntaId, ct);
+
+                if (respostaExistente != null)
+                    return ServiceResult<RespostaInterativaResponse>.Fail(
+                        "ALREADY_ANSWERED",
+                        "Você já respondeu esta pergunta"
+                    );
 
                 var resposta = new Respostas
                 {
-                    PerguntaId = pergunta.PerguntaId,
-                    Texto = request.TextoResposta ?? string.Empty,
-                    DataResposta = DateTime.UtcNow,
-                    SessaoId = request.SessaoId,
-                    RespostaAnonima = true,
+                    ParticipanteId = request.ParticipanteId,
+                    PerguntaId = request.PerguntaId,
+                    TextoResposta = request.TextoResposta,
+                    RespondidaEm = DateTime.UtcNow,
                 };
 
-                _ctx.Respostas.Add(resposta);
-                await _ctx.SaveChangesAsync(ct);
+                _ctx.Add(resposta);
 
-                if (opcoesSelecionadas.Count > 0)
+                // Adicionar opções selecionadas se houver
+                if (request.OpcoesSelecionadas.Any())
                 {
                     var opcoes = await _ctx.Set<OpcoesPergunta>()
-                        .Where(o => opcoesSelecionadas.Contains(o.OpcaoId))
+                        .Where(o => request.OpcoesSelecionadas.Contains(o.OpcaoId))
                         .ToListAsync(ct);
 
-                    foreach (var opc in opcoes)
-                        resposta.Opcao.Add(opc);
-
-                    await _ctx.SaveChangesAsync(ct);
+                    foreach (var opcao in opcoes)
+                    {
+                        resposta.Opcao.Add(opcao);
+                    }
                 }
 
-                await tx.CommitAsync(ct);
-
-                // resultados “tempo real”
-                var resultados = await ObterResultadosTempoRealAsync(request.SessaoId, ct);
+                await _ctx.SaveChangesAsync(ct);
 
                 return ServiceResult<RespostaInterativaResponse>.Ok(
                     new RespostaInterativaResponse
@@ -334,7 +323,6 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                         Sucesso = true,
                         Mensagem = "Resposta registrada com sucesso",
                         RespostaId = resposta.RespostaId,
-                        ResultadosTempoReal = resultados.Success ? resultados.Data : null,
                     }
                 );
             }
@@ -342,13 +330,305 @@ namespace FASTSURVEY.Services.PesquisaInterativa
             {
                 return ServiceResult<RespostaInterativaResponse>.Fail(
                     "ERROR",
-                    $"Erro ao responder pergunta: {ex.Message}"
+                    $"Erro ao registrar resposta: {ex.Message}"
                 );
             }
         }
 
         // =========================
-        // RESULTADOS EM TEMPO REAL (1 query agregada)
+        // AVANÇAR PERGUNTA
+        // =========================
+        public async Task<ServiceResult<PerguntaAtualResponse>> AvancarPerguntaAsync(
+            AvancarPerguntaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            try
+            {
+                var sessao = await _ctx.Set<SessoesInterativas>()
+                    .Include(s => s.Pesquisa)
+                    .ThenInclude(p => p.Perguntas.OrderBy(pg => pg.Ordem))
+                    .ThenInclude(pg => pg.OpcoesPergunta.Where(o => o.Ativa))
+                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
+
+                if (sessao is null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada ou inativa"
+                    );
+
+                var perguntas = sessao.Pesquisa?.Perguntas.OrderBy(p => p.Ordem).ToList() ?? new List<Perguntas>();
+                var totalPerguntas = perguntas.Count;
+
+                if (totalPerguntas == 0)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NO_QUESTIONS",
+                        "A pesquisa não possui perguntas"
+                    );
+
+                int? proximaOrdem;
+                if (request.PerguntaId.HasValue)
+                {
+                    // Ir para pergunta específica
+                    var perguntaEspecifica = perguntas.FirstOrDefault(p => p.PerguntaId == request.PerguntaId.Value);
+                    if (perguntaEspecifica == null)
+                        return ServiceResult<PerguntaAtualResponse>.Fail(
+                            "NOT_FOUND",
+                            "Pergunta não encontrada"
+                        );
+                    proximaOrdem = perguntaEspecifica.Ordem;
+                }
+                else
+                {
+                    // Avançar para próxima pergunta
+                    if (sessao.OrdemPerguntaAtual.HasValue)
+                    {
+                        proximaOrdem = sessao.OrdemPerguntaAtual.Value + 1;
+                        if (proximaOrdem > totalPerguntas)
+                            return ServiceResult<PerguntaAtualResponse>.Fail(
+                                "END_OF_SURVEY",
+                                "Já estamos na última pergunta"
+                            );
+                    }
+                    else
+                    {
+                        proximaOrdem = 1; // Primeira pergunta
+                    }
+                }
+
+                var proximaPergunta = perguntas.FirstOrDefault(p => p.Ordem == proximaOrdem);
+                if (proximaPergunta == null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Próxima pergunta não encontrada"
+                    );
+
+                // Atualizar sessão
+                sessao.PerguntaAtualId = proximaPergunta.PerguntaId;
+                sessao.OrdemPerguntaAtual = proximaPergunta.Ordem;
+                sessao.PerguntaAtiva = request.AtivarPergunta;
+
+                await _ctx.SaveChangesAsync(ct);
+
+                var resposta = new PerguntaAtualResponse
+                {
+                    PerguntaId = proximaPergunta.PerguntaId,
+                    Ordem = proximaPergunta.Ordem,
+                    Texto = proximaPergunta.Texto,
+                    Tipo = proximaPergunta.TipoPerguntaId.ToString(),
+                    Ativa = sessao.PerguntaAtiva,
+                    TotalPerguntas = totalPerguntas,
+                    TemProxima = proximaPergunta.Ordem < totalPerguntas,
+                    TemAnterior = proximaPergunta.Ordem > 1,
+                    Opcoes = proximaPergunta.OpcoesPergunta
+                        .OrderBy(o => o.Ordem)
+                        .Select(o => new OpcaoInterativaResponse
+                        {
+                            OpcaoId = o.OpcaoId,
+                            Texto = o.Texto,
+                            Ordem = o.Ordem,
+                        })
+                        .ToList(),
+                };
+
+                return ServiceResult<PerguntaAtualResponse>.Ok(resposta);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<PerguntaAtualResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao avançar pergunta: {ex.Message}"
+                );
+            }
+        }
+
+        // =========================
+        // VOLTAR PERGUNTA
+        // =========================
+        public async Task<ServiceResult<PerguntaAtualResponse>> VoltarPerguntaAsync(
+            VoltarPerguntaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            try
+            {
+                var sessao = await _ctx.Set<SessoesInterativas>()
+                    .Include(s => s.Pesquisa)
+                    .ThenInclude(p => p.Perguntas.OrderBy(pg => pg.Ordem))
+                    .ThenInclude(pg => pg.OpcoesPergunta.Where(o => o.Ativa))
+                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
+
+                if (sessao is null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada ou inativa"
+                    );
+
+                if (!sessao.OrdemPerguntaAtual.HasValue || sessao.OrdemPerguntaAtual.Value <= 1)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "BEGINNING_OF_SURVEY",
+                        "Já estamos na primeira pergunta"
+                    );
+
+                var perguntas = sessao.Pesquisa?.Perguntas.OrderBy(p => p.Ordem).ToList() ?? new List<Perguntas>();
+                var perguntaAnterior = perguntas.FirstOrDefault(p => p.Ordem == sessao.OrdemPerguntaAtual.Value - 1);
+
+                if (perguntaAnterior == null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Pergunta anterior não encontrada"
+                    );
+
+                // Atualizar sessão
+                sessao.PerguntaAtualId = perguntaAnterior.PerguntaId;
+                sessao.OrdemPerguntaAtual = perguntaAnterior.Ordem;
+                sessao.PerguntaAtiva = request.AtivarPergunta;
+
+                await _ctx.SaveChangesAsync(ct);
+
+                var resposta = new PerguntaAtualResponse
+                {
+                    PerguntaId = perguntaAnterior.PerguntaId,
+                    Ordem = perguntaAnterior.Ordem,
+                    Texto = perguntaAnterior.Texto,
+                    Tipo = perguntaAnterior.TipoPerguntaId.ToString(),
+                    Ativa = sessao.PerguntaAtiva,
+                    TotalPerguntas = perguntas.Count,
+                    TemProxima = perguntaAnterior.Ordem < perguntas.Count,
+                    TemAnterior = perguntaAnterior.Ordem > 1,
+                    Opcoes = perguntaAnterior.OpcoesPergunta
+                        .OrderBy(o => o.Ordem)
+                        .Select(o => new OpcaoInterativaResponse
+                        {
+                            OpcaoId = o.OpcaoId,
+                            Texto = o.Texto,
+                            Ordem = o.Ordem,
+                        })
+                        .ToList(),
+                };
+
+                return ServiceResult<PerguntaAtualResponse>.Ok(resposta);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<PerguntaAtualResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao voltar pergunta: {ex.Message}"
+                );
+            }
+        }
+
+        // =========================
+        // IR PARA PERGUNTA ESPECÍFICA
+        // =========================
+        public async Task<ServiceResult<PerguntaAtualResponse>> IrParaPerguntaAsync(
+            IrParaPerguntaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            try
+            {
+                var sessao = await _ctx.Set<SessoesInterativas>()
+                    .Include(s => s.Pesquisa)
+                    .ThenInclude(p => p.Perguntas.OrderBy(pg => pg.Ordem))
+                    .ThenInclude(pg => pg.OpcoesPergunta.Where(o => o.Ativa))
+                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
+
+                if (sessao is null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada ou inativa"
+                    );
+
+                var perguntas = sessao.Pesquisa?.Perguntas.OrderBy(p => p.Ordem).ToList() ?? new List<Perguntas>();
+                var pergunta = perguntas.FirstOrDefault(p => p.PerguntaId == request.PerguntaId);
+
+                if (pergunta == null)
+                    return ServiceResult<PerguntaAtualResponse>.Fail(
+                        "NOT_FOUND",
+                        "Pergunta não encontrada"
+                    );
+
+                // Atualizar sessão
+                sessao.PerguntaAtualId = pergunta.PerguntaId;
+                sessao.OrdemPerguntaAtual = pergunta.Ordem;
+                sessao.PerguntaAtiva = request.AtivarPergunta;
+
+                await _ctx.SaveChangesAsync(ct);
+
+                var resposta = new PerguntaAtualResponse
+                {
+                    PerguntaId = pergunta.PerguntaId,
+                    Ordem = pergunta.Ordem,
+                    Texto = pergunta.Texto,
+                    Tipo = pergunta.TipoPerguntaId.ToString(),
+                    Ativa = sessao.PerguntaAtiva,
+                    TotalPerguntas = perguntas.Count,
+                    TemProxima = pergunta.Ordem < perguntas.Count,
+                    TemAnterior = pergunta.Ordem > 1,
+                    Opcoes = pergunta.OpcoesPergunta
+                        .OrderBy(o => o.Ordem)
+                        .Select(o => new OpcaoInterativaResponse
+                        {
+                            OpcaoId = o.OpcaoId,
+                            Texto = o.Texto,
+                            Ordem = o.Ordem,
+                        })
+                        .ToList(),
+                };
+
+                return ServiceResult<PerguntaAtualResponse>.Ok(resposta);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<PerguntaAtualResponse>.Fail(
+                    "ERROR",
+                    $"Erro ao ir para pergunta: {ex.Message}"
+                );
+            }
+        }
+
+        // =========================
+        // ATIVAR/DESATIVAR PERGUNTA
+        // =========================
+        public async Task<ServiceResult<bool>> AtivarPerguntaAsync(
+            AtivarPerguntaRequest request,
+            CancellationToken ct = default
+        )
+        {
+            try
+            {
+                var sessao = await _ctx.Set<SessoesInterativas>()
+                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
+
+                if (sessao is null)
+                    return ServiceResult<bool>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada ou inativa"
+                    );
+
+                if (!sessao.PerguntaAtualId.HasValue)
+                    return ServiceResult<bool>.Fail(
+                        "NO_CURRENT_QUESTION",
+                        "Não há pergunta atual definida"
+                    );
+
+                sessao.PerguntaAtiva = request.Ativar;
+                await _ctx.SaveChangesAsync(ct);
+
+                return ServiceResult<bool>.Ok(request.Ativar);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<bool>.Fail(
+                    "ERROR",
+                    $"Erro ao ativar/desativar pergunta: {ex.Message}"
+                );
+            }
+        }
+
+        // =========================
+        // MÉTODOS EXISTENTES (mantidos)
         // =========================
         public async Task<ServiceResult<object>> ObterResultadosTempoRealAsync(
             string sessaoId,
@@ -357,101 +637,36 @@ namespace FASTSURVEY.Services.PesquisaInterativa
         {
             try
             {
-                // Carrega perguntas e opções da sessão (somente o necessário)
                 var sessao = await _ctx.Set<SessoesInterativas>()
                     .Include(s => s.Pesquisa)
                     .ThenInclude(p => p.Perguntas)
                     .ThenInclude(pg => pg.OpcoesPergunta)
+                    .Include(s => s.ParticipantesSessao.Where(p => p.SaiuEm == null))
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.SessaoId == sessaoId, ct);
 
                 if (sessao is null)
-                    return ServiceResult<object>.Fail("NOT_FOUND", "Sessão não encontrada");
-
-                var perguntas = (sessao.Pesquisa?.Perguntas ?? new List<Perguntas>())
-                    .OrderBy(p => p.Ordem)
-                    .ToList();
-                if (perguntas.Count == 0)
-                    return ServiceResult<object>.Ok(
-                        new
-                        {
-                            sessaoId,
-                            totalParticipantes = 0,
-                            perguntas = Array.Empty<object>(),
-                        }
+                    return ServiceResult<object>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada"
                     );
 
-                var perguntaIds = perguntas.Select(p => p.PerguntaId).ToList();
-
-                // 1) total de respostas por pergunta na sessão
-                var totaisPorPergunta = await _ctx
-                    .Respostas.Where(r =>
-                        r.SessaoId == sessaoId && perguntaIds.Contains(r.PerguntaId)
-                    )
-                    .GroupBy(r => r.PerguntaId)
-                    .Select(g => new { PerguntaId = g.Key, Total = g.Count() })
-                    .ToDictionaryAsync(x => x.PerguntaId, x => x.Total, ct);
-
-                // 2) contagem por opção (join na many-to-many Resposta.Opcao)
-                var totaisPorOpcao = await _ctx
-                    .Respostas.Where(r =>
-                        r.SessaoId == sessaoId && perguntaIds.Contains(r.PerguntaId)
-                    )
-                    .SelectMany(r => r.Opcao.Select(o => new { r.PerguntaId, o.OpcaoId }))
-                    .GroupBy(x => new { x.PerguntaId, x.OpcaoId })
-                    .Select(g => new
-                    {
-                        g.Key.PerguntaId,
-                        g.Key.OpcaoId,
-                        Total = g.Count(),
-                    })
-                    .ToListAsync(ct);
-
-                var mapaOpcao = totaisPorOpcao
-                    .GroupBy(x => x.PerguntaId)
-                    .ToDictionary(g => g.Key, g => g.ToDictionary(k => k.OpcaoId, v => v.Total));
-
-                // 3) participantes ativos
-                var totalParticipantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
-                    .AsNoTracking()
-                    .CountAsync(p => p.SessaoId == sessaoId && p.SaiuEm == null, ct);
-
-                // 4) montar resposta
-                var resultado = new
+                var resultados = new
                 {
-                    sessaoId,
-                    totalParticipantes,
-                    perguntas = perguntas
-                        .Select(p =>
-                        {
-                            var totalResp = totaisPorPergunta.GetValueOrDefault(p.PerguntaId);
-                            var dictOpc = mapaOpcao.GetValueOrDefault(
-                                p.PerguntaId,
-                                new Dictionary<int, int>()
-                            );
-
-                            var opcoes = (p.OpcoesPergunta ?? new List<OpcoesPergunta>())
-                                .OrderBy(o => o.Ordem)
-                                .Select(o => new
-                                {
-                                    opcaoId = o.OpcaoId,
-                                    texto = o.Texto,
-                                    totalRespostas = dictOpc.GetValueOrDefault(o.OpcaoId),
-                                })
-                                .ToList();
-
-                            return new
-                            {
-                                perguntaId = p.PerguntaId,
-                                texto = p.Texto,
-                                totalRespostas = totalResp,
-                                opcoes,
-                            };
-                        })
-                        .ToList(),
+                    SessaoId = sessao.SessaoId,
+                    TotalParticipantes = sessao.ParticipantesSessao.Count,
+                    PerguntaAtual = sessao.PerguntaAtualId,
+                    PerguntaAtiva = sessao.PerguntaAtiva,
+                    Participantes = sessao.ParticipantesSessao.Select(p => new
+                    {
+                        p.ParticipanteId,
+                        p.NomeParticipante,
+                        p.EntrouEm,
+                        p.Ativo
+                    }).ToList()
                 };
 
-                return ServiceResult<object>.Ok(resultado);
+                return ServiceResult<object>.Ok(resultados);
             }
             catch (Exception ex)
             {
@@ -462,9 +677,6 @@ namespace FASTSURVEY.Services.PesquisaInterativa
             }
         }
 
-        // =========================
-        // FINALIZAR
-        // =========================
         public async Task<ServiceResult<bool>> FinalizarSessaoAsync(
             FinalizarSessaoRequest request,
             CancellationToken ct = default
@@ -473,36 +685,31 @@ namespace FASTSURVEY.Services.PesquisaInterativa
             try
             {
                 var sessao = await _ctx.Set<SessoesInterativas>()
-                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId, ct);
+                    .FirstOrDefaultAsync(s => s.SessaoId == request.SessaoId && s.Ativa, ct);
 
                 if (sessao is null)
-                    return ServiceResult<bool>.Fail("NOT_FOUND", "Sessão não encontrada");
+                    return ServiceResult<bool>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada ou já finalizada"
+                    );
 
-                if (!sessao.Ativa)
-                    return ServiceResult<bool>.Ok(true); // idempotente
-
-                sessao.FinalizadaEm = DateTime.UtcNow;
                 sessao.Ativa = false;
-
-                var participantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
-                    .Where(p => p.SessaoId == request.SessaoId && p.SaiuEm == null)
-                    .ToListAsync(ct);
-
-                foreach (var p in participantes)
-                    p.SaiuEm = DateTime.UtcNow;
+                sessao.FinalizadaEm = DateTime.UtcNow;
+                sessao.PerguntaAtiva = false;
 
                 await _ctx.SaveChangesAsync(ct);
+
                 return ServiceResult<bool>.Ok(true);
             }
             catch (Exception ex)
             {
-                return ServiceResult<bool>.Fail("ERROR", $"Erro ao finalizar sessão: {ex.Message}");
+                return ServiceResult<bool>.Fail(
+                    "ERROR",
+                    $"Erro ao finalizar sessão: {ex.Message}"
+                );
             }
         }
 
-        // =========================
-        // STATUS
-        // =========================
         public async Task<ServiceResult<object>> ObterStatusSessaoAsync(
             string sessaoId,
             CancellationToken ct = default
@@ -516,32 +723,35 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                     .FirstOrDefaultAsync(s => s.SessaoId == sessaoId, ct);
 
                 if (sessao is null)
-                    return ServiceResult<object>.Fail("NOT_FOUND", "Sessão não encontrada");
+                    return ServiceResult<object>.Fail(
+                        "NOT_FOUND",
+                        "Sessão não encontrada"
+                    );
 
-                return ServiceResult<object>.Ok(
-                    new
-                    {
-                        sessaoId = sessao.SessaoId,
-                        ativa = sessao.Ativa,
-                        totalParticipantes = sessao.ParticipantesSessao.Count,
-                        criadaEm = sessao.CriadaEm,
-                        iniciadaEm = sessao.IniciadaEm,
-                        finalizadaEm = sessao.FinalizadaEm,
-                    }
-                );
+                var status = new
+                {
+                    SessaoId = sessao.SessaoId,
+                    Ativa = sessao.Ativa,
+                    TotalParticipantes = sessao.ParticipantesSessao.Count,
+                    PerguntaAtualId = sessao.PerguntaAtualId,
+                    PerguntaAtiva = sessao.PerguntaAtiva,
+                    ModoApresentacao = sessao.ModoApresentacao,
+                    CriadaEm = sessao.CriadaEm,
+                    IniciadaEm = sessao.IniciadaEm,
+                    FinalizadaEm = sessao.FinalizadaEm
+                };
+
+                return ServiceResult<object>.Ok(status);
             }
             catch (Exception ex)
             {
                 return ServiceResult<object>.Fail(
                     "ERROR",
-                    $"Erro ao obter status da sessão: {ex.Message}"
+                    $"Erro ao obter status: {ex.Message}"
                 );
             }
         }
 
-        // =========================
-        // PARTICIPANTES
-        // =========================
         public async Task<ServiceResult<List<ParticipanteResponse>>> ObterParticipantesAsync(
             string sessaoId,
             CancellationToken ct = default
@@ -550,21 +760,18 @@ namespace FASTSURVEY.Services.PesquisaInterativa
             try
             {
                 var participantes = await _ctx.Set<SISTEMA_FASTSURVEY.MODEL.Models.ParticipantesSessao>()
-                    .Where(p => p.SessaoId == sessaoId)
-                    .OrderBy(p => p.EntrouEm)
+                    .Where(p => p.SessaoId == sessaoId && p.SaiuEm == null)
                     .AsNoTracking()
                     .ToListAsync(ct);
 
-                var resp = participantes
-                    .Select(p => new ParticipanteResponse
-                    {
-                        ParticipanteId = p.ParticipanteId,
-                        Nome = p.NomeParticipante,
-                        SessaoId = p.SessaoId,
-                        EntrouEm = p.EntrouEm,
-                        Ativo = p.SaiuEm == null,
-                    })
-                    .ToList();
+                var resp = participantes.Select(p => new ParticipanteResponse
+                {
+                    ParticipanteId = p.ParticipanteId,
+                    Nome = p.NomeParticipante,
+                    SessaoId = p.SessaoId,
+                    EntrouEm = p.EntrouEm,
+                    Ativo = p.Ativo,
+                }).ToList();
 
                 return ServiceResult<List<ParticipanteResponse>>.Ok(resp);
             }
@@ -578,36 +785,28 @@ namespace FASTSURVEY.Services.PesquisaInterativa
         }
 
         // =========================
-        // Helpers
+        // MÉTODOS AUXILIARES
         // =========================
         private async Task<string> GerarCodigoUnicoAsync(CancellationToken ct)
         {
-            const string charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sem confusos: I, O, 0, 1
-            const int tamanho = 6;
-
-            for (var tentativas = 0; tentativas < 20; tentativas++)
+            string codigo;
+            bool codigoExiste;
+            do
             {
-                var codigo = string.Create(
-                    tamanho,
-                    (object?)null,
-                    (span, _) =>
-                    {
-                        for (int i = 0; i < span.Length; i++)
-                        {
-                            var idx = RandomNumberGenerator.GetInt32(charset.Length);
-                            span[i] = charset[idx];
-                        }
-                    }
-                );
+                codigo = GerarCodigoAleatorio();
+                codigoExiste = await _ctx.Set<SessoesInterativas>()
+                    .AnyAsync(s => s.CodigoAcesso == codigo, ct);
+            } while (codigoExiste);
 
-                var existe = await _ctx.Set<SessoesInterativas>()
-                    .AnyAsync(s => s.CodigoAcesso == codigo && s.Ativa, ct);
-                if (!existe)
-                    return codigo;
-            }
+            return codigo;
+        }
 
-            // fallback improvável
-            return Guid.NewGuid().ToString("N")[..tamanho].ToUpperInvariant();
+        private static string GerarCodigoAleatorio()
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            var random = new Random();
+            return new string(Enumerable.Repeat(chars, 6)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
         }
     }
 }

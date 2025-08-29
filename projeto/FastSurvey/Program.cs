@@ -54,7 +54,6 @@ builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.Configure<ValidationOptions>(builder.Configuration.GetSection("Validation"));
 builder.Services.AddScoped<IValidationService, ValidationService>();
 builder.Services.AddScoped<IMobileService, MobileService>();
-builder.Services.AddScoped<IGamificationService, GamificationService>();
 builder.Services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
 
 // ---------- Performance Monitoring ----------

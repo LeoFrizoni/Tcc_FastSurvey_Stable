@@ -7,7 +7,7 @@ import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import ModalQRCode from '../../components/layouts/ModalQrCode';
 import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
-import InteractiveSessionModal from '../../components/game/InteractiveSessionModal';
+import InteractiveSessionModal from '../../components/interactive/InteractiveSessionModal';
 import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';

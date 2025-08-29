@@ -7,9 +7,6 @@ namespace FASTSURVEY.Dtos.ParticipantesSessao
         public string NomeParticipante { get; set; } = string.Empty;
         public DateTime EntrouEm { get; set; }
         public DateTime? SaiuEm { get; set; }
-        public int PontuacaoTotal { get; set; }
-        public int RespostasCorretas { get; set; }
-        public int? TempoMedioResposta { get; set; }
-        public int? Ranking { get; set; }
+        public bool Ativo { get; set; }
     }
 }
