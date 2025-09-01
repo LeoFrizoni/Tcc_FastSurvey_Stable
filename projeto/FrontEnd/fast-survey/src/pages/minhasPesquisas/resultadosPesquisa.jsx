@@ -3,7 +3,6 @@ import InformacoesPesquisa from '../../components/layouts/InformacoesPesquisa';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import ModalQRCode from '../../components/layouts/ModalQrCode';
 import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
@@ -11,26 +10,79 @@ import InteractiveSessionModal from '../../components/interactive/InteractiveSes
 import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import api from '../../lib/api';
 
 /* ================== Config API / Auth ================== */
-const API = 'http://localhost:5062/api';
-const API_BASE = API.replace(/\/api$/,''); // -> http://localhost:5062
+const API_BASE = 'http://localhost:5062';
 
-function getToken() {
-  const keys = ['token', 'authToken', 'accessToken', 'jwt', 'Authorization'];
-  for (const k of keys) {
-    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
-    if (v) return v.replace(/^Bearer\s+/i, '');
+// Cache para nomes de usuários
+const userNamesCache = new Map();
+
+// Mapeamento hardcoded dos usuários conhecidos (fallback)
+const knownUsers = {
+  1: 'Leonardo',
+  16: 'Rubens',
+  35: 'Leonardo Frizoni',
+  46: 'aimeebruna',
+  49: 'Lucas',
+  50: 'Hutao'
+};
+
+// Função para buscar nome do usuário
+async function getUserName(loginId) {
+  if (!loginId) return null;
+  
+  console.log('Buscando nome do usuário para LoginId:', loginId);
+  
+  // Verificar cache primeiro
+  if (userNamesCache.has(loginId)) {
+    console.log('Nome encontrado no cache:', userNamesCache.get(loginId));
+    return userNamesCache.get(loginId);
   }
+  
+  try {
+    console.log('Tentando buscar via endpoint de admin...');
+    // Tentar buscar via endpoint de admin (pode falhar se não for admin)
+    const response = await api.get(`/api/admin/usuarios/${loginId}`);
+    console.log('Resposta da API admin:', response.data);
+    const userName = response.data?.usuario || response.data?.Usuario;
+    console.log('Nome extraído:', userName);
+    if (userName) {
+      userNamesCache.set(loginId, userName);
+      console.log('Nome armazenado no cache:', userName);
+      return userName;
+    }
+  } catch (error) {
+    console.log('Erro ao buscar nome do usuário via admin:', error.response?.status, error.response?.data);
+    
+    // Se falhar, tentar endpoint de perfil (pode funcionar se for o próprio usuário)
+    if (error.response?.status === 403 || error.response?.status === 401) {
+      try {
+        console.log('Tentando endpoint de perfil...');
+        const perfilResponse = await api.get('/api/Login/Perfil');
+        console.log('Resposta do perfil:', perfilResponse.data);
+        const perfilUserName = perfilResponse.data?.usuario || perfilResponse.data?.Usuario;
+        if (perfilUserName && perfilResponse.data?.loginId === loginId) {
+          userNamesCache.set(loginId, perfilUserName);
+          console.log('Nome encontrado via perfil:', perfilUserName);
+          return perfilUserName;
+        }
+      } catch (perfilError) {
+        console.log('Erro ao buscar perfil:', perfilError.response?.status);
+      }
+    }
+  }
+  
+  // Se não conseguir buscar, tentar mapeamento hardcoded
+  if (knownUsers[loginId]) {
+    console.log('Usando mapeamento hardcoded:', knownUsers[loginId]);
+    userNamesCache.set(loginId, knownUsers[loginId]);
+    return knownUsers[loginId];
+  }
+  
+  console.log('Não foi possível buscar nome do usuário');
   return null;
 }
-
-const api = axios.create({ baseURL: API });
-api.interceptors.request.use((config) => {
-  const tk = getToken();
-  if (tk) config.headers.Authorization = `Bearer ${tk}`;
-  return config;
-});
 
 /* =============== Helpers de estilo/layout =============== */
 function normalizeTipo(tipo) {
@@ -128,16 +180,38 @@ function resolveImgSrcFromJSON(img){
 }
 
 function getTipoPesquisaLabel(p){
+  console.log('=== DEBUG TIPO PESQUISA ===');
+  console.log('Objeto pesquisa completo:', p);
+  console.log('tipoPesquisa:', p?.tipoPesquisa);
+  console.log('TipoPesquisa:', p?.TipoPesquisa);
+  console.log('tipoPesquisaId:', p?.tipoPesquisaId);
+  console.log('tipoPesquisaID:', p?.tipoPesquisaID);
+  console.log('tipopesquisaid:', p?.tipopesquisaid);
+  
   const direct = p?.tipoPesquisa?.descricao || p?.TipoPesquisa?.descricao;
-  if (direct) return direct;
+  if (direct) {
+    console.log('Tipo encontrado via descrição direta:', direct);
+    return direct;
+  }
+  
   const id = p?.tipoPesquisaId ?? p?.tipoPesquisaID ?? p?.tipopesquisaid;
-  if (id === 1) return 'Pública';
-  if (id === 2) return 'Privada';
+  console.log('ID final extraído:', id, 'Tipo:', typeof id);
+  
+  if (id === 1 || id === '1') {
+    console.log('Retornando: Pesquisa de Campo');
+    return 'Pesquisa de Campo';
+  }
+  if (id === 2 || id === '2') {
+    console.log('Retornando: Teste');
+    return 'Teste';
+  }
+  
+  console.log('Retornando: Indefinido (não encontrado)');
   return 'Indefinido';
 }
 
 /* =================== Componentes menores =================== */
-function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onInteractiveSession, abaAtiva, setAbaAtiva, pesquisaId }) {
+function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onInteractiveSession, abaAtiva, setAbaAtiva, pesquisaId, pesquisa }) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       {/* Abas */}
@@ -162,9 +236,11 @@ function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onIntera
           <button className={styles.primaryBtn} type="button" onClick={onResponder}>
             Responder pesquisa
           </button>
-          <button className={styles.interactiveBtn} type="button" onClick={onInteractiveSession}>
-            🎮 Iniciar Sessão Interativa
-          </button>
+                        {pesquisa?.isInterativa && (
+                <button className={styles.interactiveBtn} type="button" onClick={onInteractiveSession}>
+                  🎮 Iniciar Sessão Interativa
+                </button>
+              )}
           <button className={styles.secondaryBtn} type="button" onClick={onQrCode}>
             Mostrar QR Code
           </button>
@@ -253,7 +329,8 @@ function GaleriaResultados({ imagensJSON, anexosImg }) {
 
 /* =================== Página principal =================== */
 const ResultadosPesquisa = () => {
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = rawId?.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
   const navigate = useNavigate();
   const [pesquisa, setPesquisa] = useState(null);
   const [anexos, setAnexos] = useState([]);
@@ -262,14 +339,25 @@ const ResultadosPesquisa = () => {
   const [carregando, setCarregando] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState('pesquisa'); // 'pesquisa' ou 'graficos'
   const [erro, setErro] = useState('');
+  const [autorNome, setAutorNome] = useState(null);
   const pdfRef = useRef(null);
 
   useEffect(() => {
     async function buscarPesquisa() {
+      if (!id || !/^\d+$/.test(id)) {
+        setErro('ID da pesquisa inválido.');
+        setCarregando(false);
+        return;
+      }
+      
       setCarregando(true);
       setErro('');
       try {
-        const { data } = await api.get(`/pesquisas/${id}`);
+        console.log('Tentando carregar pesquisa com ID:', id);
+        console.log('URL completa:', `${api.defaults.baseURL}/api/pesquisas/${id}`);
+        const { data } = await api.get(`/api/pesquisas/${id}`);
+        console.log('Dados da pesquisa carregados:', data);
+        console.log('Estrutura completa da pesquisa:', JSON.stringify(data, null, 2));
         if (data.templateJson) {
           try {
             const blocos = JSON.parse(data.templateJson);
@@ -280,23 +368,37 @@ const ResultadosPesquisa = () => {
         } else {
           setPesquisa(data);
         }
-      } catch (e) {
-        if (axios.isAxiosError(e) && e.response?.status === 401) {
-          setErro('Não autorizado. Faça login para continuar.');
-          setTimeout(() => navigate('/login'), 1200);
-        } else if (axios.isAxiosError(e) && e.response?.status === 404) {
-          setErro('Pesquisa não encontrada.');
-        } else {
-          setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+        
+        // Buscar nome do autor
+        if (data.loginId) {
+          console.log('LoginId da pesquisa:', data.loginId);
+          const nomeAutor = await getUserName(data.loginId);
+          console.log('Nome do autor encontrado:', nomeAutor);
+          setAutorNome(nomeAutor);
         }
-      } finally {
+             } catch (e) {
+         console.error('Erro ao carregar pesquisa:', e);
+         if (e.response?.status === 401) {
+           setErro('Não autorizado. Faça login para continuar.');
+           setTimeout(() => navigate('/login'), 1200);
+         } else if (e.response?.status === 404) {
+           setErro('Pesquisa não encontrada.');
+         } else {
+           setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+         }
+       } finally {
         setCarregando(false);
       }
     }
 
          async function carregarAnexos() {
+       if (!id || !/^\d+$/.test(id)) {
+         setAnexos([]);
+         return;
+       }
+       
        try {
-         const { data } = await api.get(`/Anexos/pesquisa/${id}`);
+         const { data } = await api.get(`/api/Anexos/por-pesquisa/${id}`);
          setAnexos(Array.isArray(data) ? data : []);
        } catch (error) {
          // Ignorar erro 404 do endpoint de anexos
@@ -422,11 +524,12 @@ const ResultadosPesquisa = () => {
   }
 
   const autor =
+    autorNome ??
     pesquisa?.login?.usuario ??
     pesquisa?.autor?.nome ??
     pesquisa?.autor ??
     pesquisa?.usuario?.nome ??
-    '—';
+    (pesquisa?.loginId ? `Usuário ${pesquisa.loginId}` : '—');
 
   const dataRaw =
     pesquisa?.DataCriacao ??
@@ -436,8 +539,57 @@ const ResultadosPesquisa = () => {
     pesquisa?.createdAt ??
     pesquisa?.criadoEm;
 
-  const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
+  // Função para formatar data corretamente (DD/MM/YYYY)
+  const formatarData = (data) => {
+    if (!data) return '—';
+    console.log('=== DEBUG DATA ===');
+    console.log('Data raw recebida:', data);
+    console.log('Tipo da data:', typeof data);
+    
+    // Tentar diferentes abordagens para parsear a data
+    let date;
+    if (typeof data === 'string') {
+      // Se for string, tentar parsear diretamente
+      date = new Date(data);
+    } else {
+      date = new Date(data);
+    }
+    
+    console.log('Objeto Date criado:', date);
+    console.log('Date válida?', !isNaN(date.getTime()));
+    
+    if (isNaN(date.getTime())) {
+      console.log('Data inválida, retornando original');
+      return data;
+    }
+    
+    const dia = String(date.getDate()).padStart(2, '0');
+    const mes = String(date.getMonth() + 1).padStart(2, '0');
+    const ano = date.getFullYear();
+    
+    console.log('Dia:', dia, 'Mês:', mes, 'Ano:', ano);
+    const resultado = `${dia}/${mes}/${ano}`;
+    console.log('Data formatada final:', resultado);
+    
+    // Forçar re-renderização com timestamp único
+    const timestamp = Date.now();
+    console.log('Timestamp único para data:', timestamp);
+    
+    return resultado;
+  };
+  
+  const dataStr = formatarData(dataRaw);
+  console.log('Data da pesquisa:', dataRaw, 'Formatada:', dataStr);
+  console.log('Tipo de pesquisa ID da pesquisa:', pesquisa?.tipoPesquisaId);
+  console.log('Timestamp atual:', new Date().toISOString());
+  console.log('Cache buster:', Math.random());
+  console.log('FORÇANDO ATUALIZAÇÃO - VERSÃO 2.0');
   const tipoPesquisaDesc = getTipoPesquisaLabel(pesquisa);
+  
+  // Forçar re-renderização com chave única baseada na data
+  const renderKey = `${pesquisa?.pesquisaId}-${dataStr}-${Date.now()}-${Math.random()}`;
+  console.log('Render key:', renderKey);
+  console.log('Data que será exibida:', dataStr);
 
 
 
@@ -449,8 +601,9 @@ const ResultadosPesquisa = () => {
           {/* ===== Coluna esquerda — entra no PDF ===== */}
           <section ref={pdfRef} className={styles.exportArea}>
                          <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-               <CabecalhoPesquisa autor={autor} data={dataStr} />
+               <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataStr} />
                <InformacoesPesquisa
+                 key={`informacoes-${renderKey}`}
                  titulo={pesquisa.titulo || "Sem título"}
                  descricao={pesquisa.descricao || "Sem descrição"}
                  tipoPesquisa={tipoPesquisaDesc}
@@ -581,6 +734,7 @@ const ResultadosPesquisa = () => {
             abaAtiva={abaAtiva}
             setAbaAtiva={setAbaAtiva}
             pesquisaId={id}
+            pesquisa={pesquisa}
           />
         </div>
 

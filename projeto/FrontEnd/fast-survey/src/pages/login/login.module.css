@@ -111,6 +111,36 @@
 }
 .eyeBtn:hover{ color:#6f3de3; opacity:1; }
 
+/* Lembrar de mim */
+.rememberMeRow{
+  width:100%;
+  margin:15px 0 0;
+  display:flex;
+  justify-content:flex-start;
+}
+.checkboxLabel{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  cursor:pointer;
+  font-size:13px;
+  color:#666;
+  user-select:none;
+}
+.checkbox{
+  width:16px;
+  height:16px;
+  accent-color:#7A3CED;
+  cursor:pointer;
+}
+.checkboxText{
+  font-weight:500;
+  transition:color .2s ease;
+}
+.checkboxLabel:hover .checkboxText{
+  color:#7A3CED;
+}
+
 /* Link + esqueci senha */
 .forgotRow{
   width:100%;

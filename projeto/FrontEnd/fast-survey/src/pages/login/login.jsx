@@ -300,6 +300,7 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [loadingLogin, setLoadingLogin] = useState(false);
   const [showPassLogin, setShowPassLogin] = useState(false);
+  const [lembrarDeMim, setLembrarDeMim] = useState(false);
 
   // Cadastro
   const [novoUsuario, setNovoUsuario] = useState("");
@@ -329,6 +330,10 @@ export default function Login() {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [loadingForgot, setLoadingForgot] = useState(false);
+
+  // ====== EFEITOS ======
+
+  // ====== FUNÇÕES ======
 
   const validarSenhaForte = (s) => /^(?=.*[A-Z])(?=.*\d).{8,}$/.test(s);
 
@@ -373,7 +378,14 @@ export default function Login() {
   // Se já autenticado, redireciona
   useEffect(() => {
     // Limpa tokens inválidos antes de verificar
-    const token = localStorage.getItem("token");
+    let token = localStorage.getItem("token");
+    let storageType = 'localStorage';
+    
+    if (!token) {
+      token = sessionStorage.getItem("token");
+      storageType = 'sessionStorage';
+    }
+    
     if (token) {
       try {
         const parts = token.split('.');
@@ -382,27 +394,46 @@ export default function Login() {
           const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
           const parsed = JSON.parse(decoded);
           
-          // Se token expirado, limpa localStorage
+          // Se token expirado, limpa o storage correto
           if (parsed?.exp && Date.now() / 1000 > parsed.exp) {
-            console.log('🔍 Token expirado, limpando localStorage');
-            localStorage.removeItem('token');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('tipousuarioid');
-            localStorage.removeItem('loginId');
+            console.log(`🔍 Token expirado, limpando ${storageType}`);
+            if (storageType === 'localStorage') {
+              localStorage.removeItem('token');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('tipousuarioid');
+              localStorage.removeItem('loginId');
+            } else {
+              sessionStorage.removeItem('token');
+              sessionStorage.removeItem('userId');
+              sessionStorage.removeItem('tipousuarioid');
+              sessionStorage.removeItem('loginId');
+            }
             return;
           }
         }
       } catch (error) {
-        console.log('🔍 Token inválido, limpando localStorage');
-        localStorage.removeItem('token');
-        localStorage.removeItem('userId');
-        localStorage.removeItem('tipousuarioid');
-        localStorage.removeItem('loginId');
+        console.log(`🔍 Token inválido, limpando ${storageType}`);
+        if (storageType === 'localStorage') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('userId');
+          localStorage.removeItem('tipousuarioid');
+          localStorage.removeItem('loginId');
+        } else {
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('userId');
+          sessionStorage.removeItem('tipousuarioid');
+          sessionStorage.removeItem('loginId');
+        }
         return;
       }
     }
 
-    const tipo = Number(localStorage.getItem("tipousuarioid"));
+    // Verificar primeiro localStorage, depois sessionStorage
+    let tipo = Number(localStorage.getItem("tipousuarioid"));
+    if (!tipo) {
+      tipo = Number(sessionStorage.getItem("tipousuarioid"));
+    }
+    
     if (token && tipo) {
       navigate(tipo === 15 ? "/admin" : "/home", { replace: true });
     }
@@ -410,7 +441,11 @@ export default function Login() {
 
   // Garante Authorization no primeiro load (api.js já tem interceptor)
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    // Verificar primeiro localStorage, depois sessionStorage
+    let token = localStorage.getItem("token");
+    if (!token) {
+      token = sessionStorage.getItem("token");
+    }
     if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
   }, []);
 
@@ -451,6 +486,12 @@ export default function Login() {
       
       if (!data?.token) return toast.error("Resposta do servidor sem token.");
 
+      // Para login Google, sempre usar localStorage (persistente)
+      // Limpar sessionStorage primeiro para evitar conflitos
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("tipousuarioid");
+      
       localStorage.setItem("token", data.token);
       if (data.loginId != null) localStorage.setItem("userId", String(data.loginId));
       if (data.tipoUsuarioId != null) localStorage.setItem("tipousuarioid", String(data.tipoUsuarioId));
@@ -499,15 +540,26 @@ export default function Login() {
       const { data } = await api.post(ENDPOINTS.login, { usuario, senha });
       if (!data?.token) throw new Error("Resposta sem token.");
 
-      localStorage.setItem("token", data.token);
-      if (data.loginId != null) localStorage.setItem("userId", String(data.loginId));
-      if (data.tipoUsuarioId != null) localStorage.setItem("tipousuarioid", String(data.tipoUsuarioId));
+      // Limpar storage anterior para evitar conflitos
+      localStorage.removeItem("token");
+      localStorage.removeItem("userId");
+      localStorage.removeItem("tipousuarioid");
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("userId");
+      sessionStorage.removeItem("tipousuarioid");
+
+      // Salvar token baseado na opção "Lembrar de mim"
+      const storage = lembrarDeMim ? localStorage : sessionStorage;
+      storage.setItem("token", data.token);
+      if (data.loginId != null) storage.setItem("userId", String(data.loginId));
+      if (data.tipoUsuarioId != null) storage.setItem("tipousuarioid", String(data.tipoUsuarioId));
       
       // Debug: verificar o que está sendo salvo
       console.log('🔍 === DADOS SALVOS ===');
       console.log('data.loginId:', data.loginId);
       console.log('data.tipoUsuarioId:', data.tipoUsuarioId);
-      console.log('localStorage tipousuarioid:', localStorage.getItem('tipousuarioid'));
+      console.log('storage usado:', lembrarDeMim ? 'localStorage' : 'sessionStorage');
+      console.log('tipousuarioid salvo:', storage.getItem('tipousuarioid'));
       api.defaults.headers.common.Authorization = `Bearer ${data.token}`;
 
       console.log('🔍 === LOGIN BEM-SUCEDIDO ===');
@@ -850,6 +902,19 @@ export default function Login() {
                 onSuccess={handleGoogleCredentialResponse}
                 onError={() => toast.error("Falha ao autenticar com Google.")}
               />
+            </div>
+
+            {/* Lembrar de mim */}
+            <div className={styles.rememberMeRow}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={lembrarDeMim}
+                  onChange={(e) => setLembrarDeMim(e.target.checked)}
+                  className={styles.checkbox}
+                />
+                <span className={styles.checkboxText}>Lembrar de mim</span>
+              </label>
             </div>
 
             {/* Esqueci minha senha */}

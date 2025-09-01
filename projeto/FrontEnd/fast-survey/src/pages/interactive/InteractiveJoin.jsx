@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Users, Presentation, ArrowRight, Sparkles, Home } from 'lucide-react';
-import api from '../../config/api';
+import api from '../../lib/api';
 import styles from './InteractiveJoin.module.css';
 
 const InteractiveJoin = () => {
@@ -16,11 +16,11 @@ const InteractiveJoin = () => {
 
   useEffect(() => {
     loadSession();
-  }, [accessCode]);
+  }, [accessCode, loadSession]);
 
   const loadSession = async () => {
     try {
-      const response = await api.get(`/api/pesquisa-interativa/sessao-por-codigo/${accessCode}`);
+      const response = await api.get(`/api/PesquisaInterativa/sessao/${accessCode}`);
       if (response.data.success) {
         setSession(response.data.data);
       } else {
@@ -46,8 +46,8 @@ const InteractiveJoin = () => {
     setError('');
 
     try {
-      const response = await api.post('/api/participantes-sessao/registrar-entrada', {
-        sessaoId: session.sessaoId,
+      const response = await api.post('/api/pesquisa-interativa/entrar', {
+        codigoAcesso: accessCode,
         nomeParticipante: participantName.trim()
       });
 

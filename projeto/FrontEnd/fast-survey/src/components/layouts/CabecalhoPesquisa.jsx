@@ -6,7 +6,13 @@ function formatarDataBR(data) {
   try {
     const d = typeof data === "string" || typeof data === "number" ? new Date(data) : data;
     if (Number.isNaN(d?.getTime?.())) return "—";
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short" }).format(d);
+    
+    // Formatar manualmente para DD/MM/YYYY
+    const dia = String(d.getDate()).padStart(2, '0');
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const ano = d.getFullYear();
+    
+    return `${dia}/${mes}/${ano}`;
   } catch {
     return "—";
   }

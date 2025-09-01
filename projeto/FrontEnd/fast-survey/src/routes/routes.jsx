@@ -39,44 +39,32 @@ const PrivateRouteAdmin = ({ children }) => {
   const token = localStorage.getItem('token');
   const tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
   
-  console.log('🔍 PrivateRouteAdmin - Token:', token ? 'existe' : 'não existe');
-  console.log('🔍 PrivateRouteAdmin - TipoUsuarioId:', tipoUsuarioId);
-  console.log('🔍 PrivateRouteAdmin - TipoUsuarioId === 15:', tipoUsuarioId === 15);
-  
   if (!token) {
-    console.log('🔍 PrivateRouteAdmin - Sem token, redirecionando para /login');
     return <Navigate to="/login" replace />;
   }
   
   if (tipoUsuarioId === 15) {
-    console.log('🔍 PrivateRouteAdmin - Usuário é admin, renderizando children');
     return children;
   } else {
-    console.log('🔍 PrivateRouteAdmin - Usuário não é admin (tipo:', tipoUsuarioId, '), redirecionando para /home');
     return <Navigate to="/home" replace />;
   }
 };
 
 const RootRedirect = () => {
-  console.log('🔍 RootRedirect - Verificando redirecionamento da rota raiz');
-  
   const token = localStorage.getItem('token');
   const tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
   
   // Se tem token válido e é admin, redireciona para /admin
   if (token && tipoUsuarioId === 15) {
-    console.log('🔍 RootRedirect - Usuário admin logado, redirecionando para /admin');
     return <Navigate to="/admin" replace />;
   }
   
   // Se tem token válido mas não é admin, redireciona para /home
   if (token && tipoUsuarioId !== 15) {
-    console.log('🔍 RootRedirect - Usuário logado, redirecionando para /home');
     return <Navigate to="/home" replace />;
   }
   
   // Se não tem token, vai para login
-  console.log('🔍 RootRedirect - Usuário não logado, redirecionando para /login');
   return <Navigate to="/login" replace />;
 };
 
@@ -94,11 +82,16 @@ const AppRoutes = () => {
 
   // Verificar se usuário já está logado e redirecionar adequadamente
   const LoginGuard = () => {
-    console.log('🔍 LoginGuard - Verificando se usuário já está logado');
     clearInvalidAuth(); // Limpa tokens inválidos
     
-    const token = localStorage.getItem('token');
-    const tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
+    // Verificar primeiro localStorage, depois sessionStorage
+    let token = localStorage.getItem('token');
+    let tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
+    
+    if (!token || !tipoUsuarioId) {
+      token = sessionStorage.getItem('token');
+      tipoUsuarioId = Number(sessionStorage.getItem('tipousuarioid'));
+    }
     
     // Se tem token válido e é admin, redireciona para /admin
     if (token && tipoUsuarioId === 15) {
@@ -118,9 +111,10 @@ const AppRoutes = () => {
     return LoginElement;
   };
 
-  // Função para limpar localStorage se necessário
+  // Função para limpar tokens inválidos
   const clearInvalidAuth = () => {
-    const token = localStorage.getItem('token');
+    // Verificar localStorage
+    let token = localStorage.getItem('token');
     if (token) {
       try {
         const parts = token.split('.');
@@ -131,13 +125,37 @@ const AppRoutes = () => {
           
           // Se token expirado, limpa localStorage
           if (parsed?.exp && Date.now() / 1000 > parsed.exp) {
-            console.log('🔍 Limpando localStorage - token expirado');
             logout();
+            return;
           }
         }
       } catch (error) {
-        console.log('🔍 Limpando localStorage - token inválido');
         logout();
+        return;
+      }
+    }
+    
+    // Verificar sessionStorage
+    token = sessionStorage.getItem('token');
+    if (token) {
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = parts[1];
+          const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+          const parsed = JSON.parse(decoded);
+          
+          // Se token expirado, limpa sessionStorage
+          if (parsed?.exp && Date.now() / 1000 > parsed.exp) {
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('userId');
+            sessionStorage.removeItem('tipousuarioid');
+          }
+        }
+      } catch (error) {
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('userId');
+        sessionStorage.removeItem('tipousuarioid');
       }
     }
   };
@@ -218,9 +236,9 @@ const AppRoutes = () => {
           }
         />
 
-        {/* Público por slug (conforme backend público) */}
+        {/* Público por ID (conforme backend público) */}
         <Route
-          path="/responder/:slug"
+          path="/responder/:id"
           element={mobile ? <MobileResponderPesquisa /> : <ResponderPesquisa />}
         />
 

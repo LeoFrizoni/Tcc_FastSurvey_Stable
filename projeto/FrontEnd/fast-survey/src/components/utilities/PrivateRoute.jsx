@@ -3,8 +3,14 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  // Verificar primeiro localStorage, depois sessionStorage
+  let token = localStorage.getItem('token');
+  let loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  
+  if (!token || !loginId) {
+    token = sessionStorage.getItem('token');
+    loginId = sessionStorage.getItem('loginId') || sessionStorage.getItem('userId');
+  }
   
   console.log('🔍 PrivateRoute - Verificando autenticação');
   console.log('🔍 PrivateRoute - Token:', token ? 'existe' : 'não existe');

@@ -6,7 +6,7 @@
  * e redireciona para a página de login
  */
 export const logout = () => {
-  // Remove todas as chaves relacionadas à autenticação
+  // Remove todas as chaves relacionadas à autenticação do localStorage
   localStorage.removeItem('loginId');
   localStorage.removeItem('userId');
   localStorage.removeItem('token');
@@ -16,6 +16,13 @@ export const logout = () => {
   // Remove chaves relacionadas ao avatar/perfil se existirem
   localStorage.removeItem('avatarUrl');
   localStorage.removeItem('userName');
+  
+  // Remove todas as chaves relacionadas à autenticação do sessionStorage
+  sessionStorage.removeItem('loginId');
+  sessionStorage.removeItem('userId');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('tipousuarioid');
+  sessionStorage.removeItem('tipoUsuarioId');
   
   // Remove chaves de cache específicas do FastSurvey
   const keysToRemove = [];
@@ -38,8 +45,15 @@ export const logout = () => {
  * @returns {boolean}
  */
 export const isLoggedIn = () => {
-  const token = localStorage.getItem('token');
-  const loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  // Verifica primeiro localStorage, depois sessionStorage
+  let token = localStorage.getItem('token');
+  let loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  
+  if (!token || !loginId) {
+    token = sessionStorage.getItem('token');
+    loginId = sessionStorage.getItem('loginId') || sessionStorage.getItem('userId');
+  }
+  
   return !!(token && loginId);
 };
 
@@ -48,7 +62,13 @@ export const isLoggedIn = () => {
  * @returns {number|null}
  */
 export const getUserId = () => {
-  const loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  // Verifica primeiro localStorage, depois sessionStorage
+  let loginId = localStorage.getItem('loginId') || localStorage.getItem('userId');
+  
+  if (!loginId) {
+    loginId = sessionStorage.getItem('loginId') || sessionStorage.getItem('userId');
+  }
+  
   return loginId ? parseInt(loginId, 10) : null;
 };
 
@@ -57,7 +77,14 @@ export const getUserId = () => {
  * @returns {string|null}
  */
 export const getToken = () => {
-  return localStorage.getItem('token');
+  // Verifica primeiro localStorage, depois sessionStorage
+  let token = localStorage.getItem('token');
+  
+  if (!token) {
+    token = sessionStorage.getItem('token');
+  }
+  
+  return token;
 };
 
 /**
@@ -65,6 +92,12 @@ export const getToken = () => {
  * @returns {number|null}
  */
 export const getUserType = () => {
-  const tipoUsuarioId = localStorage.getItem('tipousuarioid') || localStorage.getItem('tipoUsuarioId');
+  // Verifica primeiro localStorage, depois sessionStorage
+  let tipoUsuarioId = localStorage.getItem('tipousuarioid') || localStorage.getItem('tipoUsuarioId');
+  
+  if (!tipoUsuarioId) {
+    tipoUsuarioId = sessionStorage.getItem('tipousuarioid') || sessionStorage.getItem('tipoUsuarioId');
+  }
+  
   return tipoUsuarioId ? parseInt(tipoUsuarioId, 10) : null;
 };

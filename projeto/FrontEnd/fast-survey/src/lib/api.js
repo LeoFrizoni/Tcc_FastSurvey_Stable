@@ -11,10 +11,27 @@ const api = axios.create({
   },
 });
 
+// Função para obter token de localStorage ou sessionStorage
+const getToken = () => {
+  // Primeiro tenta localStorage (persistente)
+  let token = localStorage.getItem('token');
+  if (token) return token;
+  
+  // Se não encontrar, tenta sessionStorage (temporário)
+  token = sessionStorage.getItem('token');
+  return token;
+};
+
 // Injeta Bearer se houver
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const token = getToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+    console.log('Axios Interceptor - Token encontrado, adicionando ao header');
+  } else {
+    console.log('Axios Interceptor - Nenhum token encontrado');
+  }
+  console.log('Axios Interceptor - URL da requisição:', config.url);
   return config;
 });
 
@@ -26,9 +43,13 @@ api.interceptors.response.use(
     const status = error?.response?.status;
     if (status === 401 && !isRedirecting) {
       isRedirecting = true;
+      // Limpar tanto localStorage quanto sessionStorage
       localStorage.removeItem('token');
       localStorage.removeItem('userId');
       localStorage.removeItem('tipousuarioid');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('userId');
+      sessionStorage.removeItem('tipousuarioid');
       // opcional: guardar rota pretendida
       const here = window.location.pathname + window.location.search;
       if (here && here !== '/login') sessionStorage.setItem('postLoginRedirect', here);

@@ -26,7 +26,6 @@ import styles from "./createPesquisa.module.css";
 import CabecalhoPesquisa from "../../components/layouts/CabecalhoPesquisa";
 import InformacoesPesquisa from "../../components/layouts/InformacoesPesquisa";
 import { API_BASE_URL } from "../../config";
-import { logout } from "../../utils/auth";
 
 /** Util: detectar se o alvo é um elemento editável */
 const isEditableTarget = (el) =>
@@ -172,17 +171,24 @@ const CriarPesquisa = () => {
   const [tiposPesquisa, setTiposPesquisa] = useState([]);
 
   useEffect(() => {
-    const loginId = localStorage.getItem("userId") || localStorage.getItem("loginId");
-    const token = localStorage.getItem("token");
+    const loginId = localStorage.getItem("userId") || 
+                   localStorage.getItem("loginId") || 
+                   sessionStorage.getItem("userId") || 
+                   sessionStorage.getItem("loginId");
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
     
     console.log('🔍 CreatePesquisa - Verificando autenticação');
     console.log('🔍 CreatePesquisa - loginId:', loginId);
     console.log('🔍 CreatePesquisa - token:', token ? 'existe' : 'não existe');
     
-    if (loginId && token) {
-      console.log('✅ CreatePesquisa - LoginId e token encontrados, fazendo requisição...');
+    if (loginId) {
+      console.log('✅ CreatePesquisa - LoginId encontrado, tentando carregar perfil...');
+      
+      // Preparar headers de autenticação (opcional)
+      const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+      
       axios
-        .get(`${API_BASE_URL}/api/login/Perfil`)
+        .get(`${API_BASE_URL}/api/login/Perfil`, { headers: authHeaders })
         .then((res) => {
           console.log('✅ CreatePesquisa - Usuário carregado com sucesso');
           console.log('✅ CreatePesquisa - Dados do usuário:', res.data);
@@ -193,7 +199,7 @@ const CriarPesquisa = () => {
           console.error("❌ CreatePesquisa - Status:", error.response?.status);
           console.error("❌ CreatePesquisa - Data:", error.response?.data);
           
-          // Se o usuário não existe, usar nome padrão em vez de fazer logout
+          // Se o usuário não existe ou não autorizado, usar nome padrão
           if (error.response?.status === 404 || error.response?.status === 401) {
             console.log('⚠️ CreatePesquisa - Usuário não encontrado ou não autorizado, usando nome padrão');
             setAutorNome("Usuário");
@@ -203,17 +209,20 @@ const CriarPesquisa = () => {
           }
         });
     } else {
-      console.log('❌ CreatePesquisa - Sem loginId ou token, redirecionando para login');
-      console.log('❌ CreatePesquisa - loginId:', loginId);
-      console.log('❌ CreatePesquisa - token:', token);
-      // Não fazer logout aqui, deixar o PrivateRoute cuidar disso
+      console.log('❌ CreatePesquisa - Sem loginId, usando nome padrão');
+      setAutorNome("Usuário");
     }
   }, []);
 
   useEffect(() => {
     console.log('🔍 CreatePesquisa - Carregando tipos de pesquisa...');
+    
+    // Verificar se há token disponível (opcional)
+    const token = localStorage.getItem('token') ?? sessionStorage.getItem('token');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    
     axios
-      .get(`${API_BASE_URL}/api/TipoPesquisa/ListarTipoPesquisa`)
+      .get(`${API_BASE_URL}/api/TipoPesquisa`, { headers: authHeaders })
       .then((res) => {
         console.log('✅ CreatePesquisa - Tipos carregados:', res.data);
         console.log('✅ CreatePesquisa - Estrutura do primeiro item:', res.data[0]);
@@ -451,7 +460,11 @@ const CriarPesquisa = () => {
         const fd = new FormData();
         fd.append("anexo", b.arquivo, b.arquivo.name);
         fd.append("PesquisaId", String(pesquisaId));
-        return axios.post(`${API_BASE_URL}/api/anexos`, fd);
+        // Verificar se há token disponível (opcional)
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        return axios.post(`${API_BASE_URL}/api/anexos`, fd, { headers: authHeaders });
       });
 
       const results = await Promise.allSettled(uploads);
@@ -463,35 +476,71 @@ const CriarPesquisa = () => {
   );
 
   const fetchPerguntasDaPesquisa = useCallback(async (pesquisaId) => {
-    try {
-      // Aguarda um pouco para dar tempo do backend processar
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const resp = await axios.get(
-        `${API_BASE_URL}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`
-      );
-      return resp.data?.perguntas ?? [];
-    } catch (error) {
-      console.error("Erro ao buscar perguntas da pesquisa:", error);
-      console.log("Tentando endpoint alternativo...");
-      
+    // Verificar se há token disponível (opcional) - definido fora dos try/catch
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    // Aguarda mais tempo para o backend processar a pesquisa recém-criada
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Tentar múltiplas vezes com intervalos
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
       try {
-        // Tenta endpoint alternativo
+        console.log(`🔍 Tentativa ${tentativa} de buscar perguntas da pesquisa ${pesquisaId}`);
+        
         const resp = await axios.get(
-          `${API_BASE_URL}/api/pesquisas/${pesquisaId}`
+          `${API_BASE_URL}/api/pesquisas/BuscarPesquisaPorId/${pesquisaId}`,
+          { headers: authHeaders }
         );
-        return resp.data?.perguntas ?? [];
-      } catch (error2) {
-        console.error("Erro no endpoint alternativo:", error2);
-        return [];
+        
+        if (resp.data?.perguntas && resp.data.perguntas.length > 0) {
+          console.log(`✅ Perguntas encontradas na tentativa ${tentativa}:`, resp.data.perguntas.length);
+          return resp.data.perguntas;
+        }
+        
+        // Se não encontrou perguntas, tenta endpoint alternativo
+        const respAlt = await axios.get(
+          `${API_BASE_URL}/api/pesquisas/${pesquisaId}`,
+          { headers: authHeaders }
+        );
+        
+        if (respAlt.data?.perguntas && respAlt.data.perguntas.length > 0) {
+          console.log(`✅ Perguntas encontradas no endpoint alternativo (tentativa ${tentativa}):`, respAlt.data.perguntas.length);
+          return respAlt.data.perguntas;
+        }
+        
+        // Se ainda não encontrou, aguarda mais um pouco antes da próxima tentativa
+        if (tentativa < 3) {
+          console.log(`⏳ Aguardando mais 2 segundos antes da próxima tentativa...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+        
+      } catch (error) {
+        console.error(`❌ Erro na tentativa ${tentativa} ao buscar perguntas:`, error);
+        
+        // Se for a última tentativa, retorna array vazio
+        if (tentativa === 3) {
+          console.log("⚠️ Todas as tentativas falharam, retornando array vazio");
+          return [];
+        }
+        
+        // Aguarda antes da próxima tentativa
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
+    
+    return [];
   }, []);
 
   const fetchOpcoesDaPergunta = useCallback(async (perguntaId) => {
     try {
+              // Verificar se há token disponível (opcional)
+              const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+              const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+              
               const resp = await axios.get(
-          `${API_BASE_URL}/api/OpcoesPergunta/Pergunta/${perguntaId}`
+          `${API_BASE_URL}/api/OpcoesPergunta/Pergunta/${perguntaId}`,
+          { headers: authHeaders }
         );
       return Array.isArray(resp.data) ? resp.data : [];
     } catch {
@@ -533,11 +582,16 @@ const CriarPesquisa = () => {
         if (!perguntaId) continue;
 
         for (const file of files) {
+          console.log('🔍 UploadAnexosPergunta - Enviando arquivo:', file.name, 'para pergunta:', perguntaId);
           const fd = new FormData();
           fd.append("anexo", file, file.name);
           fd.append("PerguntaId", String(perguntaId));
           fd.append("PesquisaId", String(pesquisaId)); // opcional
-          uploads.push(axios.post(`${API_BASE_URL}/api/anexos`, fd));
+          // Verificar se há token disponível (opcional)
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+          
+          uploads.push(axios.post(`${API_BASE_URL}/api/anexos`, fd, { headers: authHeaders }));
         }
       }
 
@@ -553,7 +607,12 @@ const CriarPesquisa = () => {
 
   // ---------- montar VM + template ----------
   const montarPesquisaVM = useCallback(() => {
-    const loginId = parseInt(localStorage.getItem("userId"));
+    // Verificar loginId em ambos os storages
+    const loginIdStr = localStorage.getItem("userId") || 
+                      localStorage.getItem("loginId") || 
+                      sessionStorage.getItem("userId") || 
+                      sessionStorage.getItem("loginId");
+    const loginId = loginIdStr ? parseInt(loginIdStr) : null;
     const dataCriacao = new Date();
 
     const limparOpcoes = (ops = []) =>
@@ -561,59 +620,7 @@ const CriarPesquisa = () => {
         .map((o) => (typeof o === "string" ? o.trim() : o))
         .filter((o) => Boolean(o) && (typeof o === "string" ? o.trim().length > 0 : true));
 
-    
-     const perguntasDiscursivas = blocos
-       .filter((b) => b.tipo === "discursiva")
-       .map((b, idx) => ({
-         texto: b.texto,
-         resposta: "",
-         pesquisaId: 2147483647,
-         perguntaId: 2147483647 + idx,
-         id: 0,
-       }));
 
-     const perguntasObjetivas = blocos
-       .filter((b) => b.tipo === "objetiva")
-       .map((b, idxPergunta) => {
-         const ops = limparOpcoes(b.opcoes);
-         return {
-           texto: b.texto,
-           tipo: "objetiva",
-           temGabarito: !!b.TemGabarito,
-           permitirMultiplaSelecao: false,
-           pesquisaId: 2147483647,
-           perguntaId: 2147483647 + idxPergunta,
-           id: 0,
-           opcoes: ops.map((o, idx) => ({
-             texto: o,
-             correta: !!b.TemGabarito && b.corretaIndex === idx,
-             perguntaId: 2147483647 + idxPergunta,
-             id: 0,
-           })),
-         };
-    });
-
-    const perguntasMultiplaEscolha = blocos
-      .filter((b) => b.tipo === "multipla")
-      .map((b, idxPergunta) => {
-        const ops = limparOpcoes(b.opcoes);
-        const corretas = Array.isArray(b.corretas) ? b.corretas : [];
-        return {
-          texto: b.texto,
-          tipo: "multipla",
-          temGabarito: !!b.TemGabarito,
-          permitirMultiplaSelecao: !!b.permitirMultiplaSelecao,
-          pesquisaId: 2147483647,
-          perguntaId: 2147483647 + idxPergunta,
-          id: 0,
-          opcoes: ops.map((o, idx) => ({
-            texto: o,
-            correta: !!b.TemGabarito && corretas.includes(idx),
-            perguntaId: 2147483647 + idxPergunta,
-            id: 0,
-          })),
-        };
-      });
 
     const blocosTemplate = blocos
       .filter((b) => b.tipo !== "anexo")
@@ -706,7 +713,11 @@ const CriarPesquisa = () => {
         }
 
         try {
-          await axios.put(`${API_BASE_URL}/api/Perguntas/${perguntaId}/gabarito`, dto);
+          // Verificar se há token disponível (opcional)
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+          
+          await axios.put(`${API_BASE_URL}/api/Perguntas/${perguntaId}/gabarito`, dto, { headers: authHeaders });
         } catch (e) {
           console.error("Falha ao definir gabarito da pergunta", perguntaId, e);
           toast.warn(`Não foi possível definir gabarito de uma pergunta (#${perguntaId}).`, {
@@ -732,7 +743,12 @@ const CriarPesquisa = () => {
         const pesquisaVM = montarPesquisaVM();
         console.log("[LOG] Estado dos blocos antes do envio:", JSON.stringify(blocos, null, 2));
         console.log("[LOG] JSON da pesquisa a ser enviado:", JSON.stringify(pesquisaVM, null, 2));
-        const response = await axios.post(`${API_BASE_URL}/api/pesquisas`, pesquisaVM);
+        
+        // Verificar se há token disponível (opcional)
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        const response = await axios.post(`${API_BASE_URL}/api/pesquisas`, pesquisaVM, { headers: authHeaders });
         const id = response.data?.pesquisaid ?? response.data?.pesquisa?.pesquisaid ?? response.data?.id;
         if (!id) {
           toast.error("Não foi possível obter o ID da pesquisa criada.", {

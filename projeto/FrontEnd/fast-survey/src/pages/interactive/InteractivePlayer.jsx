@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Users, 
   Presentation, 
   CheckCircle, 
   Clock, 
   Home,
   Send
 } from 'lucide-react';
-import api from '../../config/api';
+import api from '../../lib/api';
 import styles from './InteractivePlayer.module.css';
 
 const InteractivePlayer = () => {
@@ -30,7 +29,7 @@ const InteractivePlayer = () => {
     loadSession();
     const interval = setInterval(loadSession, 2000); // Atualiza a cada 2 segundos
     return () => clearInterval(interval);
-  }, [sessionId]);
+  }, [sessionId, loadParticipantData, loadSession]);
 
   const loadParticipantData = () => {
     const participantData = localStorage.getItem('interactiveParticipantData');
@@ -43,7 +42,7 @@ const InteractivePlayer = () => {
 
   const loadSession = async () => {
     try {
-      const response = await api.get(`/api/pesquisa-interativa/sessao/${sessionId}`);
+      const response = await api.get(`/api/PesquisaInterativa/sessao/${sessionId}`);
       if (response.data.success) {
         const sessionData = response.data.data;
         setSession(sessionData);
@@ -87,11 +86,12 @@ const InteractivePlayer = () => {
     setError('');
 
     try {
-      const response = await api.post('/api/pesquisa-interativa/responder-pergunta', {
+      const response = await api.post('/api/pesquisa-interativa/responder', {
         sessaoId: sessionId,
         participanteId: participant.participanteId,
         perguntaId: currentQuestion.perguntaId,
-        opcoesSelecionadas: selectedOptions
+        opcoesSelecionadas: selectedOptions,
+        textoResposta: ''
       });
 
       if (response.data.success) {
@@ -110,9 +110,8 @@ const InteractivePlayer = () => {
 
   const handleLeaveSession = async () => {
     try {
-      await api.post('/api/participantes-sessao/marcar-saida', {
-        participanteId: participant.participanteId
-      });
+      // Por enquanto, apenas remove os dados locais
+      // TODO: Implementar endpoint para marcar saída do participante
       localStorage.removeItem('interactiveParticipantData');
       navigate('/home');
     } catch (err) {

@@ -124,24 +124,61 @@ const HomePage = () => {
   // Atualizar loginId e token quando localStorage mudar
   useEffect(() => {
     const updateAuth = () => {
-      const v = localStorage.getItem('loginId') ?? localStorage.getItem('userId');
+      // Verificar tanto localStorage quanto sessionStorage
+      const v = localStorage.getItem('loginId') ?? 
+                localStorage.getItem('userId') ?? 
+                sessionStorage.getItem('loginId') ?? 
+                sessionStorage.getItem('userId');
       const n = v ? parseInt(v, 10) : NaN;
       const newLoginId = Number.isFinite(n) ? n : null;
-      const newToken = localStorage.getItem('token');
+      const newToken = localStorage.getItem('token') ?? sessionStorage.getItem('token');
       
-      console.log('🔍 HomePage - Atualizando auth:', { newLoginId, newToken: newToken ? 'existe' : 'não existe' });
+      console.log('🔍 HomePage - Atualizando auth:', { 
+        v, 
+        n, 
+        newLoginId, 
+        newToken: newToken ? 'existe' : 'não existe' 
+      });
       
-      setLoginId(newLoginId);
-      setToken(newToken);
+      // Só atualizar se os valores realmente mudaram
+      setLoginId(prev => {
+        if (prev !== newLoginId) {
+          console.log('🔍 HomePage - LoginId mudou:', prev, '->', newLoginId);
+          return newLoginId;
+        }
+        return prev;
+      });
+      
+      setToken(prev => {
+        if (prev !== newToken) {
+          console.log('🔍 HomePage - Token mudou:', prev ? 'existe' : 'não existe', '->', newToken ? 'existe' : 'não existe');
+          return newToken;
+        }
+        return prev;
+      });
     };
     
+    // Executar imediatamente
     updateAuth();
     
-    // Listener para mudanças no localStorage
+    // Listener para mudanças no localStorage e sessionStorage
     const handleStorageChange = () => updateAuth();
     window.addEventListener('storage', handleStorageChange);
     
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // Para sessionStorage, precisamos usar um listener customizado
+    const handleSessionStorageChange = (e) => {
+      if (e.key === 'loginId' || e.key === 'userId' || e.key === 'token') {
+        updateAuth();
+      }
+    };
+    
+    // Adicionar listener para mudanças no sessionStorage
+    window.addEventListener('sessionStorageChange', handleSessionStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('sessionStorageChange', handleSessionStorageChange);
+    };
   }, []); // Dependências vazias para executar apenas uma vez
 
   const MAP_STORAGE_KEY = useMemo(
@@ -184,9 +221,9 @@ const HomePage = () => {
 
   /* === Carregamento inicial === */
   useEffect(() => {
-    // Evitar execução se ainda não temos os dados de autenticação
-    if (loginId === null || token === null) {
-      console.log('🔍 HomePage - Aguardando dados de autenticação...');
+    // Evitar execução se ainda não temos o loginId
+    if (loginId === null) {
+      console.log('🔍 HomePage - Aguardando dados de autenticação...', { loginId, token: token ? 'existe' : 'não existe' });
       return;
     }
     
@@ -195,19 +232,26 @@ const HomePage = () => {
       console.log('🔍 HomePage - loginId:', loginId);
       console.log('🔍 HomePage - token:', token ? 'existe' : 'não existe');
       
-      if (!loginId || !token) {
-        console.log('❌ HomePage - Sem loginId ou token, redirecionando para login');
+      if (!loginId) {
+        console.log('❌ HomePage - Sem loginId, redirecionando para login');
         toast.error('Você precisa estar logado para acessar esta página.');
         navigate('/login');
         return;
       }
 
+      // Reset loading state
+      setLoading(true);
+      console.log('🔍 HomePage - Iniciando carregamento...');
+
       try {
+        // Preparar headers de autenticação (opcional)
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        
         // Buscar tipos + pesquisas + pastas em paralelo
         const [tiposRes, pesqRes, pastasRes] = await Promise.allSettled([
-          axios.get(`${API_BASE_URL}/api/TipoPesquisa`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get(`${API_BASE_URL}/api/pastas`, { params: { loginid: loginId }, headers: { Authorization: `Bearer ${token}` } })
+          axios.get(`${API_BASE_URL}/api/TipoPesquisa`, { headers: authHeaders }),
+          axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, { headers: authHeaders }),
+          axios.get(`${API_BASE_URL}/api/pastas`, { params: { loginid: loginId }, headers: authHeaders })
         ]);
 
         // Tipos
@@ -226,10 +270,16 @@ const HomePage = () => {
         // Pesquisas
         if (pesqRes.status === 'fulfilled') {
           const arr = Array.isArray(pesqRes.value.data) ? pesqRes.value.data.map(normalizePesquisa) : [];
+          console.log('🔍 HomePage - Pesquisas carregadas:', arr.length);
+          console.log('🔍 HomePage - Dados das pesquisas:', pesqRes.value.data);
           setPesquisas(arr);
         } else {
+          console.log('❌ HomePage - Erro ao carregar pesquisas:', pesqRes.reason);
           setPesquisas([]);
-          toast.error('Falha ao carregar pesquisas.');
+          // Não mostrar erro se for um usuário sem pesquisas
+          if (pesqRes.reason?.response?.status !== 404) {
+            toast.error('Falha ao carregar pesquisas.');
+          }
         }
 
         // Pastas
@@ -244,9 +294,10 @@ const HomePage = () => {
           toast.warn('Não consegui carregar as pastas do servidor. Usei o cache local.');
         }
       } catch (err) {
-        console.error(err);
+        console.error('❌ HomePage - Erro no bootstrap:', err);
         toast.error('Falha ao carregar dados.');
       } finally {
+        console.log('🔍 HomePage - Finalizando carregamento, setLoading(false)');
         setLoading(false);
       }
     };
@@ -258,6 +309,8 @@ const HomePage = () => {
     () => attachTipoDescricao(pesquisas),
     [pesquisas, attachTipoDescricao]
   );
+
+
 
   /* === Modal Nova Pasta === */
   const abrirModalPasta = () => {
@@ -566,7 +619,7 @@ const HomePage = () => {
     }
   };
 
-  console.log('DEBUG - Todas as variáveis REACT_APP:', process.env);
+
 
   /* ============================== RENDER ============================== */
   return (
@@ -728,7 +781,7 @@ const HomePage = () => {
 
         {/* Grid */}
         <section className={styles.gridArea}>
-          {loading ? (
+          {loading || loginId === null ? (
             <div className={styles.loading}>Carregando suas pesquisas…</div>
           ) : listaFiltrada.length === 0 ? (
             <div className={styles.empty}>

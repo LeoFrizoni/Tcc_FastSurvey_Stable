@@ -5,32 +5,84 @@ import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import styles from './responderPesquisa.module.css';
 import '../../components/layouts/global.css';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import api from '../../lib/api';
 
 /* ================== Config API / Auth ================== */
-const API = 'http://localhost:5062/api';
-const API_BASE = API.replace(/\/api$/,''); // http://localhost:5062
+const API_BASE = 'http://localhost:5062';
 
-function getToken() {
-  const keys = ['token','authToken','accessToken','jwt','Authorization'];
-  for (const k of keys) {
-    const v = localStorage.getItem(k) || sessionStorage.getItem(k);
-    if (v) return v.replace(/^Bearer\s+/i,'');
+// Cache para nomes de usuários
+const userNamesCache = new Map();
+
+// Mapeamento hardcoded dos usuários conhecidos (fallback)
+const knownUsers = {
+  1: 'Leonardo',
+  16: 'Rubens',
+  35: 'Leonardo Frizoni',
+  46: 'aimeebruna',
+  49: 'Lucas',
+  50: 'Hutao'
+};
+
+// Função para buscar nome do usuário
+async function getUserName(loginId) {
+  if (!loginId) return null;
+  
+  console.log('Buscando nome do usuário para LoginId:', loginId);
+  
+  // Verificar cache primeiro
+  if (userNamesCache.has(loginId)) {
+    console.log('Nome encontrado no cache:', userNamesCache.get(loginId));
+    return userNamesCache.get(loginId);
   }
+  
+  try {
+    console.log('Tentando buscar via endpoint de admin...');
+    // Tentar buscar via endpoint de admin (pode falhar se não for admin)
+    const response = await api.get(`/api/admin/usuarios/${loginId}`);
+    console.log('Resposta da API admin:', response.data);
+    const userName = response.data?.usuario || response.data?.Usuario;
+    console.log('Nome extraído:', userName);
+    if (userName) {
+      userNamesCache.set(loginId, userName);
+      console.log('Nome armazenado no cache:', userName);
+      return userName;
+    }
+  } catch (error) {
+    console.log('Erro ao buscar nome do usuário via admin:', error.response?.status, error.response?.data);
+    
+    // Se falhar, tentar endpoint de perfil (pode funcionar se for o próprio usuário)
+    if (error.response?.status === 403 || error.response?.status === 401) {
+      try {
+        console.log('Tentando endpoint de perfil...');
+        const perfilResponse = await api.get('/api/Login/Perfil');
+        console.log('Resposta do perfil:', perfilResponse.data);
+        const perfilUserName = perfilResponse.data?.usuario || perfilResponse.data?.Usuario;
+        if (perfilUserName && perfilResponse.data?.loginId === loginId) {
+          userNamesCache.set(loginId, perfilUserName);
+          console.log('Nome encontrado via perfil:', perfilUserName);
+          return perfilUserName;
+        }
+      } catch (perfilError) {
+        console.log('Erro ao buscar perfil:', perfilError.response?.status);
+      }
+    }
+  }
+  
+  // Se não conseguir buscar, tentar mapeamento hardcoded
+  if (knownUsers[loginId]) {
+    console.log('Usando mapeamento hardcoded:', knownUsers[loginId]);
+    userNamesCache.set(loginId, knownUsers[loginId]);
+    return knownUsers[loginId];
+  }
+  
+  console.log('Não foi possível buscar nome do usuário');
   return null;
 }
-
-const api = axios.create({ baseURL: API });
-api.interceptors.request.use((cfg) => {
-  const tk = getToken();
-  if (tk) cfg.headers.Authorization = `Bearer ${tk}`;
-  return cfg;
-});
 
 /* =============== Helpers de estilo/layout =============== */
 const normalizeTipo = (tipo) =>
@@ -74,11 +126,33 @@ function resolveImgSrcFromJSON(img){
 }
 
 function getTipoPesquisaLabel(p){
+  console.log('=== DEBUG TIPO PESQUISA ===');
+  console.log('Objeto pesquisa completo:', p);
+  console.log('tipoPesquisa:', p?.tipoPesquisa);
+  console.log('TipoPesquisa:', p?.TipoPesquisa);
+  console.log('tipoPesquisaId:', p?.tipoPesquisaId);
+  console.log('tipoPesquisaID:', p?.tipoPesquisaID);
+  console.log('tipopesquisaid:', p?.tipopesquisaid);
+  
   const direct = p?.tipoPesquisa?.descricao || p?.TipoPesquisa?.descricao;
-  if (direct) return direct;
+  if (direct) {
+    console.log('Tipo encontrado via descrição direta:', direct);
+    return direct;
+  }
+  
   const id = p?.tipoPesquisaId ?? p?.tipoPesquisaID ?? p?.tipopesquisaid;
-  if (id === 1) return 'Pública';
-  if (id === 2) return 'Privada';
+  console.log('ID final extraído:', id, 'Tipo:', typeof id);
+  
+  if (id === 1 || id === '1') {
+    console.log('Retornando: Pesquisa de Campo');
+    return 'Pesquisa de Campo';
+  }
+  if (id === 2 || id === '2') {
+    console.log('Retornando: Teste');
+    return 'Teste';
+  }
+  
+  console.log('Retornando: — (não encontrado)');
   return '—';
 }
 
@@ -129,13 +203,15 @@ function GaleriaPergunta({ imagensJSON, anexosImg }) {
 
 /* =================== Página principal =================== */
 const ResponderPesquisa = () => {
-  const { id } = useParams();
+  const { id: rawId } = useParams();
+  const id = rawId?.replace(/[^0-9]/g, ''); // Remove caracteres não numéricos
   const [pesquisa, setPesquisa] = useState(null);
   const [anexos, setAnexos] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [autorNome, setAutorNome] = useState(null);
 
   const pdfRef = useRef(null);
 
@@ -150,21 +226,59 @@ const ResponderPesquisa = () => {
 
   useEffect(() => {
     async function carregar() {
+      if (!id || !/^\d+$/.test(id)) {
+        setErro('ID da pesquisa inválido.');
+        setCarregando(false);
+        return;
+      }
+      
+      // Verificar se o ID é válido (maior que 0)
+      const idNum = parseInt(id, 10);
+      if (idNum <= 0) {
+        setErro('ID da pesquisa inválido.');
+        setCarregando(false);
+        return;
+      }
+      
       setCarregando(true);
       setErro('');
       try {
-        const { data } = await api.get(`/pesquisas/${id}`);
-        const blocos = data.templateJson ? JSON.parse(data.templateJson) : [];
-        setPesquisa({ ...data, blocos });
-      } catch {
-        setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+        console.log('Tentando carregar pesquisa com ID:', id);
+        console.log('URL completa:', `${api.defaults.baseURL}/api/pesquisas/${id}`);
+                 const { data } = await api.get(`/api/pesquisas/${id}`);
+         console.log('Dados da pesquisa carregados:', data);
+         console.log('Estrutura completa da pesquisa:', JSON.stringify(data, null, 2));
+         const blocos = data.templateJson ? JSON.parse(data.templateJson) : [];
+         setPesquisa({ ...data, blocos });
+         
+         // Buscar nome do autor
+         if (data.loginId) {
+           console.log('LoginId da pesquisa:', data.loginId);
+           const nomeAutor = await getUserName(data.loginId);
+           console.log('Nome do autor encontrado:', nomeAutor);
+           setAutorNome(nomeAutor);
+         }
+      } catch (error) {
+        console.error('Erro ao carregar pesquisa:', error);
+        if (error.response?.status === 404) {
+          setErro('Pesquisa não encontrada.');
+        } else if (error.response?.status === 401) {
+          setErro('Não autorizado. Faça login para continuar.');
+        } else {
+          setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+        }
       } finally {
         setCarregando(false);
       }
     }
     async function carregarAnexos() {
+      if (!id || !/^\d+$/.test(id)) {
+        setAnexos([]);
+        return;
+      }
+      
       try {
-        const { data } = await api.get(`/Anexos/pesquisa/${id}`);
+        const { data } = await api.get(`/api/Anexos/por-pesquisa/${id}`);
         setAnexos(Array.isArray(data) ? data : []);
       } catch {
         setAnexos([]);
@@ -305,11 +419,11 @@ const ResponderPesquisa = () => {
       setEnviando(true);
       for (const item of payload) {
         if (item.tipo === 'discursiva') {
-          await api.post(`/Respostas/discursiva`, {
+          await api.post(`/api/Respostas/discursiva`, {
             Perguntaid: item.perguntaId, Texto: item.texto, Loginid: loginId, Pesquisaid: Number(id)
           });
         } else {
-          await api.post(`/Respostas/opcoes`, {
+          await api.post(`/api/Respostas/opcoes`, {
             Perguntaid: item.perguntaId, OpcoesSelecionadas: item.opcoes, Loginid: loginId, Pesquisaid: Number(id)
           });
         }
@@ -359,12 +473,13 @@ const ResponderPesquisa = () => {
     );
   }
 
-  const autor =
-    pesquisa?.login?.usuario ??
-    pesquisa?.autor?.nome ??
-    pesquisa?.autor ??
-    pesquisa?.usuario?.nome ??
-    '—';
+     const autor =
+     autorNome ??
+     pesquisa?.login?.usuario ??
+     pesquisa?.autor?.nome ??
+     pesquisa?.autor ??
+     pesquisa?.usuario?.nome ??
+     (pesquisa?.loginId ? `Usuário ${pesquisa.loginId}` : '—');
 
   const dataRaw =
     pesquisa?.DataCriacao ??
@@ -374,8 +489,57 @@ const ResponderPesquisa = () => {
     pesquisa?.createdAt ??
     pesquisa?.criadoEm;
 
-  const dataStr = dataRaw ? new Date(dataRaw).toLocaleDateString('pt-BR') : '—';
+  // Função para formatar data corretamente (DD/MM/YYYY)
+  const formatarData = (data) => {
+    if (!data) return '—';
+    console.log('=== DEBUG DATA ===');
+    console.log('Data raw recebida:', data);
+    console.log('Tipo da data:', typeof data);
+    
+    // Tentar diferentes abordagens para parsear a data
+    let date;
+    if (typeof data === 'string') {
+      // Se for string, tentar parsear diretamente
+      date = new Date(data);
+    } else {
+      date = new Date(data);
+    }
+    
+    console.log('Objeto Date criado:', date);
+    console.log('Date válida?', !isNaN(date.getTime()));
+    
+    if (isNaN(date.getTime())) {
+      console.log('Data inválida, retornando original');
+      return data;
+    }
+    
+    const dia = String(date.getDate()).padStart(2, '0');
+    const mes = String(date.getMonth() + 1).padStart(2, '0');
+    const ano = date.getFullYear();
+    
+    console.log('Dia:', dia, 'Mês:', mes, 'Ano:', ano);
+    const resultado = `${dia}/${mes}/${ano}`;
+    console.log('Data formatada final:', resultado);
+    
+    // Forçar re-renderização com timestamp único
+    const timestamp = Date.now();
+    console.log('Timestamp único para data:', timestamp);
+    
+    return resultado;
+  };
+  
+  const dataStr = formatarData(dataRaw);
+  console.log('Data da pesquisa:', dataRaw, 'Formatada:', dataStr);
+  console.log('Tipo de pesquisa ID da pesquisa:', pesquisa?.tipoPesquisaId);
+  console.log('Timestamp atual:', new Date().toISOString());
+  console.log('Cache buster:', Math.random());
+  console.log('FORÇANDO ATUALIZAÇÃO - VERSÃO 2.0');
   const tipoPesquisaDesc = getTipoPesquisaLabel(pesquisa);
+  
+  // Forçar re-renderização com chave única baseada na data
+  const renderKey = `${pesquisa?.pesquisaId}-${dataStr}-${Date.now()}-${Math.random()}`;
+  console.log('Render key:', renderKey);
+  console.log('Data que será exibida:', dataStr);
 
   return (
     <>
@@ -388,8 +552,9 @@ const ResponderPesquisa = () => {
             <section ref={pdfRef} className={styles.exportArea}>
               <div className={styles.header}>
                 <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-                  <CabecalhoPesquisa autor={autor} data={dataStr} />
+                  <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataStr} />
                   <InformacoesPesquisa
+                    key={`informacoes-${renderKey}`}
                     titulo={pesquisa.titulo}
                     descricao={pesquisa.descricao}
                     tipoPesquisa={tipoPesquisaDesc}

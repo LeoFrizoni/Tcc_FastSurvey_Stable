@@ -1,6 +1,6 @@
-import { Play, Users, Clock, Settings, X, Presentation } from 'lucide-react';
+import { Play, Users, Clock, X, Presentation } from 'lucide-react';
 import { useState } from 'react';
-import api from '../../config/api';
+import api from '../../lib/api';
 import styles from './InteractiveSessionModal.module.css';
 
 const InteractiveSessionModal = ({ isOpen, onClose, pesquisaId, pesquisaTitulo }) => {
@@ -13,8 +13,9 @@ const InteractiveSessionModal = ({ isOpen, onClose, pesquisaId, pesquisaTitulo }
     setError('');
 
     try {
-      const response = await api.post('/api/pesquisa-interativa/iniciar-sessao', {
-        pesquisaId: pesquisaId
+      const response = await api.post('/api/pesquisa-interativa/iniciar', {
+        pesquisaId: parseInt(pesquisaId),
+        isAtiva: false
       });
 
       if (response.data.success) {

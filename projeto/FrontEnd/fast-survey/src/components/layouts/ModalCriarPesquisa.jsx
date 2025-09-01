@@ -20,12 +20,22 @@ export default function ModalCriarPesquisa({ onConfirm }) {
     async function carregarTipos() {
       try {
         setCarregandoTipos(true);
-        const url = `${API_BASE_URL}/api/TipoPesquisa/ListarTipoPesquisa`;
-        const res = await axios.get(url, { signal: controller.signal });
+        
+        // Verificar se há token disponível (opcional)
+        const token = localStorage.getItem('token') ?? sessionStorage.getItem('token');
+        const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        const url = `${API_BASE_URL}/api/TipoPesquisa`;
+        const res = await axios.get(url, { 
+          signal: controller.signal,
+          headers: authHeaders
+        });
+        
+        console.log('🔍 ModalCriarPesquisa - Tipos carregados:', res?.data);
         setTipos(res?.data ?? []);
       } catch (err) {
         if (axios.isCancel(err)) return;
-        console.error("Erro ao buscar tipos:", err);
+        console.error("❌ ModalCriarPesquisa - Erro ao buscar tipos:", err);
         setTipos([]);
       } finally {
         setCarregandoTipos(false);
@@ -39,14 +49,16 @@ export default function ModalCriarPesquisa({ onConfirm }) {
   const itensTipos = useMemo(() => {
     return (tipos ?? [])
       .map((t) => {
-        const id = t?.TipoPesquisaId ?? t?.tipopesquisaid ?? t?.tipoPesquisaId ?? t?.id ?? t?.Id ?? null;
+        const id = t?.tipoPesquisaId ?? t?.TipoPesquisaId ?? t?.tipopesquisaid ?? t?.id ?? t?.Id ?? null;
         const nome =
+          t?.descricao ??
+          t?.Descricao ??
+          t?.nome ??
+          t?.Nome ??
           t?.tipopesquisa1 ??
           t?.Tipopesquisa1 ??
           t?.tipopesquisa ??
           t?.tipoPesquisa ??
-          t?.Nome ??
-          t?.nome ??
           "Sem nome";
         const desabilitado = t?.desabilitado ?? t?.Desabilitado ?? false;
         return { id, nome, desabilitado };
