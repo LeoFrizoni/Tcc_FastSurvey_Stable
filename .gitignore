@@ -45,7 +45,9 @@ Thumbs.db
 # IDEs & EDITORES
 # Visual Studio
 .vs/
+*.md
 *.user
+*.bat
 *.suo
 *.userosscache
 *.sln.docstates

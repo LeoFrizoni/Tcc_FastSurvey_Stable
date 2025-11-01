@@ -17,13 +17,14 @@ namespace FASTSURVEY.Controllers
         public AnexosController(IAnexoService service) => _service = service;
 
         /// <summary>Upload de anexo (PNG, JPG, PDF). Enviar via multipart/form-data com campo "anexo".</summary>
+        [AllowAnonymous]
         [HttpPost(Name = "UploadAnexo")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(20 * 1024 * 1024)] // 20MB no transporte; DTO valida 15MB
         [ProducesResponseType(typeof(AnexoResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Upload(
-            [FromForm] AnexoUploadRequest req,
+            [FromBody] AnexoUploadRequest req,
             CancellationToken ct = default
         )
         {

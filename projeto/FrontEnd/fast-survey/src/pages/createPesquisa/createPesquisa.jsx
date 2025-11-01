@@ -249,7 +249,7 @@ const CriarPesquisa = () => {
     }
     
     const base = {
-      id: Date.now(),
+      id: "",
       tipo,
       texto: "",
       opcoes: [],
@@ -585,13 +585,13 @@ const CriarPesquisa = () => {
           console.log('🔍 UploadAnexosPergunta - Enviando arquivo:', file.name, 'para pergunta:', perguntaId);
           const fd = new FormData();
           fd.append("anexo", file, file.name);
-          fd.append("PerguntaId", String(perguntaId));
+          fd.append("PerguntaId", String(""));
           fd.append("PesquisaId", String(pesquisaId)); // opcional
           // Verificar se há token disponível (opcional)
           const token = localStorage.getItem('token') || sessionStorage.getItem('token');
           const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
           
-          uploads.push(axios.post(`${API_BASE_URL}/api/anexos`, fd, { headers: authHeaders }));
+          axios.post(`${API_BASE_URL}/api/anexos`, fd, { headers: authHeaders });
         }
       }
 

@@ -2,12 +2,14 @@ using FASTSURVEY.Dtos.Respostas;
 using FASTSURVEY.Services.Pesquisa;
 using FASTSURVEY.Services.Resposta;
 using Microsoft.AspNetCore.Mvc;
-
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Authorization;
 namespace FASTSURVEY.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
     [Produces("application/json")]
+    [AllowAnonymous]
     public class ResponderController : ControllerBase
     {
         private readonly IPesquisaService _pesquisaService;
