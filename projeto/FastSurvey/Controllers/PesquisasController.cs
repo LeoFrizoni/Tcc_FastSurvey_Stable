@@ -237,5 +237,19 @@ namespace FASTSURVEY.Controllers
             var estatisticas = await _service.ObterEstatisticasAsync(id, request, ct);
             return estatisticas is null ? NotFound() : Ok(estatisticas);
         }
+
+        // POST: api/pesquisas/{id}/reprocessar-perguntas
+        // Endpoint temporário para reprocessar pesquisas existentes
+        [HttpPost("{id:int}/reprocessar-perguntas")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult> ReprocessarPerguntas(
+            [FromRoute] int id,
+            CancellationToken ct
+        )
+        {
+            var resultado = await _service.ReprocessarPerguntasAsync(id, ct);
+            return resultado ? Ok(new { message = "Perguntas reprocessadas com sucesso" }) : NotFound();
+        }
     }
 }

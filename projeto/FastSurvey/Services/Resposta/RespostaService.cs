@@ -110,6 +110,8 @@ namespace FASTSURVEY.Services.Resposta
                     "Foram enviadas opções que não pertencem a essa pergunta."
                 );
 
+            var textoOpcoes = string.Join(", ", opcoes.Select(o => $"{o.OpcaoId}"));
+
             var entity = new RespostaModel
             {
                 PerguntaId = req.PerguntaId,
@@ -117,6 +119,7 @@ namespace FASTSURVEY.Services.Resposta
                 RespostaAnonima = req.RespostaAnonima,
                 SessaoId = req.SessaoId,
                 ParticipanteId = req.ParticipanteId,
+                Texto = textoOpcoes, // Campo obrigatório - armazena os IDs das opções
                 Opcao = opcoes,
             };
 

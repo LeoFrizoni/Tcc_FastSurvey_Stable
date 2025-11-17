@@ -34,6 +34,13 @@ const isEditableTarget = (el) =>
 /** Botões/ícones não devem disparar foco/seleção do card */
 const preventMouseDown = (e) => e.preventDefault();
 
+const generateBlockId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return `bloco-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
 /** Memo helpers p/ reduzir re-render dos blocos */
 const MemoDiscursiva = React.memo(Discursiva);
 const MemoMultipla = React.memo(MultiplaEscolha);
@@ -249,7 +256,7 @@ const CriarPesquisa = () => {
     }
     
     const base = {
-      id: "",
+      id: generateBlockId(),
       tipo,
       texto: "",
       opcoes: [],

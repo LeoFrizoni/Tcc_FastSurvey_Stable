@@ -53,5 +53,6 @@ namespace FASTSURVEY.Services.Pesquisa
         );
         Task<object> ListarTodasPesquisasAsync(CancellationToken ct = default);
         Task<object> ObterEstatisticasGeraisAsync(CancellationToken ct = default);
+        Task<bool> ReprocessarPerguntasAsync(int pesquisaId, CancellationToken ct = default);
     }
 }

@@ -66,6 +66,21 @@ const normalizePesquisa = (it) => {
   };
 };
 
+const dedupePesquisas = (lista = []) => {
+  if (!Array.isArray(lista)) return [];
+  const seen = new Set();
+  return lista.filter((item) => {
+    const pid = getPid(item);
+    if (pid == null) return true;
+    if (seen.has(pid)) {
+      console.warn('🔁 HomePage - pesquisa duplicada ignorada por cache:', pid);
+      return false;
+    }
+    seen.add(pid);
+    return true;
+  });
+};
+
 // normaliza string para comparação case/acentos-insensitive
 const keyOf = (s) =>
   (s ?? '')
@@ -246,12 +261,22 @@ const HomePage = () => {
       try {
         // Preparar headers de autenticação (opcional)
         const authHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+        const cacheBuster = Date.now();
         
         // Buscar tipos + pesquisas + pastas em paralelo
         const [tiposRes, pesqRes, pastasRes] = await Promise.allSettled([
-          axios.get(`${API_BASE_URL}/api/TipoPesquisa`, { headers: authHeaders }),
-          axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, { headers: authHeaders }),
-          axios.get(`${API_BASE_URL}/api/pastas`, { params: { loginid: loginId }, headers: authHeaders })
+          axios.get(`${API_BASE_URL}/api/TipoPesquisa`, {
+            headers: authHeaders,
+            params: { cacheBuster },
+          }),
+          axios.get(`${API_BASE_URL}/api/pesquisas/usuario/${loginId}`, {
+            headers: authHeaders,
+            params: { cacheBuster },
+          }),
+          axios.get(`${API_BASE_URL}/api/pastas`, {
+            params: { loginid: loginId, cacheBuster },
+            headers: authHeaders,
+          })
         ]);
 
         // Tipos
@@ -269,7 +294,8 @@ const HomePage = () => {
 
         // Pesquisas
         if (pesqRes.status === 'fulfilled') {
-          const arr = Array.isArray(pesqRes.value.data) ? pesqRes.value.data.map(normalizePesquisa) : [];
+          const source = Array.isArray(pesqRes.value.data) ? dedupePesquisas(pesqRes.value.data) : [];
+          const arr = source.map(normalizePesquisa);
           console.log('🔍 HomePage - Pesquisas carregadas:', arr.length);
           console.log('🔍 HomePage - Dados das pesquisas:', pesqRes.value.data);
           setPesquisas(arr);

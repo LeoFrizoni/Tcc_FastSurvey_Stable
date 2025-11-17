@@ -2,6 +2,7 @@
 #nullable enable
 using System.Text.Json;
 using FASTSURVEY.Dtos.Pesquisas;
+using FastSurvey.Dtos.Pesquisas;
 using FASTSURVEY.Services.Cache;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
@@ -67,8 +68,221 @@ namespace FASTSURVEY.Services.Pesquisa
             _ctx.Pesquisas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
 
+            // Parse templateJson e cria as perguntas no banco
+            await ParseTemplateAndCreatePerguntas(entity.PesquisaId, template, ct);
+
             await InvalidateUserCache(req.LoginId, ct);
             return entity.PesquisaId;
+        }
+
+        /// <summary>
+        /// Parse o TemplateJson e cria os registros de Perguntas e OpcoesPerguntas no banco
+        /// </summary>
+        private async Task ParseTemplateAndCreatePerguntas(int pesquisaId, string templateJson, CancellationToken ct = default)
+        {
+            try
+            {
+                Console.WriteLine($"🔄 Parseando templateJson para pesquisa {pesquisaId}");
+                Console.WriteLine($"📄 JSON: {templateJson}");
+
+                var blocos = JsonSerializer.Deserialize<List<BlocoTemplateDto>>(templateJson);
+                if (blocos == null || !blocos.Any())
+                {
+                    Console.WriteLine("⚠️ Nenhum bloco encontrado no templateJson");
+                    return;
+                }
+
+                Console.WriteLine($"✅ {blocos.Count} blocos encontrados");
+
+                int ordem = 0;
+                var perguntasMap = new Dictionary<string, int>(); // temp-id -> real-id
+
+                foreach (var bloco in blocos)
+                {
+                    Console.WriteLine($"🔍 Processando bloco {ordem + 1}: tipo={bloco.Tipo}, texto={bloco.Texto}");
+
+                    // Mapeia tipo de pergunta
+                    int tipoPerguntaId = MapTipoPergunta(bloco.Tipo);
+
+                    var pergunta = new Perguntas
+                    {
+                        PesquisaId = pesquisaId,
+                        TipoPerguntaId = tipoPerguntaId,
+                        Texto = bloco.Texto,
+                        Ordem = bloco.Ordem ?? ordem,
+                        TemGabarito = bloco.TemGabarito ?? false,
+                        PermiteMultiplasSelecao = bloco.PermitirMultiplaSelecao ?? bloco.Tipo.Equals("multipla", StringComparison.OrdinalIgnoreCase),
+                        PontuacaoTotal = bloco.PontuacaoTotal ?? 0,
+                        TempoLimite = bloco.TempoLimite,
+                        MostrarExplicacao = bloco.MostrarExplicacao ?? false,
+                        DeletadoEm = null
+                    };
+
+                    _ctx.Perguntas.Add(pergunta);
+                    await _ctx.SaveChangesAsync(ct); // Salva para obter o PerguntaId
+
+                    Console.WriteLine($"✅ Pergunta criada com ID {pergunta.PerguntaId}");
+
+                    // Guarda mapeamento do ID temporário para o real
+                    if (!string.IsNullOrEmpty(bloco.Id))
+                    {
+                        perguntasMap[bloco.Id] = pergunta.PerguntaId;
+                    }
+
+                    // Se tiver opções (objetiva ou multipla), cria as OpcoesPerguntas
+                    if (bloco.Opcoes != null && bloco.Opcoes.Any())
+                    {
+                        Console.WriteLine($"📋 Processando {bloco.Opcoes.Count} opções");
+
+                        // Detecta textos duplicados e adiciona sufixo se necessário
+                        var textosUsados = new Dictionary<string, int>();
+                        var opcoesComTextoUnico = bloco.Opcoes.Select(opcao =>
+                        {
+                            string textoOriginal = opcao.Texto ?? "";
+                            string textoFinal = textoOriginal;
+
+                            if (textosUsados.ContainsKey(textoOriginal))
+                            {
+                                textosUsados[textoOriginal]++;
+                                textoFinal = $"{textoOriginal} ({textosUsados[textoOriginal]})";
+                                Console.WriteLine($"⚠️ Texto duplicado detectado: '{textoOriginal}' renomeado para '{textoFinal}'");
+                            }
+                            else
+                            {
+                                textosUsados[textoOriginal] = 1;
+                            }
+
+                            return new { Opcao = opcao, TextoFinal = textoFinal };
+                        }).ToList();
+
+                        int ordemOpcao = 0;
+                        foreach (var item in opcoesComTextoUnico)
+                        {
+                            var opcao = item.Opcao;
+
+                            // Para perguntas objetivas, usa o corretaIndex para determinar a correta
+                            bool isCorreta = opcao.Correta ?? false;
+                            if (bloco.Tipo.Equals("objetiva", StringComparison.OrdinalIgnoreCase) && bloco.CorretaIndex.HasValue)
+                            {
+                                isCorreta = (opcao.OpcaoId == bloco.CorretaIndex.Value) || (ordemOpcao + 1 == bloco.CorretaIndex.Value);
+                            }
+
+                            var opcaoPergunta = new OpcoesPergunta
+                            {
+                                PerguntaId = pergunta.PerguntaId,
+                                Texto = item.TextoFinal, // Usa o texto com sufixo se houver duplicata
+                                Correta = isCorreta,
+                                Ordem = opcao.Ordem ?? ordemOpcao,
+                                Ativa = true,
+                                Pontuacao = opcao.Pontuacao ?? 0,
+                                Explicacao = opcao.Explicacao,
+                                DeletadoEm = null
+                            };
+
+                            _ctx.OpcoesPergunta.Add(opcaoPergunta);
+                            Console.WriteLine($"  ➤ Opção {ordemOpcao + 1}: {item.TextoFinal} (correta: {isCorreta})");
+                            ordemOpcao++;
+                        }
+
+                        await _ctx.SaveChangesAsync(ct);
+                        Console.WriteLine($"✅ {bloco.Opcoes.Count} opções criadas");
+                    }
+
+                    ordem++;
+                }
+
+                Console.WriteLine($"🎉 Total de {ordem} perguntas processadas com sucesso!");
+
+                // Atualiza o TemplateJson com os IDs reais das perguntas
+                await UpdateTemplateJsonWithRealIds(pesquisaId, templateJson, perguntasMap, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erro ao parsear templateJson: {ex.Message}");
+                Console.WriteLine($"❌ StackTrace: {ex.StackTrace}");
+                // Não lança exceção para não quebrar a criação da pesquisa
+            }
+        }
+
+        /// <summary>
+        /// Atualiza o TemplateJson substituindo IDs temporários pelos IDs reais das perguntas
+        /// </summary>
+        private async Task UpdateTemplateJsonWithRealIds(int pesquisaId, string templateJson, Dictionary<string, int> perguntasMap, CancellationToken ct = default)
+        {
+            try
+            {
+                var blocos = JsonSerializer.Deserialize<List<BlocoTemplateDto>>(templateJson);
+                if (blocos == null || !blocos.Any())
+                    return;
+
+                int index = 0;
+                foreach (var bloco in blocos)
+                {
+                    // Usa o mapeamento se existir, senão busca pela ordem
+                    if (!string.IsNullOrEmpty(bloco.Id) && perguntasMap.ContainsKey(bloco.Id))
+                    {
+                        bloco.PerguntaId = perguntasMap[bloco.Id].ToString();
+                    }
+                    else
+                    {
+                        // Fallback: busca pela ordem
+                        var pergunta = await _ctx.Perguntas
+                            .Where(p => p.PesquisaId == pesquisaId && p.Ordem == index)
+                            .FirstOrDefaultAsync(ct);
+
+                        if (pergunta != null)
+                        {
+                            bloco.PerguntaId = pergunta.PerguntaId.ToString();
+                        }
+                    }
+                    index++;
+                }
+
+                // Serializa de volta e atualiza usando SQL direto para evitar conflito com trigger
+                string updatedTemplate = JsonSerializer.Serialize(blocos);
+
+                // Usa SQL direto ao invés de SaveChanges para evitar problema com trigger
+                var dataAtualizacao = DateTime.UtcNow;
+                var rowsAffected = await _ctx.Database.ExecuteSqlInterpolatedAsync(
+                    $@"UPDATE ""Pesquisas"" 
+                       SET ""TemplateJson"" = {updatedTemplate}, 
+                           ""DataAtualizacao"" = {dataAtualizacao}
+                       WHERE ""PesquisaId"" = {pesquisaId}",
+                    ct
+                );
+
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine($"✅ TemplateJson atualizado com IDs reais para {rowsAffected} registro(s)");
+                }
+                else
+                {
+                    Console.WriteLine($"⚠️ Nenhum registro atualizado");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erro ao atualizar templateJson com IDs reais: {ex.Message}");
+                Console.WriteLine($"❌ StackTrace: {ex.StackTrace}");
+            }
+        }
+
+        /// <summary>
+        /// Mapeia o tipo de pergunta do template para o ID no banco
+        /// </summary>
+        private int MapTipoPergunta(string tipo)
+        {
+            return tipo.ToLower() switch
+            {
+                "discursiva" => 1,
+                "objetiva" => 2,
+                "multipla" => 3,
+                "escala" => 4,
+                "data" => 5,
+                "hora" => 6,
+                "arquivo" => 7,
+                _ => 1 // Default: discursiva
+            };
         }
 
         // ------------------ UPDATE (PUT) ------------------
@@ -310,6 +524,17 @@ namespace FASTSURVEY.Services.Pesquisa
                 templateJson = "[]";
             }
 
+            // Remove perguntas antigas (soft delete)
+            var perguntasAntigas = await _ctx.Perguntas
+                .Where(p => p.PesquisaId == id && p.DeletadoEm == null)
+                .ToListAsync(ct);
+
+            foreach (var pergunta in perguntasAntigas)
+            {
+                pergunta.DeletadoEm = DateTime.UtcNow;
+            }
+            await _ctx.SaveChangesAsync(ct);
+
             var updated = await _ctx.Database.ExecuteSqlInterpolatedAsync(
                 $@"UPDATE pesquisas 
                    SET templatejson = {templateJson}, dataatualizacao = {DateTime.UtcNow}
@@ -318,7 +543,11 @@ namespace FASTSURVEY.Services.Pesquisa
             );
 
             if (updated > 0)
+            {
+                // Cria as novas perguntas a partir do templateJson atualizado
+                await ParseTemplateAndCreatePerguntas(id, templateJson, ct);
                 await InvalidatePesquisaCache(id, entity.LoginId, ct);
+            }
 
             return updated > 0;
         }
@@ -661,6 +890,52 @@ namespace FASTSURVEY.Services.Pesquisa
                 pesquisasAtivas,
                 dataGeracao = DateTime.UtcNow,
             };
+        }
+
+        /// <summary>
+        /// Reprocessa as perguntas de uma pesquisa existente a partir do TemplateJson
+        /// </summary>
+        public async Task<bool> ReprocessarPerguntasAsync(int pesquisaId, CancellationToken ct = default)
+        {
+            try
+            {
+                Console.WriteLine($"🔄 Reprocessando perguntas da pesquisa {pesquisaId}");
+
+                var pesquisa = await _ctx.Pesquisas
+                    .FirstOrDefaultAsync(p => p.PesquisaId == pesquisaId, ct);
+
+                if (pesquisa == null)
+                {
+                    Console.WriteLine($"❌ Pesquisa {pesquisaId} não encontrada");
+                    return false;
+                }
+
+                // Marca perguntas existentes como deletadas (soft delete)
+                var perguntasAntigas = await _ctx.Perguntas
+                    .Where(p => p.PesquisaId == pesquisaId && p.DeletadoEm == null)
+                    .ToListAsync(ct);
+
+                Console.WriteLine($"🗑️ Marcando {perguntasAntigas.Count} perguntas antigas como deletadas");
+
+                foreach (var pergunta in perguntasAntigas)
+                {
+                    pergunta.DeletadoEm = DateTime.UtcNow;
+                }
+                await _ctx.SaveChangesAsync(ct);
+
+                // Parse e cria novas perguntas
+                await ParseTemplateAndCreatePerguntas(pesquisaId, pesquisa.TemplateJson ?? "[]", ct);
+
+                Console.WriteLine($"✅ Reprocessamento concluído para pesquisa {pesquisaId}");
+                await InvalidatePesquisaCache(pesquisaId, pesquisa.LoginId, ct);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Erro ao reprocessar perguntas: {ex.Message}");
+                return false;
+            }
         }
     }
 }

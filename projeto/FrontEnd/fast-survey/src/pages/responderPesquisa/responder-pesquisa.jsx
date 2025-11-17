@@ -212,6 +212,7 @@ const ResponderPesquisa = () => {
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [autorNome, setAutorNome] = useState(null);
+  const [perguntasReais, setPerguntasReais] = useState([]);
 
   const pdfRef = useRef(null);
 
@@ -245,21 +246,132 @@ const ResponderPesquisa = () => {
       try {
         console.log('Tentando carregar pesquisa com ID:', id);
         console.log('URL completa:', `${api.defaults.baseURL}/api/pesquisas/${id}`);
-                 const { data } = await api.get(`/api/pesquisas/${id}`);
-         console.log('Dados da pesquisa carregados:', data);
-         console.log('Estrutura completa da pesquisa:', JSON.stringify(data, null, 2));
-         const blocos = data.templateJson ? JSON.parse(data.templateJson) : [];
-         setPesquisa({ ...data, blocos });
+        const { data } = await api.get(`/api/pesquisas/${id}`);
+        console.log('Dados da pesquisa carregados:', data);
+        console.log('Estrutura completa da pesquisa:', JSON.stringify(data, null, 2));
+        
+        const blocos = data.templateJson ? JSON.parse(data.templateJson) : [];
+        console.log('=== BLOCOS PARSEADOS ===');
+        console.log('Total de blocos:', blocos.length);
+        blocos.forEach((b, i) => {
+          console.log(`Bloco ${i}:`, {
+            perguntaid: b.perguntaid,
+            id: b.id,
+            perguntaId: b.perguntaId,
+            tipo: b.tipo,
+            texto: b.texto?.substring(0, 30)
+          });
+        });
 
-         // Buscar nome do autor
-         if (data.loginId) {
-           console.log('LoginId da pesquisa:', data.loginId);
-           const nomeAutor = await getUserName(data.loginId);
-           console.log('Nome do autor encontrado:', nomeAutor);
-           setAutorNome(nomeAutor);
-         }
+        console.log('✅ BLOCOS PARSEADOS CONCLUÍDO - PRÓXIMO PASSO: BUSCAR PERGUNTAS');
+        console.log('🚀 INICIANDO BUSCA DE PERGUNTAS REAIS...');
+        console.log('🚀 ID da pesquisa:', id);
+        console.log('🚀 URL que será chamada:', `/api/Perguntas/por-pesquisa/${id}`);
+        
+        // Buscar perguntas reais do backend
+        try {
+          console.log('🔍 Buscando perguntas reais do backend para pesquisa ID:', id);
+          const response = await api.get(`/api/Perguntas/por-pesquisa/${id}`);
+          console.log('📦 Resposta completa da API:', response);
+          console.log('📦 Data recebida:', response.data);
+          
+          let perguntas = [];
+          const perguntasData = response.data;
+          
+          // O backend retorna ServiceResult<List<PerguntaResponse>>
+          // Pode ser: { success: true, data: [...] } ou apenas [...]
+          if (perguntasData?.success && Array.isArray(perguntasData.data)) {
+            perguntas = perguntasData.data;
+            console.log('✅ Formato ServiceResult detectado');
+          } else if (Array.isArray(perguntasData)) {
+            perguntas = perguntasData;
+            console.log('✅ Formato Array direto detectado');
+          } else if (perguntasData?.items && Array.isArray(perguntasData.items)) {
+            perguntas = perguntasData.items;
+            console.log('✅ Formato PagedResult detectado');
+          } else {
+            console.warn('⚠️ Formato inesperado:', perguntasData);
+          }
+          
+          console.log(`📋 Total de perguntas extraídas: ${perguntas.length}`);
+          console.log('📋 Perguntas:', perguntas);
+          
+          if (perguntas.length > 0) {
+            setPerguntasReais(perguntas);
+            
+            // Mapear perguntas reais aos blocos pelo índice
+            const blocosComIds = blocos.map((bloco, index) => {
+              const perguntaReal = perguntas[index];
+              console.log(`🔗 Mapeando bloco ${index}:`, {
+                textoBloco: bloco.texto?.substring(0, 30),
+                perguntaReal: perguntaReal,
+                perguntaId: perguntaReal?.perguntaId || perguntaReal?.PerguntaId,
+                opcoesReais: perguntaReal?.opcoes
+              });
+              
+              const idReal = perguntaReal?.perguntaId || perguntaReal?.PerguntaId;
+              if (perguntaReal && idReal) {
+                console.log(`✅ Bloco ${index} mapeado para perguntaId: ${idReal}`);
+                
+                // Mapear opções reais se existirem
+                let opcoesAtualizadas = bloco.opcoes;
+                if (perguntaReal.opcoes && Array.isArray(perguntaReal.opcoes) && perguntaReal.opcoes.length > 0) {
+                  console.log(`🔢 Mapeando ${perguntaReal.opcoes.length} opções reais para bloco ${index}`);
+                  opcoesAtualizadas = bloco.opcoes?.map((opcaoTemplate, opcaoIndex) => {
+                    const opcaoReal = perguntaReal.opcoes[opcaoIndex];
+                    if (opcaoReal) {
+                      console.log(`  ✅ Opção ${opcaoIndex}: opcaoId real = ${opcaoReal.opcaoId}`);
+                      return {
+                        ...opcaoTemplate,
+                        opcaoidReal: opcaoReal.opcaoId, // ID real do banco
+                        texto: opcaoReal.texto || opcaoTemplate.texto
+                      };
+                    }
+                    return opcaoTemplate;
+                  });
+                }
+                
+                return {
+                  ...bloco,
+                  perguntaIdReal: idReal,
+                  opcoes: opcoesAtualizadas
+                };
+              }
+              console.warn(`⚠️ Bloco ${index} não tem pergunta correspondente`);
+              return bloco;
+            });
+            
+            console.log('✅ Blocos com IDs reais mapeados:', blocosComIds);
+            setPesquisa({ ...data, blocos: blocosComIds });
+          } else {
+            console.warn('⚠️ Nenhuma pergunta encontrada no backend');
+            setPesquisa({ ...data, blocos });
+          }
+        } catch (pergErr) {
+          console.error('❌❌❌ CAIU NO CATCH! Erro ao buscar perguntas reais:', pergErr);
+          console.error('❌ Status HTTP:', pergErr.response?.status);
+          console.error('❌ Status Text:', pergErr.response?.statusText);
+          console.error('❌ Mensagem:', pergErr.message);
+          console.error('❌ Data:', pergErr.response?.data);
+          console.error('❌ Config:', pergErr.config);
+          console.error('❌ Stack:', pergErr.stack);
+          // Se falhar, usar blocos originais
+          console.warn('⚠️ Usando blocos SEM IDs reais devido ao erro acima');
+          setPesquisa({ ...data, blocos });
+        }
+
+        // Buscar nome do autor
+        if (data.loginId) {
+          console.log('LoginId da pesquisa:', data.loginId);
+          const nomeAutor = await getUserName(data.loginId);
+          console.log('Nome do autor encontrado:', nomeAutor);
+          setAutorNome(nomeAutor);
+        }
+        
+        console.log('✅ Carregamento da pesquisa FINALIZADO');
+        console.log('📊 Estado final das perguntas reais (será atualizado em setPerguntasReais)');
       } catch (error) {
-        console.error('Erro ao carregar pesquisa:', error);
+        console.error('❌ Erro ao carregar pesquisa:', error);
         if (error.response?.status === 404) {
           setErro('Pesquisa não encontrada.');
         } else if (error.response?.status === 401) {
@@ -289,6 +401,43 @@ const ResponderPesquisa = () => {
   }, [id]);
 
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
+
+  // Monitor de perguntasReais
+  useEffect(() => {
+    console.log('🔔 [MONITOR] perguntasReais foi atualizado:', perguntasReais);
+    console.log('🔔 [MONITOR] Quantidade:', perguntasReais.length);
+    if (perguntasReais.length > 0) {
+      console.log('🔔 [MONITOR] Primeira pergunta:', perguntasReais[0]);
+    }
+  }, [perguntasReais]);
+
+  // Função helper para obter ID da pergunta de forma consistente
+  const obterPerguntaId = useCallback((bloco, index) => {
+    // PRIORIDADE ABSOLUTA: perguntaIdReal (vem do mapeamento com backend)
+    if (bloco.perguntaIdReal) {
+      console.log(`🎯 Usando perguntaIdReal para bloco ${index}:`, bloco.perguntaIdReal);
+      return bloco.perguntaIdReal;
+    }
+    
+    // SEGUNDA PRIORIDADE: buscar na lista de perguntas reais
+    const perguntaReal = perguntasReais[index];
+    if (perguntaReal?.perguntaId || perguntaReal?.PerguntaId) {
+      const idReal = perguntaReal.perguntaId || perguntaReal.PerguntaId;
+      console.log(`🎯 Usando perguntaId da lista de perguntas reais para bloco ${index}:`, idReal);
+      return idReal;
+    }
+    
+    // TERCEIRA PRIORIDADE: dados do próprio bloco (se existirem e não forem vazios)
+    const candidato = bloco.perguntaid || bloco.id || bloco.perguntaId;
+    if (candidato && candidato !== '') {
+      console.log(`🎯 Usando ID do bloco para bloco ${index}:`, candidato);
+      return candidato;
+    }
+    
+    // ÚLTIMO RECURSO: usar índice temporário (isso NÃO deve acontecer se o backend retornar as perguntas)
+    console.warn(`⚠️ AVISO: Usando ID temporário para bloco ${index}. Backend pode não ter retornado perguntas!`);
+    return `temp-${index}`;
+  }, [perguntasReais]);
 
   // Mapa: perguntaId -> [{src, alt}]
   // const imagensPorPergunta = useMemo(() => {
@@ -379,6 +528,7 @@ const ResponderPesquisa = () => {
     }
   };
 
+  //FIXME ENVIAR RESPOSTAS
   /* =============== Enviar respostas =============== */
   const enviarRespostas = async () => {
     if (!blocos.length) {
@@ -386,30 +536,112 @@ const ResponderPesquisa = () => {
       return;
     }
 
-    const loginId = parseInt(localStorage.getItem('userId'));
+    // Tentar obter loginId do localStorage, se não existir, será null (resposta anônima)
+    const userIdStr = localStorage.getItem('userId');
+    const loginId = userIdStr ? parseInt(userIdStr, 10) : null;
+    
+    console.log('🔐 UserId do localStorage:', userIdStr);
+    console.log('🔐 LoginId parseado:', loginId);
+    console.log('🔐 Permite respostas anônimas:', pesquisa?.permiteRespostasAnonimas);
+    
+    // Verificar se precisa estar logado
+    if (!loginId && !pesquisa?.permiteRespostasAnonimas) {
+      toast.error('Você precisa fazer login para responder esta pesquisa.', { 
+        position: 'top-center', 
+        autoClose: 4000 
+      });
+      return;
+    }
+    
     const payload = [];
 
-    blocos.forEach((b) => {
-      const perguntaId = b.perguntaid;
-      if (!perguntaId) return;
+    console.log('=== ENVIAR RESPOSTAS DEBUG ===');
+    console.log('Total de blocos:', blocos.length);
+    console.log('Blocos completos:', JSON.stringify(blocos, null, 2));
+    console.log('Respostas atuais:', respostas);
+
+    blocos.forEach((b, index) => {
+      // Usar função helper para obter ID consistente (mesma lógica da renderização)
+      const perguntaId = obterPerguntaId(b, index);
+      
+      console.log(`[ENVIO] Bloco ${index}:`, {
+        blocoCompleto: b,
+        perguntaIdReal: b.perguntaIdReal,
+        perguntaid: b.perguntaid,
+        id: b.id,
+        perguntaId: b.perguntaId,
+        perguntaIdUsado: perguntaId,
+        tipo: typeof perguntaId,
+        eNumero: !isNaN(Number(perguntaId))
+      });
+      
+      if (perguntaId === null || perguntaId === undefined || perguntaId === '') {
+        console.warn(`Bloco ${index} não tem ID válido, pulando...`);
+        return;
+      }
+      
       const r = respostas[perguntaId];
-      if (!r) return;
+      if (!r) {
+        console.log(`Pergunta ${perguntaId} não tem resposta, pulando...`);
+        console.log('Respostas disponíveis:', Object.keys(respostas));
+        return;
+      }
+      console.log(`Pergunta ${perguntaId} tem resposta:`, r);
+
+      // Se o ID for temp-*, tentar extrair o ID real
+      let perguntaIdNum;
+      if (String(perguntaId).startsWith('temp-')) {
+        // Buscar o ID real na lista de perguntas
+        const perguntaReal = perguntasReais[index];
+        const idReal = perguntaReal?.perguntaId || perguntaReal?.PerguntaId;
+        
+        if (idReal) {
+          perguntaIdNum = Number(idReal);
+          console.log(`✅ Convertendo ${perguntaId} para ID real: ${perguntaIdNum}`);
+        } else {
+          console.error(`❌ Não foi possível encontrar ID real para ${perguntaId}`);
+          console.error('📋 Perguntas reais disponíveis:', perguntasReais);
+          console.error('🔍 Pergunta real no índice:', perguntaReal);
+          toast.error(`Erro: Pergunta ${index + 1} não tem ID válido. Recarregue a página.`, { 
+            position: 'top-center', 
+            autoClose: 5000 
+          });
+          return;
+        }
+      } else {
+        perguntaIdNum = Number(perguntaId);
+      }
+      
+      if (isNaN(perguntaIdNum) || perguntaIdNum <= 0) {
+        console.error(`❌ PerguntaId inválido: ${perguntaId} (convertido: ${perguntaIdNum})`);
+        return;
+      }
 
       if (r.tipo === 'discursiva') {
         const texto = String(r.valor || '').trim();
-        if (!texto) return;
-        payload.push({ tipo: 'discursiva', perguntaId, texto });
+        if (!texto) {
+          console.log(`Resposta discursiva vazia para pergunta ${perguntaIdNum}, pulando...`);
+          return;
+        }
+        payload.push({ tipo: 'discursiva', perguntaId: perguntaIdNum, texto });
       } else if (r.tipo === 'objetiva') {
         const val = r.valor;
-        if (val == null) return;
-        payload.push({ tipo: 'objetiva', perguntaId, opcoes: [Number(val)] });
+        if (val == null) {
+          console.log(`Resposta objetiva vazia para pergunta ${perguntaIdNum}, pulando...`);
+          return;
+        }
+        payload.push({ tipo: 'objetiva', perguntaId: perguntaIdNum, opcoes: [Number(val)] });
       } else if (r.tipo === 'multipla') {
         const arr = Array.isArray(r.valor) ? r.valor.map(Number) : [];
-        if (arr.length === 0) return;
-        payload.push({ tipo: 'multipla', perguntaId, opcoes: arr });
+        if (arr.length === 0) {
+          console.log(`Resposta múltipla vazia para pergunta ${perguntaIdNum}, pulando...`);
+          return;
+        }
+        payload.push({ tipo: 'multipla', perguntaId: perguntaIdNum, opcoes: arr });
       }
     });
 
+    //FIXME ERRO
     if (payload.length === 0) {
       toast.info('Preencha ao menos uma resposta antes de enviar.', { position: 'top-center', autoClose: 3200 });
       return;
@@ -417,20 +649,85 @@ const ResponderPesquisa = () => {
 
     try {
       setEnviando(true);
+      console.log('=== ENVIANDO RESPOSTAS ===');
+      console.log('Payload total:', JSON.stringify(payload, null, 2));
+      console.log('LoginId:', loginId, 'PesquisaId:', Number(id));
+      
+      // Validar PesquisaId
+      if (!id || isNaN(Number(id))) {
+        throw new Error('PesquisaId inválido.');
+      }
+      
+      // Validar LoginId apenas se a pesquisa NÃO permite respostas anônimas
+      if (!pesquisa?.permiteRespostasAnonimas && (!loginId || isNaN(loginId))) {
+        throw new Error('Você precisa fazer login para responder esta pesquisa.');
+      }
+      
       for (const item of payload) {
+        // Validação final antes de enviar
+        if (!item.perguntaId || item.perguntaId <= 0) {
+          console.error('PerguntaId inválido no item:', item);
+          continue;
+        }
+
         if (item.tipo === 'discursiva') {
-          await api.post(`/api/Respostas/discursiva`, {
-            Perguntaid: item.perguntaId, Texto: item.texto, Loginid: loginId, Pesquisaid: Number(id)
-          });
+          if (!item.texto || item.texto.trim().length === 0) {
+            console.error('Texto vazio para pergunta discursiva:', item);
+            continue;
+          }
+          
+          const requestBody = {
+            PerguntaId: item.perguntaId,
+            Texto: item.texto.trim(),
+            LoginId: loginId,
+            PesquisaId: Number(id)
+          };
+          console.log('Enviando resposta discursiva:', requestBody);
+          await api.post(`/api/Respostas/discursiva`, requestBody);
         } else {
-          await api.post(`/api/Respostas/opcoes`, {
-            Perguntaid: item.perguntaId, OpcoesSelecionadas: item.opcoes, Loginid: loginId, Pesquisaid: Number(id)
+          if (!item.opcoes || item.opcoes.length === 0) {
+            console.error('Opções vazias para pergunta objetiva/múltipla:', item);
+            continue;
+          }
+          
+          const requestBody = {
+            PerguntaId: item.perguntaId,
+            OpcoesSelecionadas: item.opcoes,
+            LoginId: loginId,
+            PesquisaId: Number(id)
+          };
+          console.log('Enviando resposta de opções:', requestBody);
+          console.log('Detalhes da requisição:', {
+            perguntaId: item.perguntaId,
+            tipo: typeof item.perguntaId,
+            opcoes: item.opcoes,
+            tipoOpcoes: typeof item.opcoes[0],
+            loginId: loginId,
+            tipoLoginId: typeof loginId
           });
+          await api.post(`/api/Respostas/opcoes`, requestBody);
         }
       }
       toast.success('Respostas enviadas com sucesso!', { position: 'top-center', autoClose: 3000 });
-    } catch {
-      toast.error('Erro ao enviar respostas. Verifique e tente novamente.', { position: 'top-center', autoClose: 4000 });
+      console.log('✅ Todas as respostas enviadas com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao enviar respostas:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        errors: error.response?.data?.errors,
+        title: error.response?.data?.title,
+        message: error.message,
+        fullError: error
+      });
+      
+      // Mensagem de erro mais específica
+      const errorMessage = error.response?.data?.error 
+        || error.response?.data?.title 
+        || error.message 
+        || 'Erro ao enviar respostas. Verifique e tente novamente.';
+      
+      toast.error(errorMessage, { position: 'top-center', autoClose: 4000 });
     } finally {
       setEnviando(false);
     }
@@ -565,7 +862,15 @@ const ResponderPesquisa = () => {
               <section className={styles.formArea} aria-label="Formulário da pesquisa">
                 {blocos.map((b, index) => {
                   const tipo = normalizeTipo(b.tipo);
-                  const perguntaId = b.perguntaid ?? b.id ?? index;
+                  // Usar função helper para obter ID consistente
+                  const perguntaId = obterPerguntaId(b, index);
+                  
+                  console.log(`[RENDER] Bloco ${index}: perguntaId = ${perguntaId}`, {
+                    perguntaIdReal: b.perguntaIdReal,
+                    perguntaid: b.perguntaid,
+                    tipo: b.tipo
+                  });
+                  
                   const { style: blocoInline } = buildBlocoInlineStyle(b?.estilo);
                   const resp = respostas[perguntaId];
                   const baseId = `pergunta-${perguntaId}`;
@@ -599,10 +904,14 @@ const ResponderPesquisa = () => {
                           <div className={styles.optionsCol}>
                             {b.opcoes.map((op, idx) => {
                               const isObj = op && typeof op === 'object';
-                              const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
+                              // CORREÇÃO: Usar opcaoidReal se disponível (ID do banco), senão usar opcaoid do template
+                              const value = isObj && op.opcaoidReal ? Number(op.opcaoidReal) 
+                                          : isObj && op.opcaoid ? Number(op.opcaoid) 
+                                          : Number(idx);
                               const label = isObj ? (op.texto ?? String(value)) : String(op);
                               const inputId = `${baseId}-opt-${idx}`;
                               const checked = resp?.valor === value;
+                              console.log(`Opção objetiva ${idx}: opcaoidReal=${op?.opcaoidReal}, opcaoid=${op?.opcaoid}, value=${value}, label=${label}`);
                               return (
                                 <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
                                   <input
@@ -624,10 +933,14 @@ const ResponderPesquisa = () => {
                           <div className={styles.optionsCol}>
                             {b.opcoes.map((op, idx) => {
                               const isObj = op && typeof op === 'object';
-                              const value = isObj ? Number(op.opcaoid ?? idx) : Number(idx);
+                              // CORREÇÃO: Usar opcaoidReal se disponível (ID do banco), senão usar opcaoid do template
+                              const value = isObj && op.opcaoidReal ? Number(op.opcaoidReal) 
+                                          : isObj && op.opcaoid ? Number(op.opcaoid) 
+                                          : Number(idx);
                               const label = isObj ? (op.texto ?? String(value)) : String(op);
                               const inputId = `${baseId}-chk-${idx}`;
                               const checked = Array.isArray(resp?.valor) && resp.valor.includes(value);
+                              console.log(`Opção múltipla ${idx}: opcaoidReal=${op?.opcaoidReal}, opcaoid=${op?.opcaoid}, value=${value}, label=${label}`);
                               return (
                                 <label key={inputId} htmlFor={inputId} className={styles.optionRow}>
                                   <input
