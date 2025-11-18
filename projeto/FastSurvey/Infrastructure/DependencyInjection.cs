@@ -13,6 +13,7 @@ using FASTSURVEY.Services.Pasta;
 using FASTSURVEY.Services.Pergunta;
 using FASTSURVEY.Services.Pesquisa;
 using FASTSURVEY.Services.PesquisaInterativa;
+using FASTSURVEY.Services.PesquisaPasta;
 using FASTSURVEY.Services.QRCode;
 using FASTSURVEY.Services.Resposta;
 // Novos Services
@@ -54,6 +55,7 @@ namespace FASTSURVEY
             services.AddScoped<ITipoPesquisaRepository, TipoPesquisaRepository>();
             services.AddScoped<ITipoPerguntaRepository, TipoPerguntaRepository>();
             services.AddScoped<IPesquisaRepository, PesquisaRepository>();
+            services.AddScoped<IPesquisaPastaRepository, PesquisaPastaRepository>();
             services.AddScoped<IPerguntaRepository, PerguntaRepository>();
             services.AddScoped<IOpcaoPerguntaRepository, OpcaoPerguntaRepository>();
             services.AddScoped<IRespostaRepository, RespostaRepository>();
@@ -75,6 +77,7 @@ namespace FASTSURVEY
             services.AddScoped<IPastaService, PastaService>();
             services.AddScoped<IPerguntaService, PerguntaService>();
             services.AddScoped<IPesquisaService, PesquisaService>();
+            services.AddScoped<IPesquisaPastaService, PesquisaPastaService>();
             services.AddScoped<IRespostaService, RespostaService>();
             services.AddScoped<ITipoPerguntaService, TipoPerguntaService>();
             services.AddScoped<ITipoPesquisaService, TipoPesquisaService>();
@@ -88,7 +91,7 @@ namespace FASTSURVEY
             services.AddScoped<IExportService, ExportService>();
             services.AddScoped<IAuthorizationService, AuthorizationService>();
             services.AddScoped<IAnalyticsService, AnalyticsService>();
-            
+
             // ===== Services de Segurança e Controle =====
             services.AddScoped<IBlocklistService, BlocklistService>();
             services.AddScoped<IExternalLoginsService, ExternalLoginsService>();

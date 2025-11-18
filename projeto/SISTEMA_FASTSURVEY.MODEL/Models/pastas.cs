@@ -16,4 +16,6 @@ public partial class Pastas
     public virtual Login Login { get; set; }
 
     public virtual ICollection<Pesquisas> Pesquisas { get; set; } = new List<Pesquisas>();
+
+    public virtual ICollection<PesquisasPastas> PesquisasPastas { get; set; } = new List<PesquisasPastas>();
 }

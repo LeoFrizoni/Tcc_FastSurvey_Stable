@@ -54,4 +54,6 @@ public partial class Respostas
     public virtual ICollection<Anexos> Anexo { get; set; } = new List<Anexos>();
 
     public virtual ICollection<OpcoesPergunta> Opcao { get; set; } = new List<OpcoesPergunta>();
+
+    public virtual ICollection<Analises> Analises { get; set; } = new List<Analises>();
 }

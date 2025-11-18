@@ -1,9 +1,11 @@
 // FASTSURVEY/Services/Pesquisa/PesquisaService.cs
 #nullable enable
 using System.Text.Json;
+using System.Threading;
 using FASTSURVEY.Dtos.Pesquisas;
 using FastSurvey.Dtos.Pesquisas;
 using FASTSURVEY.Services.Cache;
+using FASTSURVEY.Services.PesquisaPasta;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 
@@ -13,13 +15,19 @@ namespace FASTSURVEY.Services.Pesquisa
     {
         private readonly FastSurveyContext _ctx;
         private readonly ICacheService _cache;
+        private readonly IPesquisaPastaService _pesquisaPastaService;
         private const string CACHE_PREFIX = "pesquisa:";
         private const string CACHE_LIST_PREFIX = "pesquisa:list:";
 
-        public PesquisaService(FastSurveyContext ctx, ICacheService cache)
+        public PesquisaService(
+            FastSurveyContext ctx,
+            ICacheService cache,
+            IPesquisaPastaService pesquisaPastaService
+        )
         {
             _ctx = ctx;
             _cache = cache;
+            _pesquisaPastaService = pesquisaPastaService;
         }
 
         // ------------------ CREATE ------------------
@@ -42,7 +50,6 @@ namespace FASTSURVEY.Services.Pesquisa
             {
                 LoginId = req.LoginId,
                 TipoPesquisaId = req.TipoPesquisaId,
-                PastaId = req.PastaId,
                 Titulo = req.Titulo,
                 Descricao = req.Descricao ?? string.Empty,
                 TemplateJson = template,
@@ -70,6 +77,16 @@ namespace FASTSURVEY.Services.Pesquisa
 
             // Parse templateJson e cria as perguntas no banco
             await ParseTemplateAndCreatePerguntas(entity.PesquisaId, template, ct);
+
+            if (req.PastaId.HasValue)
+            {
+                await _pesquisaPastaService.DefinirPastaAsync(
+                    entity.PesquisaId,
+                    req.LoginId,
+                    req.PastaId,
+                    ct
+                );
+            }
 
             await InvalidateUserCache(req.LoginId, ct);
             return entity.PesquisaId;
@@ -298,7 +315,6 @@ namespace FASTSURVEY.Services.Pesquisa
 
             entity.Titulo = req.Titulo;
             entity.Descricao = req.Descricao ?? entity.Descricao;
-            entity.PastaId = req.PastaId ?? entity.PastaId;
             entity.TipoPesquisaId = req.TipoPesquisaId ?? entity.TipoPesquisaId;
             entity.QRCodeUrl = req.QRCodeUrl ?? entity.QRCodeUrl;
 
@@ -325,7 +341,22 @@ namespace FASTSURVEY.Services.Pesquisa
 
             entity.DataAtualizacao = DateTime.UtcNow;
 
-            await _ctx.SaveChangesAsync(ct);
+            var pastaAtualizada = !req.PastaId.HasValue
+                || await _pesquisaPastaService.DefinirPastaAsync(
+                    id,
+                    entity.LoginId,
+                    req.PastaId,
+                    ct
+                );
+
+            if (!pastaAtualizada)
+                return false;
+
+            if (!req.PastaId.HasValue)
+                await _ctx.SaveChangesAsync(ct);
+            else if (_ctx.ChangeTracker.HasChanges())
+                await _ctx.SaveChangesAsync(ct);
+
             await InvalidatePesquisaCache(id, entity.LoginId, ct);
             return true;
         }
@@ -371,6 +402,8 @@ namespace FASTSURVEY.Services.Pesquisa
                     if (q is null)
                         return null;
 
+                    var pastaId = await _pesquisaPastaService.ObterPastaIdAsync(q.PesquisaId, token);
+
                     return new PesquisaResponse
                     {
                         PesquisaId = q.PesquisaId,
@@ -378,7 +411,7 @@ namespace FASTSURVEY.Services.Pesquisa
                         Descricao = q.Descricao,
                         LoginId = q.LoginId,
                         TipoPesquisaId = q.TipoPesquisaId,
-                        PastaId = q.PastaId,
+                        PastaId = pastaId,
                         TemplateJson = q.TemplateJson ?? "[]",
                         QRCodeUrl = q.QRCodeUrl,
                         DataCriacao = q.DataCriacao,
@@ -428,7 +461,10 @@ namespace FASTSURVEY.Services.Pesquisa
                     if (filtro.LoginId.HasValue)
                         query = query.Where(x => x.LoginId == filtro.LoginId.Value);
                     if (filtro.PastaId.HasValue)
-                        query = query.Where(x => x.PastaId == filtro.PastaId.Value);
+                    {
+                        var pastaIdFiltro = filtro.PastaId.Value;
+                        query = query.Where(x => _ctx.PesquisasPastas.Any(pp => pp.PesquisaId == x.PesquisaId && pp.PastaId == pastaIdFiltro));
+                    }
                     if (filtro.TipoPesquisaId.HasValue)
                         query = query.Where(x => x.TipoPesquisaId == filtro.TipoPesquisaId.Value);
                     if (filtro.IsInterativa.HasValue)
@@ -470,7 +506,7 @@ namespace FASTSURVEY.Services.Pesquisa
                             Descricao = q.Descricao,
                             LoginId = q.LoginId,
                             TipoPesquisaId = q.TipoPesquisaId,
-                            PastaId = q.PastaId,
+                            PastaId = null,
                             QRCodeUrl = q.QRCodeUrl,
                             DataCriacao = q.DataCriacao,
                             DataAtualizacao = q.DataAtualizacao,
@@ -486,6 +522,20 @@ namespace FASTSURVEY.Services.Pesquisa
                     await Task.WhenAll(countTask, dataTask);
                     var total = await countTask;
                     var items = await dataTask;
+
+                    if (items.Count > 0)
+                    {
+                        var pastaMap = await _pesquisaPastaService.MapearPastaPorPesquisaAsync(
+                            items.Select(i => i.PesquisaId),
+                            token
+                        );
+
+                        foreach (var item in items)
+                        {
+                            if (pastaMap.TryGetValue(item.PesquisaId, out var pastaId))
+                                item.PastaId = pastaId;
+                        }
+                    }
 
                     return new PagedResult<PesquisaListItemResponse>
                     {
@@ -576,7 +626,7 @@ namespace FASTSURVEY.Services.Pesquisa
                             Descricao = q.Descricao,
                             LoginId = q.LoginId,
                             TipoPesquisaId = q.TipoPesquisaId,
-                            PastaId = q.PastaId,
+                            PastaId = null,
                             QRCodeUrl = q.QRCodeUrl,
                             DataCriacao = q.DataCriacao,
                             DataAtualizacao = q.DataAtualizacao,
@@ -588,6 +638,20 @@ namespace FASTSURVEY.Services.Pesquisa
                             Ativa = q.Ativa,
                         })
                         .ToListAsync(token);
+
+                    if (list.Count > 0)
+                    {
+                        var pastaMap = await _pesquisaPastaService.MapearPastaPorPesquisaAsync(
+                            list.Select(i => i.PesquisaId),
+                            token
+                        );
+
+                        foreach (var item in list)
+                        {
+                            if (pastaMap.TryGetValue(item.PesquisaId, out var pastaId))
+                                item.PastaId = pastaId;
+                        }
+                    }
 
                     return list;
                 },
@@ -602,23 +666,84 @@ namespace FASTSURVEY.Services.Pesquisa
             CancellationToken ct = default
         )
         {
+            await DisableLegacyDataAtualizacaoArtifactsAsync(ct);
+
             var entity = await _ctx
                 .Pesquisas.Select(x => new { x.PesquisaId, x.LoginId })
                 .FirstOrDefaultAsync(x => x.PesquisaId == pesquisaid, ct);
             if (entity is null)
                 return false;
 
-            var updated = await _ctx.Database.ExecuteSqlInterpolatedAsync(
-                $@"UPDATE pesquisas 
-                   SET pastaid = {pastaid}, dataatualizacao = {DateTime.UtcNow}
-                   WHERE pesquisaid = {pesquisaid}",
+            var atualizado = await _pesquisaPastaService.DefinirPastaAsync(
+                pesquisaid,
+                entity.LoginId,
+                pastaid,
                 ct
             );
 
-            if (updated > 0)
-                await InvalidatePesquisaCache(pesquisaid, entity.LoginId, ct);
+            if (!atualizado)
+                return false;
 
-            return updated > 0;
+            await _ctx.Database.ExecuteSqlInterpolatedAsync(
+                $@"UPDATE ""Pesquisas"" 
+                   SET ""DataAtualizacao"" = {DateTime.UtcNow}
+                 WHERE ""PesquisaId"" = {pesquisaid}",
+                ct
+            );
+
+            await InvalidatePesquisaCache(pesquisaid, entity.LoginId, ct);
+            return true;
+        }
+
+        private static bool _legacyTriggerDisabled;
+        private static readonly SemaphoreSlim _triggerSemaphore = new(1, 1);
+
+        private async Task DisableLegacyDataAtualizacaoArtifactsAsync(CancellationToken ct)
+        {
+            if (_legacyTriggerDisabled)
+                return;
+
+            await _triggerSemaphore.WaitAsync(ct);
+            try
+            {
+                if (_legacyTriggerDisabled)
+                    return;
+
+                const string disableTriggerSql = @"
+                    DO $$
+                    DECLARE
+                        rec RECORD;
+                    BEGIN
+                        FOR rec IN (
+                            SELECT quote_ident(event_object_schema) AS schema_name,
+                                   quote_ident(event_object_table) AS table_name,
+                                   quote_ident(trigger_name) AS trigger_name
+                            FROM information_schema.triggers
+                            WHERE trigger_name IN ('trg_set_dataatualizacao', 'trg_set_pesquisas_dataatualizacao')
+                        ) LOOP
+                            EXECUTE format('DROP TRIGGER %s ON %s.%s', rec.trigger_name, rec.schema_name, rec.table_name);
+                        END LOOP;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_proc WHERE proname = 'trg_set_dataatualizacao'
+                        ) THEN
+                            EXECUTE 'DROP FUNCTION trg_set_dataatualizacao() CASCADE';
+                        END IF;
+
+                        IF EXISTS (
+                            SELECT 1 FROM pg_proc WHERE proname = 'trg_set_pesquisas_dataatualizacao'
+                        ) THEN
+                            EXECUTE 'DROP FUNCTION trg_set_pesquisas_dataatualizacao() CASCADE';
+                        END IF;
+                    END $$;";
+
+                await _ctx.Database.ExecuteSqlRawAsync(disableTriggerSql, ct);
+                _legacyTriggerDisabled = true;
+            }
+            finally
+            {
+                _triggerSemaphore.Release();
+            }
         }
 
         private async Task InvalidatePesquisaCache(
@@ -654,6 +779,8 @@ namespace FASTSURVEY.Services.Pesquisa
                 if (q is null)
                     return null;
 
+                var pastaId = await _pesquisaPastaService.ObterPastaIdAsync(q.PesquisaId, ct);
+
                 return new PesquisaResponse
                 {
                     PesquisaId = q.PesquisaId,
@@ -661,7 +788,7 @@ namespace FASTSURVEY.Services.Pesquisa
                     Descricao = q.Descricao,
                     LoginId = q.LoginId,
                     TipoPesquisaId = q.TipoPesquisaId,
-                    PastaId = q.PastaId,
+                    PastaId = pastaId,
                     QRCodeUrl = q.QRCodeUrl,
                     DataCriacao = q.DataCriacao,
                     DataAtualizacao = q.DataAtualizacao,
@@ -690,11 +817,12 @@ namespace FASTSURVEY.Services.Pesquisa
             if (original is null)
                 return 0;
 
+            var pastaOrigem = await _pesquisaPastaService.ObterPastaIdAsync(original.PesquisaId, ct);
+
             var nova = new Pesquisas
             {
                 LoginId = original.LoginId,
                 TipoPesquisaId = original.TipoPesquisaId,
-                PastaId = request.NovaPastaId ?? original.PastaId,
                 Titulo = request.NovoTitulo ?? $"{original.Titulo} (Cópia)",
                 Descricao = original.Descricao,
                 TemplateJson = original.TemplateJson,
@@ -709,6 +837,17 @@ namespace FASTSURVEY.Services.Pesquisa
 
             _ctx.Pesquisas.Add(nova);
             await _ctx.SaveChangesAsync(ct);
+
+            var pastaDestino = request.NovaPastaId ?? pastaOrigem;
+            if (pastaDestino.HasValue)
+            {
+                await _pesquisaPastaService.DefinirPastaAsync(
+                    nova.PesquisaId,
+                    nova.LoginId,
+                    pastaDestino,
+                    ct
+                );
+            }
 
             if (!request.IncluirRespostas)
             {

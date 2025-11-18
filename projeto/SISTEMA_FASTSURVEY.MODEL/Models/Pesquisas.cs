@@ -78,4 +78,6 @@ public partial class Pesquisas
     public virtual ICollection<SessoesInterativas> SessoesInterativas { get; set; } = new List<SessoesInterativas>();
 
     public virtual TipoPesquisa TipoPesquisa { get; set; }
+
+    public virtual PesquisasPastas PesquisaPasta { get; set; }
 }

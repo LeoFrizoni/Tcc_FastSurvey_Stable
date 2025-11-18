@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 // ALIASES coerentes com o scaffold atual (classes no PLURAL)
 using PastaEntity = SISTEMA_FASTSURVEY.MODEL.Models.Pastas;
-using PesquisaEntity = SISTEMA_FASTSURVEY.MODEL.Models.Pesquisas;
 
 namespace FASTSURVEY.Services.Pasta
 {
@@ -124,13 +123,9 @@ namespace FASTSURVEY.Services.Pasta
             if (pasta is null)
                 return false;
 
-            // Desvincula pesquisas antes de remover a pasta
-            var pesquisas = await _ctx.Set<PesquisaEntity>()
-                .Where(x => x.PastaId == pastaId && x.LoginId == loginId)
-                .ToListAsync(ct);
-
-            foreach (var pesq in pesquisas)
-                pesq.PastaId = null;
+            await _ctx.PesquisasPastas
+                .Where(pp => pp.PastaId == pastaId && pp.Pesquisa.LoginId == loginId)
+                .ExecuteDeleteAsync(ct);
 
             _ctx.Set<PastaEntity>().Remove(pasta);
             await _ctx.SaveChangesAsync(ct);

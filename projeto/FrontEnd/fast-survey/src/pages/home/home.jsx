@@ -56,13 +56,14 @@ const normalizePesquisa = (it) => {
     null;
 
   return {
+    ...it,
     pesquisaid: it.pesquisaid ?? it.pesquisaId ?? it.PesquisaId,
     titulo: it.titulo ?? it.Titulo ?? '',
     descricao: it.descricao ?? it.Descricao ?? '',
     pastaId: it.pastaId ?? it.PastaId ?? null,
-    dataCriacao: it.dataCriacao ?? it.criadoEm ?? it.Datacriacao ?? it.data_criacao,
+    dataCriacao:
+      it.dataCriacao ?? it.DataCriacao ?? it.criadoEm ?? it.CriadoEm ?? it.Datacriacao ?? it.data_criacao ?? null,
     tipoPesquisa: tipoDesc ? { descricao: tipoDesc } : it.tipoPesquisa,
-    ...it,
   };
 };
 
@@ -119,6 +120,7 @@ const HomePage = () => {
   const [isNovaPastaOpen, setIsNovaPastaOpen] = useState(false);
   const [novoNomePasta, setNovoNomePasta] = useState('');
   const inputRef = useRef(null);
+  const modalCardRef = useRef(null);
 
   // Modal: Renomear pasta
   const [isRenomearOpen, setIsRenomearOpen] = useState(false);
@@ -344,7 +346,43 @@ const HomePage = () => {
     setIsNovaPastaOpen(true);
   };
   useEffect(() => {
-    if (isNovaPastaOpen && inputRef.current) inputRef.current.focus();
+    if (isNovaPastaOpen && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [isNovaPastaOpen]);
+
+  useEffect(() => {
+    if (!isNovaPastaOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const trapFocus = (e) => {
+      if (!isNovaPastaOpen || e.key !== 'Tab' || !modalCardRef.current) return;
+      const focusable = modalCardRef.current.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', trapFocus);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', trapFocus);
+    };
   }, [isNovaPastaOpen]);
 
   const criarPastaConfirm = useCallback(async () => {
@@ -394,34 +432,50 @@ const HomePage = () => {
   }, [isNovaPastaOpen, criarPastaConfirm]);
 
   /* === Mover pesquisa para pasta === */
+  const normalizeDestinoId = (valor) => {
+    if (valor === undefined || valor === null) return null;
+    if (valor === 'sem' || valor === 'todas') return null;
+    if (typeof valor === 'number') return valor;
+    if (typeof valor === 'string') {
+      const parsed = Number(valor);
+      if (!Number.isNaN(parsed)) return parsed;
+      return valor;
+    }
+    return null;
+  };
+
   const movePesquisaToPasta = async (pesquisaId, pastaIdOrSem) => {
-    const destinoId = pastaIdOrSem === 'sem' ? null : pastaIdOrSem;
+    const destinoId = normalizeDestinoId(pastaIdOrSem);
+    const pidNumeric = Number(pesquisaId);
+    const pesquisaKey = Number.isFinite(pidNumeric) ? pidNumeric : pesquisaId;
+
+    const applyLocalUpdate = (novoDestino) => {
+      const map = readLocalMap(MAP_STORAGE_KEY);
+      const vinc = { ...(map.vinculos || {}) };
+      if (novoDestino) vinc[pesquisaKey] = novoDestino; else delete vinc[pesquisaKey];
+      writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
+      setPesquisas((prev) =>
+        prev.map((p) => (getPid(p) === pesquisaKey ? { ...p, pastaId: novoDestino } : p))
+      );
+    };
+
+    const shouldSkipRequest = destinoId !== null && typeof destinoId !== 'number';
 
     try {
-      await axios.patch(
-        `${API_BASE_URL}/api/pesquisas/${pesquisaId}/mover-pasta`,
-        { pastaId: destinoId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      if (!shouldSkipRequest) {
+        await axios.patch(
+          `${API_BASE_URL}/api/pesquisas/${pesquisaKey}/mover-pasta`,
+          { pastaId: destinoId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      }
 
-      setPesquisas((prev) =>
-        prev.map((p) => (getPid(p) === pesquisaId ? { ...p, pastaId: destinoId } : p))
-      );
-
-      const map = readLocalMap(MAP_STORAGE_KEY);
-      const vinc = { ...(map.vinculos || {}) };
-      if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
-      writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
+      applyLocalUpdate(destinoId);
     } catch (err) {
-      const map = readLocalMap(MAP_STORAGE_KEY);
-      const vinc = { ...(map.vinculos || {}) };
-      if (destinoId) vinc[pesquisaId] = destinoId; else delete vinc[pesquisaId];
-      writeLocalMap(MAP_STORAGE_KEY, { pastas: map.pastas || [], vinculos: vinc });
-
-      setPesquisas((prev) =>
-        prev.map((p) => (getPid(p) === pesquisaId ? { ...p, pastaId: destinoId } : p))
-      );
-      toast.warn('Não consegui atualizar no servidor. Alteração aplicada localmente.');
+      console.error('❌ HomePage - Falha ao mover pesquisa de pasta', err);
+      applyLocalUpdate(destinoId);
+      const mensagem = err?.response?.data?.message || 'Não consegui atualizar no servidor. Alteração aplicada localmente.';
+      toast.warn(mensagem);
     } finally {
       setPastaPulse(pastaIdOrSem);
       setTimeout(() => setPastaPulse(null), 900);
@@ -490,7 +544,14 @@ const HomePage = () => {
     } else if (ordenarPor === 'z-a') {
       base.sort((a, b) => (b.titulo || '').localeCompare(a.titulo || ''));
     } else {
-      const getDate = (x) => x?.dataCriacao || x?.criadoEm || x?.datacriacao || 0;
+      const getDate = (x) =>
+        x?.dataCriacao ||
+        x?.DataCriacao ||
+        x?.criadoEm ||
+        x?.CriadoEm ||
+        x?.datacriacao ||
+        x?.data_criacao ||
+        0;
       base.sort((a, b) => new Date(getDate(b)) - new Date(getDate(a)));
     }
 
@@ -855,7 +916,15 @@ const HomePage = () => {
 
                     <div className={styles.cardFoot}>
                       <span className={styles.meta}>
-                        {new Date(p.dataCriacao || p.criadoEm || p.datacriacao || Date.now()).toLocaleDateString('pt-BR')}
+                        {new Date(
+                          p.dataCriacao ||
+                          p.DataCriacao ||
+                          p.criadoEm ||
+                          p.CriadoEm ||
+                          p.datacriacao ||
+                          p.data_criacao ||
+                          Date.now()
+                        ).toLocaleDateString('pt-BR')}
                       </span>
                       <div className={styles.cardActions}>
                         <button
@@ -882,6 +951,7 @@ const HomePage = () => {
       {isNovaPastaOpen && (
         <div className={styles.modalOverlay} onMouseDown={() => setIsNovaPastaOpen(false)}>
           <div
+            ref={modalCardRef}
             className={styles.modalCard}
             role="dialog"
             aria-modal="true"
@@ -900,7 +970,7 @@ const HomePage = () => {
               <input
                 ref={inputRef}
                 type="text"
-                maxLength={60}
+                maxLength={50}
                 placeholder="Ex.: Relatórios, Provas, Clientes..."
                 value={novoNomePasta}
                 onChange={(e) => setNovoNomePasta(e.target.value)}
@@ -1040,7 +1110,7 @@ const HomePage = () => {
               <button className={styles.btnGhost} onClick={() => setIsExcluirPesquisaOpen(false)}>
                 Cancelar
               </button>
-              <button className={`${styles.btnPrimary} ${styles.navDanger}`} onClick={confirmarExcluirPesquisa}>
+              <button className={`${styles.btnPrimary} ${styles.navDangerExcluirPesquisa}`} onClick={confirmarExcluirPesquisa}>
                 Excluir permanentemente
               </button>
             </div>

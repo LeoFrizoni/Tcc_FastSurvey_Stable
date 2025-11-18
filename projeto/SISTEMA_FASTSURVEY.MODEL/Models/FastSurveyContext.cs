@@ -39,7 +39,11 @@ public partial class FastSurveyContext : DbContext
 
     public virtual DbSet<Pesquisas> Pesquisas { get; set; }
 
+    public virtual DbSet<PesquisasPastas> PesquisasPastas { get; set; }
+
     public virtual DbSet<Respostas> Respostas { get; set; }
+
+    public virtual DbSet<Analises> Analises { get; set; }
 
     public virtual DbSet<SessoesInterativas> SessoesInterativas { get; set; }
 
@@ -391,6 +395,51 @@ public partial class FastSurveyContext : DbContext
                 .HasForeignKey(d => d.TipoPesquisaId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("pesquisas_tipopesquisaid_fkey");
+        });
+
+        modelBuilder.Entity<PesquisasPastas>(entity =>
+        {
+            entity.HasKey(e => e.PesquisaId).HasName("PK_PesquisasPastas");
+
+            entity.ToTable("PesquisasPastas");
+
+            entity.HasIndex(e => e.PastaId, "IX_PesquisasPastas_PastaId");
+
+            entity.Property(e => e.VinculadaEm).HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.Pasta).WithMany(p => p.PesquisasPastas)
+                .HasForeignKey(d => d.PastaId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_PesquisasPastas_Pastas");
+
+            entity.HasOne(d => d.Pesquisa).WithOne(p => p.PesquisaPasta)
+                .HasForeignKey<PesquisasPastas>(d => d.PesquisaId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_PesquisasPastas_Pesquisas");
+        });
+
+        modelBuilder.Entity<Analises>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("Analises_pkey");
+
+            entity.ToTable("Analises");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.RespostaId).HasColumnName("resposta_id");
+            entity.Property(e => e.Analytics)
+                .HasColumnName("analytics")
+                .HasColumnType("jsonb");
+            entity.Property(e => e.Keywords)
+                .HasColumnName("keywords")
+                .HasColumnType("jsonb");
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.HasOne(d => d.Resposta).WithMany(p => p.Analises)
+                .HasForeignKey(d => d.RespostaId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_Analises_Respostas");
         });
 
         modelBuilder.Entity<Respostas>(entity =>
