@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Edit3, 
@@ -16,7 +16,8 @@ import {
   Users,
   Clock,
   CheckCircle,
-  XCircle
+  XCircle,
+  ListChecks
 } from 'lucide-react';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
@@ -25,6 +26,49 @@ import { toast } from 'react-toastify';
 
 // Configuração da API
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5062';
+
+const mapPerguntasDoTemplate = (templateJson) => {
+  if (!templateJson) return {};
+  let blocos = [];
+  if (Array.isArray(templateJson)) {
+    blocos = templateJson;
+  } else {
+    try {
+      blocos = JSON.parse(templateJson);
+    } catch {
+      return {};
+    }
+  }
+
+  const map = {};
+  blocos.forEach((bloco) => {
+    const rawId = bloco?.perguntaId ?? bloco?.PerguntaId ?? bloco?.PerguntaID;
+    const perguntaId = rawId != null ? Number(rawId) : null;
+    if (!perguntaId || Number.isNaN(perguntaId)) return;
+
+    map[perguntaId] = {
+      texto: bloco?.texto ?? bloco?.Texto ?? `Pergunta #${perguntaId}`,
+      tipo: (bloco?.tipo ?? bloco?.Tipo ?? '').toString().toLowerCase(),
+      opcoes: (bloco?.opcoes ?? bloco?.Opcoes ?? []).reduce((acc, opcao, index) => {
+        const rawOpcaoId = opcao?.opcaoId ?? opcao?.OpcaoId ?? opcao?.id;
+        const opcaoId = rawOpcaoId != null ? Number(rawOpcaoId) : null;
+        if (opcaoId && !Number.isNaN(opcaoId)) {
+          acc[opcaoId] = opcao?.texto ?? opcao?.Texto ?? `Opção ${index + 1}`;
+        }
+        return acc;
+      }, {}),
+    };
+  });
+
+  return map;
+};
+
+const formatarDataHora = (valor) => {
+  if (!valor) return '-';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '-';
+  return data.toLocaleString('pt-BR');
+};
 
 const EditarPesquisa = () => {
   const { id: rawId } = useParams();
@@ -43,6 +87,13 @@ const EditarPesquisa = () => {
     temLimitadorTempo: false,
     dataFechamento: null
   });
+  const [perguntasDetalhes, setPerguntasDetalhes] = useState({});
+  const [mostrarRespostas, setMostrarRespostas] = useState(false);
+  const [respostas, setRespostas] = useState([]);
+  const [carregandoRespostas, setCarregandoRespostas] = useState(false);
+  const [erroRespostas, setErroRespostas] = useState('');
+  const [filtroUsuario, setFiltroUsuario] = useState('todos');
+  const [participantesInfo, setParticipantesInfo] = useState({});
 
   // Função para obter token de autenticação
   const getAuthHeaders = useCallback(() => {
@@ -68,6 +119,7 @@ const EditarPesquisa = () => {
         });
         
         setPesquisa(data);
+        setPerguntasDetalhes(mapPerguntasDoTemplate(data.templateJson));
         setFormData({
           titulo: data.titulo || '',
           descricao: data.descricao || '',
@@ -171,6 +223,142 @@ const EditarPesquisa = () => {
       });
     }
   };
+
+  const atualizarParticipantesInfo = useCallback(
+    async (lista) => {
+      const ids = Array.from(
+        new Set(
+          (lista || [])
+            .map((resposta) => resposta?.participanteId ?? resposta?.ParticipanteId)
+            .filter((id) => id != null)
+        )
+      );
+      const faltantes = ids.filter((id) => !participantesInfo[id]);
+      if (faltantes.length === 0) return;
+
+      try {
+        const headers = getAuthHeaders();
+        const resultados = await Promise.all(
+          faltantes.map(async (pid) => {
+            try {
+              const { data } = await axios.get(`${API_BASE_URL}/api/ParticipanteSessao/${pid}`, {
+                headers,
+              });
+              const nome =
+                data?.nomeParticipante ??
+                data?.NomeParticipante ??
+                data?.nome ??
+                data?.Nome ??
+                `Participante #${pid}`;
+              return { pid, nome };
+            } catch (error) {
+              console.error('Erro ao buscar participante', pid, error);
+              return { pid, nome: `Participante #${pid}` };
+            }
+          })
+        );
+
+        setParticipantesInfo((prev) => {
+          const next = { ...prev };
+          resultados.forEach(({ pid, nome }) => {
+            next[pid] = nome;
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error('Erro ao carregar informações de participantes', error);
+      }
+    },
+    [getAuthHeaders, participantesInfo]
+  );
+
+  const carregarRespostas = useCallback(async () => {
+    if (!id) return;
+    setCarregandoRespostas(true);
+    setErroRespostas('');
+    try {
+      const { data } = await axios.get(`${API_BASE_URL}/api/respostas/pesquisa/${id}`, {
+        headers: getAuthHeaders(),
+      });
+      const lista = Array.isArray(data) ? data : [];
+      setRespostas(lista);
+      await atualizarParticipantesInfo(lista);
+    } catch (error) {
+      console.error('Erro ao carregar respostas:', error);
+      setErroRespostas('Não foi possível carregar as respostas desta pesquisa.');
+      toast.error('Não foi possível carregar as respostas.');
+    } finally {
+      setCarregandoRespostas(false);
+    }
+  }, [id, getAuthHeaders, atualizarParticipantesInfo]);
+
+  const abrirModalRespostas = () => {
+    setMostrarRespostas(true);
+    if (respostas.length === 0) {
+      carregarRespostas();
+    }
+  };
+
+  const fecharModalRespostas = () => {
+    setMostrarRespostas(false);
+    setFiltroUsuario('todos');
+  };
+
+  const rotuloParticipante = useCallback(
+    (participanteId) => {
+      if (!participanteId) return 'Anônimo';
+      return participantesInfo[participanteId] || `Participante #${participanteId}`;
+    },
+    [participantesInfo]
+  );
+
+  const respostasFiltradas = useMemo(() => {
+    if (filtroUsuario === 'todos') return respostas;
+    if (filtroUsuario === 'anon')
+      return respostas.filter((resposta) => !(resposta?.participanteId ?? resposta?.ParticipanteId));
+    return respostas.filter(
+      (resposta) => String(resposta?.participanteId ?? resposta?.ParticipanteId) === filtroUsuario
+    );
+  }, [respostas, filtroUsuario]);
+
+  const participantesOptions = useMemo(() => {
+    const ids = Array.from(
+      new Set(
+        respostas
+          .map((resposta) => resposta?.participanteId ?? resposta?.ParticipanteId)
+          .filter((id) => id != null)
+      )
+    );
+    return ids.map((id) => ({ id: String(id), label: participantesInfo[id] || `Participante #${id}` }));
+  }, [respostas, participantesInfo]);
+
+  const renderRespostaConteudo = useCallback(
+    (resposta) => {
+      const texto = resposta?.texto ?? resposta?.Texto;
+      const opcoesSelecionadas = resposta?.opcoes ?? resposta?.Opcoes ?? [];
+      const perguntaId = resposta?.perguntaId ?? resposta?.PerguntaId;
+      const detalhe = perguntaId ? perguntasDetalhes[Number(perguntaId)] : null;
+
+      if (opcoesSelecionadas.length > 0) {
+        return (
+          <ul className={styles.responseOptions}>
+            {opcoesSelecionadas.map((opcaoId) => (
+              <li key={`${perguntaId}-${opcaoId}`}>
+                {detalhe?.opcoes?.[opcaoId] ?? `Opção #${opcaoId}`}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+
+      if (texto) {
+        return <p className={styles.responseText}>{texto}</p>;
+      }
+
+      return <p className={styles.emptyAnswer}>Resposta sem conteúdo.</p>;
+    },
+    [perguntasDetalhes]
+  );
 
   if (carregando) {
     return (
@@ -415,6 +603,14 @@ const EditarPesquisa = () => {
                 <BarChart3 size={18} />
                 Ver Resultados
               </button>
+
+              <button 
+                className={styles.actionButton}
+                onClick={abrirModalRespostas}
+              >
+                <ListChecks size={18} />
+                Ver Respostas
+              </button>
               
               <button 
                 className={styles.actionButton}
@@ -451,6 +647,97 @@ const EditarPesquisa = () => {
           </div>
         </div>
       </div>
+
+      {mostrarRespostas && (
+        <div className={styles.responsesOverlay} onMouseDown={fecharModalRespostas}>
+          <div
+            className={styles.responsesModal}
+            role="dialog"
+            aria-modal="true"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className={styles.responsesHeader}>
+              <div>
+                <h3>Respostas da pesquisa</h3>
+                <p>{respostas.length} recebidas</p>
+              </div>
+              <button type="button" className={styles.closeButton} onClick={fecharModalRespostas}>
+                Fechar
+              </button>
+            </div>
+
+            <div className={styles.responsesFilters}>
+              <label htmlFor="filtro-usuario">Filtrar por usuário</label>
+              <div className={styles.filtersRow}>
+                <select
+                  id="filtro-usuario"
+                  value={filtroUsuario}
+                  onChange={(e) => setFiltroUsuario(e.target.value)}
+                >
+                  <option value="todos">Todos os usuários</option>
+                  {respostas.some((resposta) => !(resposta?.participanteId ?? resposta?.ParticipanteId)) && (
+                    <option value="anon">Somente anônimas</option>
+                  )}
+                  {participantesOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className={styles.refreshButton}
+                  onClick={carregarRespostas}
+                  disabled={carregandoRespostas}
+                >
+                  {carregandoRespostas ? 'Atualizando…' : 'Atualizar'}
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.responsesContent}>
+              {carregandoRespostas ? (
+                <div className={styles.responsesLoading}>Carregando respostas…</div>
+              ) : erroRespostas ? (
+                <p className={styles.errorMessage}>{erroRespostas}</p>
+              ) : respostasFiltradas.length === 0 ? (
+                <p className={styles.emptyAnswer}>Nenhuma resposta encontrada para este filtro.</p>
+              ) : (
+                <div className={styles.responsesList}>
+                  {respostasFiltradas.map((resposta) => {
+                    const respostaId =
+                      resposta?.respostaId ??
+                      resposta?.RespostaId ??
+                      `${resposta?.perguntaId ?? resposta?.PerguntaId}-${resposta?.dataResposta ?? resposta?.DataResposta}`;
+                    const participanteId = resposta?.participanteId ?? resposta?.ParticipanteId;
+                    const perguntaId = resposta?.perguntaId ?? resposta?.PerguntaId;
+                    const perguntaDetalhe = perguntaId ? perguntasDetalhes[Number(perguntaId)] : null;
+                    const perguntaTexto = perguntaDetalhe?.texto ?? (perguntaId ? `Pergunta #${perguntaId}` : 'Pergunta');
+                    const dataResposta = resposta?.dataResposta ?? resposta?.DataResposta;
+                    const ehAnonima = resposta?.respostaAnonima ?? resposta?.RespostaAnonima ?? false;
+
+                    return (
+                      <article key={respostaId} className={styles.responseItem}>
+                        <div className={styles.responseMeta}>
+                          <div>
+                            <h4>{perguntaTexto}</h4>
+                            <small>{formatarDataHora(dataResposta)}</small>
+                          </div>
+                          <div className={styles.responseUser}>
+                            <span>{rotuloParticipante(participanteId)}</span>
+                            {ehAnonima && <span className={styles.responseTag}>Anônima</span>}
+                          </div>
+                        </div>
+                        <div className={styles.responseAnswer}>{renderRespostaConteudo(resposta)}</div>
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -114,30 +114,7 @@ const DiscursivaPreview = ({ bloco }) => (
 
     <GaleriaPreview imagens={bloco?.imagens} />
 
-    {/* Exemplo de resposta (para futura IA) */}
     <div style={{ marginTop: 16 }}>
-      <div style={{ marginBottom: 12 }}>
-        <label style={{ display: "block", marginBottom: 4, fontWeight: 500, color: "#374151" }}>
-          Exemplo de resposta (para IA no futuro)
-        </label>
-        <textarea
-          value={bloco?.respostaExemplo || ""}
-          disabled
-          style={{
-            width: "100%",
-            minHeight: 80,
-            padding: 12,
-            border: "1px solid #d1d5db",
-            borderRadius: 6,
-            fontFamily: "inherit",
-            fontSize: 14,
-            resize: "vertical",
-            background: "#f9fafb"
-          }}
-          placeholder="Escreva aqui um exemplo de boa resposta..."
-        />
-      </div>
-
       <div>
         <label style={{ display: "block", marginBottom: 4, fontWeight: 500, color: "#374151" }}>
           Resposta do usuário...

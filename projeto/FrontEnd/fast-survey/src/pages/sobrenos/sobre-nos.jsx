@@ -9,17 +9,17 @@ const equipe = [
     nome: 'Leonardo Lawall',
     avatar: 'LL',
     funcao: 'Desenvolvedor Full Stack & UX/UI Designer',
-    descricao: 'Especialista em desenvolvimento frontend e backend, responsável pela arquitetura da aplicação e design de interface',
+    descricao: 'Desenvolvedor Front-End e Back-End, responsável pela arquitetura da aplicação e design de interface',
     aria: 'Avatar de Leonardo Lawall',
     linkedin: 'https://www.linkedin.com/in/leonardo-frizoni-lawall',
     github: 'https://github.com/LeoFrizoni',
   },
   {
-    nome: 'Lucas Arisio',
+    nome: 'Lucas Müller',
     avatar: 'LA',
     funcao: 'UX/UI Designer & Documentação Técnica',
-    descricao: 'Focado na experiência do usuário, design de interface e elaboração da documentação técnica do projeto',
-    aria: 'Avatar de Lucas Arisio',
+    descricao: 'Responsável pela experiência do usuário, design de interface e elaboração da documentação técnica do projeto',
+    aria: 'Avatar de Lucas Müller',
     linkedin: 'https://www.linkedin.com/in/lucas-arísio-müller',
     github: 'https://github.com/muller-lcs',
   },
@@ -27,7 +27,7 @@ const equipe = [
     nome: 'Marco Ryan',
     avatar: 'MR',
     funcao: 'DevOps & Desenvolvimento de IA',
-    descricao: 'Responsável pela infraestrutura, manutenção de servidores e implementação de funcionalidades de inteligência artificial',
+    descricao: 'Responsável pela infraestrutura, implementação de funcionalidades de inteligência artificial e desenvolvimento Full Stack',
     aria: 'Avatar de Marco Ryan',
     linkedin: 'https://www.linkedin.com/in/marcoryanmarassimarques',
     github: 'https://github.com/VonElfin',
@@ -35,7 +35,7 @@ const equipe = [
   {
     nome: 'Rafael Chiareli',
     avatar: 'RC',
-    funcao: 'Coordenador do Projeto',
+    funcao: 'Orientador do Projeto',
     descricao: 'Lidera o desenvolvimento do projeto, define requisitos e garante a qualidade da entrega final',
     aria: 'Avatar de Rafael Chiareli',
     linkedin: 'https://www.linkedin.com/in/rafael-chiareli-6184566b',
@@ -201,7 +201,8 @@ const SobreNos = () => {
             <ul>
               <li><strong>Frontend:</strong> React.js com hooks avançados, CSS Modules para estilização modular, e Lucide Icons para interface consistente</li>
               <li><strong>Backend:</strong> ASP.NET Core com C#, Entity Framework para ORM, e arquitetura em camadas para manutenibilidade</li>
-              <li><strong>Banco de Dados:</strong> Microsoft SQL Server com otimizações de performance e integridade referencial</li>
+              <li><strong>Inteligência Artificial:</strong> Python utilizando Llama</li>
+              <li><strong>Banco de Dados:</strong> PostgreSQL com otimizações de performance e integridade referencial</li>
               <li><strong>APIs e Integrações:</strong> RESTful APIs com autenticação JWT, OAuth 2.0 para login social, e documentação OpenAPI</li>
               <li><strong>Funcionalidades Avançadas:</strong> Geração dinâmica de QR Codes, sistema de notificações em tempo real, visualizações gráficas interativas, e exportação de dados em múltiplos formatos</li>
             </ul>

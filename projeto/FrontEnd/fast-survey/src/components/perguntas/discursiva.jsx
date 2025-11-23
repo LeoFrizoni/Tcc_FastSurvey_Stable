@@ -110,21 +110,6 @@ const DiscursivaBase = ({
         </div>
       )}
 
-      {/* Exemplo de resposta (para futura IA) */}
-              <div className={styles["grupo-config"]} onClick={(e) => e.stopPropagation()}>
-                  <label className={styles["label-inline"]} htmlFor={`exemplo-${b.id}`}>
-          Exemplo de resposta (para IA no futuro)
-        </label>
-        <textarea
-          id={`exemplo-${b.id}`}
-          value={b.respostaExemplo || ""}
-          onChange={(e) => onChangeRespostaExemplo(b.id, e.target.value)}
-          placeholder="Escreva aqui um exemplo de boa resposta..."
-                      className={styles["input-exemplo"]}
-          rows={3}
-        />
-      </div>
-
       <textarea
         disabled
         placeholder="Resposta do usuário..."

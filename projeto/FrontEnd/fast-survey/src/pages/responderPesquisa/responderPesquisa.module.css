@@ -179,6 +179,101 @@ html, body { height: 100%; }
   box-shadow: 0 1px 2px rgba(16,24,40,.04);
   padding: 14px; display: flex; flex-direction: column; gap: 10px;
 }
+.participanteCard{
+  border: 1px dashed #d7d6ff;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #f7f7ff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.participanteHeader{
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+.participanteHeader h4{
+  margin: 0;
+  font-size: .95rem;
+  color: #1f2a44;
+}
+.participanteHeader p{
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: .82rem;
+}
+.participanteBadge{
+  background: #d1fae5;
+  color: #065f46;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.participanteLabel{
+  font-size: .84rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+.participanteInput{
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  font-size: .95rem;
+  background: #fff;
+  transition: border-color .12s, box-shadow .12s;
+}
+.participanteInput:focus{
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.participanteBtn{
+  border: none;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 700;
+  font-size: .95rem;
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-ink) 100%);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(124,58,237,.2);
+}
+.participanteBtn[disabled]{
+  opacity: .65;
+  cursor: not-allowed;
+}
+.participanteMeta{
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: .8rem;
+  color: var(--muted);
+}
+.participanteMeta code{
+  background: #fff;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+.participanteLink{
+  border: none;
+  background: none;
+  color: var(--brand-ink);
+  text-align: left;
+  padding: 0;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.participanteLink:hover{
+  text-decoration: underline;
+}
 .actionsHeader h3{ margin: 0; font-size: .98rem; color: #1f2a44; font-weight: 800; }
 .actionsHint{ margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
 

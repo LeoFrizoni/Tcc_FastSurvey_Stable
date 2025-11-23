@@ -1,4 +1,6 @@
 #nullable enable
+using System;
+using System.Security.Cryptography;
 using FASTSURVEY.Dtos.ParticipantesSessao;
 using FASTSURVEY.Services.Result;
 using SISTEMA_FASTSURVEY.MODEL.Interfaces;
@@ -9,14 +11,17 @@ namespace FASTSURVEY.Services.ParticipantesSessao
     public class ParticipantesSessaoService : IParticipantesSessaoService
     {
         private readonly IParticipanteSessaoRepository _participanteSessaoRepository;
+        private readonly ISessaoInterativaRepository _sessaoInterativaRepository;
         private readonly IUnitOfWork _unitOfWork;
 
         public ParticipantesSessaoService(
             IParticipanteSessaoRepository participanteSessaoRepository,
+            ISessaoInterativaRepository sessaoInterativaRepository,
             IUnitOfWork unitOfWork
         )
         {
             _participanteSessaoRepository = participanteSessaoRepository;
+            _sessaoInterativaRepository = sessaoInterativaRepository;
             _unitOfWork = unitOfWork;
         }
 
@@ -101,13 +106,19 @@ namespace FASTSURVEY.Services.ParticipantesSessao
             CancellationToken ct = default
         )
         {
+            var sessaoId = (request.SessaoId ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(sessaoId))
+                throw new ArgumentException("O ID da sessão é obrigatório.");
+
+            await GarantirSessaoAsync(sessaoId, request.PesquisaId, ct);
+
             var participante = await _participanteSessaoRepository.RegistrarEntradaAsync(
-                request.SessaoId,
+                sessaoId,
                 request.NomeParticipante,
                 DateTime.UtcNow,
                 ct
             );
-            
+
             await _unitOfWork.CommitAsync(ct);
 
             return new ParticipanteResponse
@@ -243,6 +254,76 @@ namespace FASTSURVEY.Services.ParticipantesSessao
                     $"Erro ao desativar participante: {ex.Message}"
                 );
             }
+        }
+
+        private async Task<SessoesInterativas> GarantirSessaoAsync(
+            string sessaoId,
+            int? pesquisaId,
+            CancellationToken ct
+        )
+        {
+            var existente = await _sessaoInterativaRepository.FirstOrDefaultAsync(
+                s => s.SessaoId == sessaoId,
+                ct
+            );
+
+            if (existente is not null)
+                return existente;
+
+            if (!pesquisaId.HasValue || pesquisaId.Value <= 0)
+                throw new ArgumentException(
+                    "Sessão inexistente. Informe o ID da pesquisa para continuar."
+                );
+
+            var novaSessao = new SessoesInterativas
+            {
+                SessaoId = sessaoId,
+                PesquisaId = pesquisaId.Value,
+                CodigoAcesso = await GerarCodigoAcessoUnicoAsync(ct),
+                CriadaEm = DateTime.UtcNow,
+                Ativa = true,
+                PerguntaAtiva = false,
+                ModoApresentacao = false,
+            };
+
+            await _sessaoInterativaRepository.AddAsync(novaSessao, ct);
+            return novaSessao;
+        }
+
+        private async Task<string> GerarCodigoAcessoUnicoAsync(CancellationToken ct)
+        {
+            const int tentativasMax = 6;
+
+            for (var tentativa = 0; tentativa < tentativasMax; tentativa++)
+            {
+                var codigo = GerarCodigoAcesso();
+                var existe = await _sessaoInterativaRepository.ExistsAsync(
+                    s => s.CodigoAcesso == codigo,
+                    ct
+                );
+
+                if (!existe)
+                    return codigo;
+            }
+
+            throw new InvalidOperationException(
+                "Não foi possível gerar um código de acesso único para a sessão."
+            );
+        }
+
+        private static string GerarCodigoAcesso()
+        {
+            const string alfabeto = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            Span<char> buffer = stackalloc char[8];
+            Span<byte> bytes = stackalloc byte[buffer.Length];
+            RandomNumberGenerator.Fill(bytes);
+
+            for (var i = 0; i < buffer.Length; i++)
+            {
+                buffer[i] = alfabeto[bytes[i] % alfabeto.Length];
+            }
+
+            return new string(buffer);
         }
     }
 }

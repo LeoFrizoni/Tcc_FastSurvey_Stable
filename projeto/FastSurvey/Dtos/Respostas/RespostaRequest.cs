@@ -121,6 +121,7 @@ namespace FASTSURVEY.Dtos.Respostas
         public List<RespostaItem> Respostas { get; set; } = new();
         public string? SessaoId { get; set; }
         public string? Origem { get; set; }
+        public int? ParticipanteId { get; set; }
     }
 
     public class RespostaItem

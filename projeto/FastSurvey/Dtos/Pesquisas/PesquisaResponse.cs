@@ -22,6 +22,7 @@
     public class PesquisaResponse : PesquisaListItemResponse
     {
         public string TemplateJson { get; set; } = "[]";
+        public int? PesoMaximoProva { get; set; }
 
         // Exponha estes se existirem na Model:
         public string? Slug { get; set; }

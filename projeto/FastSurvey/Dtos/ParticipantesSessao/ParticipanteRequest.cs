@@ -10,5 +10,11 @@ namespace FASTSURVEY.Dtos.ParticipantesSessao
         [Required(ErrorMessage = "O nome do participante é obrigatório")]
         [StringLength(100, ErrorMessage = "O nome deve ter no máximo 100 caracteres")]
         public string NomeParticipante { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Necessário quando a sessão ainda não existe e deve ser criada automaticamente.
+        /// </summary>
+        [Range(1, int.MaxValue, ErrorMessage = "Informe uma pesquisa válida")]
+        public int? PesquisaId { get; set; }
     }
 }

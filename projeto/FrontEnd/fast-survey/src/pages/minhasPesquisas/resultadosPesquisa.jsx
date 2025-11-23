@@ -1,7 +1,7 @@
 import CabecalhoPesquisa from '../../components/layouts/CabecalhoPesquisa';
 import InformacoesPesquisa from '../../components/layouts/InformacoesPesquisa';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import ModalQRCode from '../../components/layouts/ModalQrCode';
@@ -11,6 +11,7 @@ import styles from './resultadosPesquisa.module.css';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import api from '../../lib/api';
+import { toast } from 'react-toastify';
 
 /* ================== Config API / Auth ================== */
 const API_BASE = 'http://localhost:5062';
@@ -26,6 +27,38 @@ const knownUsers = {
   46: 'aimeebruna',
   49: 'Lucas',
   50: 'Hutao'
+};
+
+const mapPerguntasDoTemplate = (template) => {
+  if (!template) return {};
+  const blocos = Array.isArray(template) ? template : [];
+  return blocos.reduce((acc, bloco) => {
+    const rawId = bloco?.perguntaId ?? bloco?.PerguntaId ?? bloco?.perguntaid ?? bloco?.PerguntaID;
+    const perguntaId = rawId != null ? Number(rawId) : null;
+    if (!perguntaId || Number.isNaN(perguntaId)) return acc;
+
+    acc[perguntaId] = {
+      texto: bloco?.texto ?? bloco?.Texto ?? `Pergunta #${perguntaId}`,
+      tipo: (bloco?.tipo ?? bloco?.Tipo ?? '').toString().toLowerCase(),
+      opcoes: (bloco?.opcoes ?? bloco?.Opcoes ?? []).reduce((map, opcao, index) => {
+        const rawOpcaoId = opcao?.opcaoId ?? opcao?.OpcaoId ?? opcao?.id;
+        const opcaoId = rawOpcaoId != null ? Number(rawOpcaoId) : null;
+        if (opcaoId && !Number.isNaN(opcaoId)) {
+          map[opcaoId] = opcao?.texto ?? opcao?.Texto ?? `Opção ${index + 1}`;
+        }
+        return map;
+      }, {}),
+    };
+
+    return acc;
+  }, {});
+};
+
+const formatarDataHora = (valor) => {
+  if (!valor) return '-';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '-';
+  return data.toLocaleString('pt-BR');
 };
 
 // Função para buscar nome do usuário
@@ -211,7 +244,19 @@ function getTipoPesquisaLabel(p){
 }
 
 /* =================== Componentes menores =================== */
-function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onInteractiveSession, abaAtiva, setAbaAtiva, pesquisaId, pesquisa }) {
+function ActionsAside({
+  onResponder,
+  onQrCode,
+  onExportarPDF,
+  onEditar,
+  onInteractiveSession,
+  onVerRespostas,
+  carregandoRespostas,
+  abaAtiva,
+  setAbaAtiva,
+  pesquisaId,
+  pesquisa,
+}) {
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
       {/* Abas */}
@@ -235,6 +280,14 @@ function ActionsAside({ onResponder, onQrCode, onExportarPDF, onEditar, onIntera
           <h3 className={styles.actionsTitle}>Ações</h3>
           <button className={styles.primaryBtn} type="button" onClick={onResponder}>
             Responder pesquisa
+          </button>
+          <button
+            className={styles.primaryBtn}
+            type="button"
+            onClick={onVerRespostas}
+            disabled={carregandoRespostas}
+          >
+            {carregandoRespostas ? 'Carregando respostas…' : 'Ver respostas'}
           </button>
                         {pesquisa?.isInterativa && (
                 <button className={styles.interactiveBtn} type="button" onClick={onInteractiveSession}>
@@ -341,6 +394,13 @@ const ResultadosPesquisa = () => {
   const [erro, setErro] = useState('');
   const [autorNome, setAutorNome] = useState(null);
   const pdfRef = useRef(null);
+  const [mostrarRespostas, setMostrarRespostas] = useState(false);
+  const [respostas, setRespostas] = useState([]);
+  const [carregandoRespostas, setCarregandoRespostas] = useState(false);
+  const [erroRespostas, setErroRespostas] = useState('');
+  const [filtroUsuario, setFiltroUsuario] = useState('todos');
+  const [buscaUsuario, setBuscaUsuario] = useState('');
+  const [participantesInfo, setParticipantesInfo] = useState({});
 
   useEffect(() => {
     async function buscarPesquisa() {
@@ -376,42 +436,181 @@ const ResultadosPesquisa = () => {
           console.log('Nome do autor encontrado:', nomeAutor);
           setAutorNome(nomeAutor);
         }
-             } catch (e) {
-         console.error('Erro ao carregar pesquisa:', e);
-         if (e.response?.status === 401) {
-           setErro('Não autorizado. Faça login para continuar.');
-           setTimeout(() => navigate('/login'), 1200);
-         } else if (e.response?.status === 404) {
-           setErro('Pesquisa não encontrada.');
-         } else {
-           setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
-         }
-       } finally {
+            } catch (e) {
+        console.error('Erro ao carregar pesquisa:', e);
+        if (e.response?.status === 401) {
+          setErro('Não autorizado. Faça login para continuar.');
+          setTimeout(() => navigate('/login'), 1200);
+        } else if (e.response?.status === 404) {
+          setErro('Pesquisa não encontrada.');
+        } else {
+          setErro('Não foi possível carregar a pesquisa. Tente novamente mais tarde.');
+        }
+      } finally {
         setCarregando(false);
       }
     }
 
-         async function carregarAnexos() {
-       if (!id || !/^\d+$/.test(id)) {
-         setAnexos([]);
-         return;
-       }
-       
-       try {
-         const { data } = await api.get(`/api/Anexos/por-pesquisa/${id}`);
-         setAnexos(Array.isArray(data) ? data : []);
-       } catch (error) {
-         // Ignorar erro 404 do endpoint de anexos
-         console.log('Endpoint de anexos não disponível, continuando sem anexos...');
-         setAnexos([]);
-       }
-     }
+        async function carregarAnexos() {
+      if (!id || !/^\d+$/.test(id)) {
+        setAnexos([]);
+        return;
+      }
+      
+      try {
+        const { data } = await api.get(`/api/Anexos/por-pesquisa/${id}`);
+        setAnexos(Array.isArray(data) ? data : []);
+      } catch (error) {
+        // Ignorar erro 404 do endpoint de anexos
+        console.log('Endpoint de anexos não disponível, continuando sem anexos...');
+        setAnexos([]);
+      }
+    }
 
     buscarPesquisa();
     carregarAnexos();
   }, [id, navigate]);
 
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
+  const perguntasDetalhes = useMemo(() => mapPerguntasDoTemplate(blocos), [blocos]);
+
+  const atualizarParticipantesInfo = useCallback(
+    async (lista) => {
+      const ids = Array.from(
+        new Set(
+          lista
+            .map((resposta) => resposta?.participanteId ?? resposta?.ParticipanteId)
+            .filter((pid) => pid && !participantesInfo[pid])
+        )
+      );
+
+      if (ids.length === 0) return;
+
+      try {
+        const resultados = await Promise.all(
+          ids.map(async (pid) => {
+            try {
+              const { data } = await api.get(`/api/ParticipanteSessao/${pid}`);
+              const nome = data?.nome ?? data?.Nome ?? data?.usuario ?? data?.Usuario;
+              return { pid, nome: nome || `Participante #${pid}` };
+            } catch (error) {
+              console.error('Erro ao buscar participante', pid, error);
+              return { pid, nome: `Participante #${pid}` };
+            }
+          })
+        );
+
+        setParticipantesInfo((prev) => {
+          const next = { ...prev };
+          resultados.forEach(({ pid, nome }) => {
+            next[pid] = nome;
+          });
+          return next;
+        });
+      } catch (error) {
+        console.error('Erro ao carregar informações de participantes', error);
+      }
+    },
+    [participantesInfo]
+  );
+
+  const carregarRespostas = useCallback(async () => {
+    if (!id) return;
+    setCarregandoRespostas(true);
+    setErroRespostas('');
+    try {
+      const { data } = await api.get(`/api/respostas/pesquisa/${id}`);
+      const lista = Array.isArray(data) ? data : [];
+      setRespostas(lista);
+      await atualizarParticipantesInfo(lista);
+    } catch (error) {
+      console.error('Erro ao carregar respostas:', error);
+      setErroRespostas('Não foi possível carregar as respostas desta pesquisa.');
+      toast.error('Não foi possível carregar as respostas.');
+    } finally {
+      setCarregandoRespostas(false);
+    }
+  }, [id, atualizarParticipantesInfo]);
+
+  const abrirModalRespostas = () => {
+    setMostrarRespostas(true);
+    if (respostas.length === 0) {
+      carregarRespostas();
+    }
+  };
+
+  const fecharModalRespostas = () => {
+    setMostrarRespostas(false);
+    setFiltroUsuario('todos');
+    setBuscaUsuario('');
+  };
+
+  const rotuloParticipante = useCallback(
+    (participanteId) => {
+      if (!participanteId) return 'Anônimo';
+      return participantesInfo[participanteId] || `Participante #${participanteId}`;
+    },
+    [participantesInfo]
+  );
+
+  const respostasFiltradas = useMemo(() => {
+    const textoBusca = buscaUsuario.trim().toLowerCase();
+    return respostas.filter((resposta) => {
+      const participanteId = resposta?.participanteId ?? resposta?.ParticipanteId;
+
+      if (filtroUsuario === 'anon' && participanteId) {
+        return false;
+      }
+
+      if (textoBusca) {
+        const label = rotuloParticipante(participanteId).toLowerCase();
+        if (!label.includes(textoBusca)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [respostas, filtroUsuario, buscaUsuario, rotuloParticipante]);
+
+  const participantesOptions = useMemo(() => {
+    const ids = Array.from(
+      new Set(
+        respostas
+          .map((resposta) => resposta?.participanteId ?? resposta?.ParticipanteId)
+          .filter((pid) => pid != null)
+      )
+    );
+    return ids.map((pid) => ({ id: String(pid), label: participantesInfo[pid] || `Participante #${pid}` }));
+  }, [respostas, participantesInfo]);
+
+  const renderRespostaConteudo = useCallback(
+    (resposta) => {
+      const texto = resposta?.texto ?? resposta?.Texto;
+      const opcoesSelecionadas = resposta?.opcoes ?? resposta?.Opcoes ?? [];
+      const perguntaId = resposta?.perguntaId ?? resposta?.PerguntaId;
+      const detalhe = perguntaId ? perguntasDetalhes[Number(perguntaId)] : null;
+
+      if (opcoesSelecionadas.length > 0) {
+        return (
+          <ul className={styles.responseOptions}>
+            {opcoesSelecionadas.map((opcaoId) => (
+              <li key={`${perguntaId}-${opcaoId}`}>
+                {detalhe?.opcoes?.[opcaoId] ?? `Opção #${opcaoId}`}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+
+      if (texto) {
+        return <p className={styles.responseText}>{texto}</p>;
+      }
+
+      return <p className={styles.emptyAnswer}>Resposta sem conteúdo.</p>;
+    },
+    [perguntasDetalhes]
+  );
 
   // Mapa: perguntaId -> [{src, alt}]
   const imagensPorPergunta = useMemo(() => {
@@ -731,6 +930,8 @@ const ResultadosPesquisa = () => {
             onExportarPDF={exportarPDF}
             onEditar={() => navigate(`/editarPesquisa/${id}`)}
             onInteractiveSession={() => setMostrarModalInterativa(true)}
+            onVerRespostas={abrirModalRespostas}
+            carregandoRespostas={carregandoRespostas}
             abaAtiva={abaAtiva}
             setAbaAtiva={setAbaAtiva}
             pesquisaId={id}
@@ -750,6 +951,119 @@ const ResultadosPesquisa = () => {
           pesquisaId={id}
           pesquisaTitulo={pesquisa?.titulo || 'Pesquisa'}
         />
+
+        {mostrarRespostas && (
+          <div className={styles.responsesOverlay} onMouseDown={fecharModalRespostas}>
+            <div
+              className={styles.responsesModal}
+              role="dialog"
+              aria-modal="true"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className={styles.responsesHeader}>
+                <div>
+                  <h3>Respostas da pesquisa</h3>
+                  <p>{respostas.length} recebidas</p>
+                </div>
+                <button type="button" className={styles.closeButton} onClick={fecharModalRespostas}>
+                  Fechar
+                </button>
+              </div>
+
+              <div className={styles.responsesFilters}>
+                <label htmlFor="filtro-usuario-input">Filtrar por usuário</label>
+                <div className={styles.filtersRow}>
+                  <input
+                    id="filtro-usuario-input"
+                    type="text"
+                    placeholder="Digite o nome do participante"
+                    value={buscaUsuario}
+                    onChange={(e) => setBuscaUsuario(e.target.value)}
+                    list="participantes-suggestions"
+                    className={styles.filtersInput}
+                  />
+                  <datalist id="participantes-suggestions">
+                    {participantesOptions.map((opt) => (
+                      <option key={opt.id} value={opt.label} />
+                    ))}
+                  </datalist>
+                  <div className={styles.filtersChips}>
+                    <button
+                      type="button"
+                      className={`${styles.chipButton} ${filtroUsuario === 'todos' ? styles.chipButtonActive : ''}`}
+                      onClick={() => setFiltroUsuario('todos')}
+                    >
+                      Todos
+                    </button>
+                    {respostas.some((resposta) => !(resposta?.participanteId ?? resposta?.ParticipanteId)) && (
+                      <button
+                        type="button"
+                        className={`${styles.chipButton} ${filtroUsuario === 'anon' ? styles.chipButtonActive : ''}`}
+                        onClick={() => setFiltroUsuario('anon')}
+                      >
+                        Anônimas
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className={styles.refreshButton}
+                    onClick={carregarRespostas}
+                    disabled={carregandoRespostas}
+                  >
+                    {carregandoRespostas ? 'Atualizando…' : 'Atualizar'}
+                  </button>
+                </div>
+                {buscaUsuario && (
+                  <span className={styles.filtersHint}>
+                    Mostrando nomes que contenham “{buscaUsuario}”.
+                  </span>
+                )}
+              </div>
+
+              <div className={styles.responsesContent}>
+                {carregandoRespostas ? (
+                  <div className={styles.responsesLoading}>Carregando respostas…</div>
+                ) : erroRespostas ? (
+                  <p className={styles.errorMessage}>{erroRespostas}</p>
+                ) : respostasFiltradas.length === 0 ? (
+                  <p className={styles.emptyAnswer}>Nenhuma resposta encontrada para este filtro.</p>
+                ) : (
+                  <div className={styles.responsesList}>
+                    {respostasFiltradas.map((resposta) => {
+                      const respostaId =
+                        resposta?.respostaId ??
+                        resposta?.RespostaId ??
+                        `${resposta?.perguntaId ?? resposta?.PerguntaId}-${resposta?.dataResposta ?? resposta?.DataResposta}`;
+                      const participanteId = resposta?.participanteId ?? resposta?.ParticipanteId;
+                      const perguntaId = resposta?.perguntaId ?? resposta?.PerguntaId;
+                      const perguntaDetalhe = perguntaId ? perguntasDetalhes[Number(perguntaId)] : null;
+                      const perguntaTexto = perguntaDetalhe?.texto ?? (perguntaId ? `Pergunta #${perguntaId}` : 'Pergunta');
+                      const dataResposta = resposta?.dataResposta ?? resposta?.DataResposta;
+                      const ehAnonima = resposta?.respostaAnonima ?? resposta?.RespostaAnonima ?? false;
+
+                      return (
+                        <article key={respostaId} className={styles.responseItem}>
+                          <div className={styles.responseMeta}>
+                            <div>
+                              <h4>{perguntaTexto}</h4>
+                              <small>{formatarDataHora(dataResposta)}</small>
+                            </div>
+                            <div className={styles.responseUser}>
+                              <span>{rotuloParticipante(participanteId)}</span>
+                              {ehAnonima && <span className={styles.responseTag}>Anônima</span>}
+                            </div>
+                          </div>
+                          <div className={styles.responseAnswer}>{renderRespostaConteudo(resposta)}</div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

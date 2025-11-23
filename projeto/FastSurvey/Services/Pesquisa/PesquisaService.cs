@@ -1,6 +1,7 @@
 // FASTSURVEY/Services/Pesquisa/PesquisaService.cs
 #nullable enable
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Threading;
 using FASTSURVEY.Dtos.Pesquisas;
 using FastSurvey.Dtos.Pesquisas;
@@ -18,6 +19,64 @@ namespace FASTSURVEY.Services.Pesquisa
         private readonly IPesquisaPastaService _pesquisaPastaService;
         private const string CACHE_PREFIX = "pesquisa:";
         private const string CACHE_LIST_PREFIX = "pesquisa:list:";
+
+        private static int? ExtractPesoMaximo(string? configuracaoJson)
+        {
+            if (string.IsNullOrWhiteSpace(configuracaoJson))
+                return null;
+
+            try
+            {
+                using var document = JsonDocument.Parse(configuracaoJson);
+                var root = document.RootElement;
+                if (root.ValueKind != JsonValueKind.Object)
+                    return null;
+
+                if (!root.TryGetProperty("pesoMaximoProva", out var pesoElement))
+                    return null;
+
+                if (pesoElement.ValueKind == JsonValueKind.Number && pesoElement.TryGetInt32(out var valorNumero))
+                    return valorNumero;
+
+                if (pesoElement.ValueKind == JsonValueKind.String)
+                {
+                    var texto = pesoElement.GetString();
+                    return int.TryParse(texto, out var parsed) ? parsed : null;
+                }
+            }
+            catch
+            {
+                // Ignorar erros de parse e tratar como sem configuração
+            }
+
+            return null;
+        }
+
+        private static string? UpsertPesoMaximo(string? configuracaoJson, int? pesoMaximo)
+        {
+            JsonObject root;
+            try
+            {
+                root = string.IsNullOrWhiteSpace(configuracaoJson)
+                    ? new JsonObject()
+                    : (JsonNode.Parse(configuracaoJson) as JsonObject) ?? new JsonObject();
+            }
+            catch
+            {
+                root = new JsonObject();
+            }
+
+            if (pesoMaximo.HasValue && pesoMaximo.Value > 0)
+            {
+                root["pesoMaximoProva"] = pesoMaximo.Value;
+            }
+            else
+            {
+                root.Remove("pesoMaximoProva");
+            }
+
+            return root.Count > 0 ? root.ToJsonString() : null;
+        }
 
         public PesquisaService(
             FastSurveyContext ctx,
@@ -71,6 +130,8 @@ namespace FASTSURVEY.Services.Pesquisa
                 // PermitirEdicao = req.PermitirEdicao,
                 // TempoLimitePorPergunta = req.TempoLimitePorPergunta
             };
+
+            entity.ConfiguracaoAvancada = UpsertPesoMaximo(entity.ConfiguracaoAvancada, req.PesoMaximoProva);
 
             _ctx.Pesquisas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
@@ -330,6 +391,11 @@ namespace FASTSURVEY.Services.Pesquisa
                 entity.LimiteRespostas = req.LimiteRespostas;
             if (req.Ativa.HasValue)
                 entity.Ativa = req.Ativa.Value;
+            if (req.PesoMaximoProva.HasValue)
+                entity.ConfiguracaoAvancada = UpsertPesoMaximo(
+                    entity.ConfiguracaoAvancada,
+                    req.PesoMaximoProva
+                );
 
             // Se a entidade tiver estes campos, descomente:
             // if (req.Slug is not null) entity.Slug = req.Slug;
@@ -403,6 +469,7 @@ namespace FASTSURVEY.Services.Pesquisa
                         return null;
 
                     var pastaId = await _pesquisaPastaService.ObterPastaIdAsync(q.PesquisaId, token);
+                    var pesoMaximo = ExtractPesoMaximo(q.ConfiguracaoAvancada);
 
                     return new PesquisaResponse
                     {
@@ -422,6 +489,7 @@ namespace FASTSURVEY.Services.Pesquisa
                         PermiteRespostasAnonimas = q.PermiteRespostasAnonimas,
                         LimiteRespostas = q.LimiteRespostas,
                         Ativa = q.Ativa,
+                        PesoMaximoProva = pesoMaximo,
                     };
                 },
                 absoluteExpiration: TimeSpan.FromMinutes(15),
@@ -780,6 +848,7 @@ namespace FASTSURVEY.Services.Pesquisa
                     return null;
 
                 var pastaId = await _pesquisaPastaService.ObterPastaIdAsync(q.PesquisaId, ct);
+                var pesoMaximo = ExtractPesoMaximo(q.ConfiguracaoAvancada);
 
                 return new PesquisaResponse
                 {
@@ -799,6 +868,7 @@ namespace FASTSURVEY.Services.Pesquisa
                     LimiteRespostas = q.LimiteRespostas,
                     Ativa = q.Ativa,
                     TemplateJson = q.TemplateJson ?? "[]",
+                    PesoMaximoProva = pesoMaximo,
                 };
             }
             return null;
@@ -833,6 +903,7 @@ namespace FASTSURVEY.Services.Pesquisa
                 LimiteRespostas = original.LimiteRespostas,
                 Ativa = true,
                 DataCriacao = DateTime.UtcNow,
+                ConfiguracaoAvancada = original.ConfiguracaoAvancada,
             };
 
             _ctx.Pesquisas.Add(nova);
@@ -860,6 +931,10 @@ namespace FASTSURVEY.Services.Pesquisa
                         Texto = pergunta.Texto,
                         Ordem = pergunta.Ordem,
                         TemGabarito = pergunta.TemGabarito,
+                        PermiteMultiplasSelecao = pergunta.PermiteMultiplasSelecao,
+                        PontuacaoTotal = pergunta.PontuacaoTotal,
+                        TempoLimite = pergunta.TempoLimite,
+                        MostrarExplicacao = pergunta.MostrarExplicacao,
                     };
                     _ctx.Perguntas.Add(novaPergunta);
                     await _ctx.SaveChangesAsync(ct);
@@ -873,6 +948,8 @@ namespace FASTSURVEY.Services.Pesquisa
                                 Texto = opcao.Texto,
                                 Ordem = opcao.Ordem,
                                 Correta = opcao.Correta,
+                                Pontuacao = opcao.Pontuacao,
+                                Explicacao = opcao.Explicacao,
                             }
                         );
                     }

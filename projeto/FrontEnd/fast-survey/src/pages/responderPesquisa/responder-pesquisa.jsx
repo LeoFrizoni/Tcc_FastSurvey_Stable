@@ -28,6 +28,13 @@ const knownUsers = {
   50: 'Hutao'
 };
 
+const gerarSessaoId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `sessao-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
 // Função para buscar nome do usuário
 async function getUserName(loginId) {
   if (!loginId) return null;
@@ -157,9 +164,74 @@ function getTipoPesquisaLabel(p){
 }
 
 /* =================== UI menores =================== */
-function ActionsPanel({ onEnviar, onExportar, disableActions, totalRespostas }) {
+function ActionsPanel({
+  onEnviar,
+  onExportar,
+  disableActions,
+  totalRespostas,
+  participanteNome,
+  onParticipanteNomeChange,
+  onRegistrarParticipante,
+  registrandoParticipante,
+  participanteInfo,
+  sessaoId,
+  onTrocarParticipante,
+}) {
+  const participanteRegistrado = Boolean(
+    participanteInfo?.participanteId ?? participanteInfo?.ParticipanteId
+  );
+  const sessaoDisplay = sessaoId || participanteInfo?.sessaoId || participanteInfo?.SessaoId || '—';
+
   return (
     <aside className={`${styles.actionsPanel} ${styles.noPrint}`} aria-label="Ações">
+      <div className={styles.participanteCard}>
+        <div className={styles.participanteHeader}>
+          <div>
+            <h4>Identificação</h4>
+            <p>Registre seu nome para gerar a sessão da prova.</p>
+          </div>
+          {participanteRegistrado && <span className={styles.participanteBadge}>Ativo</span>}
+        </div>
+        <label htmlFor="participante-nome" className={styles.participanteLabel}>
+          Nome do participante
+        </label>
+        <input
+          id="participante-nome"
+          type="text"
+          value={participanteNome}
+          onChange={e => onParticipanteNomeChange(e.target.value)}
+          placeholder="Ex.: Maria dos Santos"
+          className={styles.participanteInput}
+          disabled={registrandoParticipante}
+        />
+        <button
+          type="button"
+          className={styles.participanteBtn}
+          onClick={onRegistrarParticipante}
+          disabled={registrandoParticipante || !participanteNome.trim()}
+        >
+          {registrandoParticipante
+            ? 'Registrando...'
+            : participanteRegistrado
+              ? 'Atualizar entrada'
+              : 'Registrar entrada'}
+        </button>
+        <div className={styles.participanteMeta}>
+          <span>
+            Sessão:
+            <code>{sessaoDisplay}</code>
+          </span>
+        </div>
+        {participanteRegistrado && (
+          <button
+            type="button"
+            className={styles.participanteLink}
+            onClick={onTrocarParticipante}
+          >
+            Trocar participante
+          </button>
+        )}
+      </div>
       <div className={styles.actionsHeader}>
         <h3>Ações</h3>
         <p className={styles.actionsHint}>
@@ -213,6 +285,15 @@ const ResponderPesquisa = () => {
   const [enviando, setEnviando] = useState(false);
   const [autorNome, setAutorNome] = useState(null);
   const [perguntasReais, setPerguntasReais] = useState([]);
+  const [sessaoId, setSessaoId] = useState(() => gerarSessaoId());
+  const [participanteInfo, setParticipanteInfo] = useState(null);
+  const [participanteNome, setParticipanteNome] = useState('');
+  const [registrandoParticipante, setRegistrandoParticipante] = useState(false);
+
+  const participanteStorageKey = useMemo(
+    () => (id ? `fastsurvey_participante_${id}` : null),
+    [id]
+  );
 
   const pdfRef = useRef(null);
 
@@ -400,6 +481,107 @@ const ResponderPesquisa = () => {
     // carregarAnexos();
   }, [id]);
 
+  useEffect(() => {
+    if (!participanteStorageKey || typeof window === 'undefined') return;
+
+    try {
+      const storedRaw = localStorage.getItem(participanteStorageKey);
+      if (storedRaw) {
+        const stored = JSON.parse(storedRaw);
+        const sessaoPersistida = stored.sessaoId || stored.SessaoId || gerarSessaoId();
+        setSessaoId(sessaoPersistida);
+        setParticipanteInfo(stored);
+        setParticipanteNome(stored.nomeParticipante || stored.NomeParticipante || '');
+        return;
+      }
+    } catch (error) {
+      console.warn('Não foi possível carregar o participante salvo:', error);
+    }
+
+    setParticipanteInfo(null);
+    setSessaoId(prev => prev || gerarSessaoId());
+    setParticipanteNome('');
+  }, [participanteStorageKey]);
+
+  const participanteIdAtivo = participanteInfo?.participanteId ?? participanteInfo?.ParticipanteId ?? null;
+  const sessaoAtiva = sessaoId || participanteInfo?.sessaoId || participanteInfo?.SessaoId || '';
+
+  const registrarParticipante = useCallback(async () => {
+    const nomeLimpo = participanteNome.trim();
+    if (!nomeLimpo) {
+      toast.warn('Informe seu nome para registrar a sessão.', {
+        position: 'top-center',
+        autoClose: 3500,
+      });
+      return;
+    }
+
+    const sessaoAtual = sessaoAtiva || gerarSessaoId();
+    if (!sessaoAtiva) {
+      setSessaoId(sessaoAtual);
+    }
+
+    try {
+      setRegistrandoParticipante(true);
+      const payload = {
+        sessaoId: sessaoAtual,
+        nomeParticipante: nomeLimpo,
+      };
+
+      const pesquisaIdNumero = Number(id);
+      if (Number.isInteger(pesquisaIdNumero) && pesquisaIdNumero > 0) {
+        payload.pesquisaId = pesquisaIdNumero;
+      }
+
+      const { data } = await api.post('/api/ParticipanteSessao/public/entrar', payload);
+
+      const normalizado = {
+        participanteId: data?.participanteId ?? data?.ParticipanteId,
+        nomeParticipante: data?.nomeParticipante ?? data?.NomeParticipante ?? nomeLimpo,
+        sessaoId: data?.sessaoId ?? data?.SessaoId ?? sessaoAtual,
+        entrouEm: data?.entrouEm ?? data?.EntrouEm ?? null,
+        saiuEm: data?.saiuEm ?? data?.SaiuEm ?? null,
+        ativo: data?.ativo ?? data?.Ativo ?? true,
+      };
+
+      setParticipanteInfo(normalizado);
+      setSessaoId(normalizado.sessaoId);
+      if (participanteStorageKey && typeof window !== 'undefined') {
+        localStorage.setItem(participanteStorageKey, JSON.stringify(normalizado));
+      }
+
+      toast.success('Participante registrado!', {
+        position: 'top-center',
+        autoClose: 2500,
+      });
+    } catch (error) {
+      console.error('Erro ao registrar participante:', error);
+      const mensagem =
+        error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        'Não foi possível registrar a sessão. Tente novamente.';
+      toast.error(mensagem, {
+        position: 'top-center',
+        autoClose: 4000,
+      });
+    } finally {
+      setRegistrandoParticipante(false);
+    }
+  }, [participanteNome, sessaoAtiva, participanteStorageKey]);
+
+  const limparParticipante = useCallback(() => {
+    setParticipanteInfo(null);
+    setParticipanteNome('');
+    setSessaoId(gerarSessaoId());
+    if (participanteStorageKey && typeof window !== 'undefined') {
+      localStorage.removeItem(participanteStorageKey);
+    }
+  }, [participanteStorageKey]);
+
+  const handleParticipanteNomeChange = useCallback((valor) => {
+    setParticipanteNome(valor);
+  }, []);
+
   const blocos = useMemo(() => pesquisa?.blocos ?? [], [pesquisa]);
 
   // Monitor de perguntasReais
@@ -552,6 +734,14 @@ const ResponderPesquisa = () => {
       });
       return;
     }
+
+    if (!sessaoAtiva || !participanteIdAtivo) {
+      toast.error('Registre sua entrada antes de enviar as respostas.', {
+        position: 'top-center',
+        autoClose: 4000,
+      });
+      return;
+    }
     
     const payload = [];
 
@@ -680,7 +870,10 @@ const ResponderPesquisa = () => {
             PerguntaId: item.perguntaId,
             Texto: item.texto.trim(),
             LoginId: loginId,
-            PesquisaId: Number(id)
+            PesquisaId: Number(id),
+            SessaoId: sessaoAtiva,
+            RespostaAnonima: !loginId,
+            ParticipanteId: participanteIdAtivo,
           };
           console.log('Enviando resposta discursiva:', requestBody);
           await api.post(`/api/Respostas/discursiva`, requestBody);
@@ -694,7 +887,10 @@ const ResponderPesquisa = () => {
             PerguntaId: item.perguntaId,
             OpcoesSelecionadas: item.opcoes,
             LoginId: loginId,
-            PesquisaId: Number(id)
+            PesquisaId: Number(id),
+            SessaoId: sessaoAtiva,
+            RespostaAnonima: !loginId,
+            ParticipanteId: participanteIdAtivo,
           };
           console.log('Enviando resposta de opções:', requestBody);
           console.log('Detalhes da requisição:', {
@@ -973,6 +1169,13 @@ const ResponderPesquisa = () => {
               onExportar={exportarPDF}
               disableActions={enviando}
               totalRespostas={Object.keys(respostas).length}
+              participanteNome={participanteNome}
+              onParticipanteNomeChange={handleParticipanteNomeChange}
+              onRegistrarParticipante={registrarParticipante}
+              registrandoParticipante={registrandoParticipante}
+              participanteInfo={participanteInfo}
+              sessaoId={sessaoAtiva}
+              onTrocarParticipante={limparParticipante}
             />
           </div>
         </main>

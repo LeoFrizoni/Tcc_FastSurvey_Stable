@@ -46,13 +46,44 @@ const normalizePasta = (it) => ({
   nome: it?.nome ?? it?.Nome ?? it?.nomePasta ?? ''
 });
 
+const extractTipoDescricao = (source) => {
+  if (!source) return null;
+  if (typeof source === 'string') {
+    const trimmed = source.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  const candidates = [
+    source?.descricao,
+    source?.Descricao,
+    source?.descricaoTipo,
+    source?.descricao_tipo,
+    source?.tipoPesquisa,
+    source?.TipoPesquisa,
+    source?.tipoPesquisa1,
+    source?.TipoPesquisa1,
+    source?.nome,
+    source?.Nome,
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+
+  return null;
+};
+
 // normaliza PESQUISA para o shape que o UI espera
 const normalizePesquisa = (it) => {
   const tipoDesc =
-    it?.tipoPesquisa?.descricao ??
+    extractTipoDescricao(it?.tipoPesquisa) ??
+    extractTipoDescricao(it?.TipoPesquisa) ??
+    it?.tipoPesquisaDescricao ??
     it?.TipoPesquisaDescricao ??
-    it?.tipopesquisa?.descricao ??
-    it?.Tipopesquisa?.Descricao ??
+    it?.tipopesquisaDescricao ??
+    it?.TipopesquisaDescricao ??
     null;
 
   return {
@@ -63,7 +94,11 @@ const normalizePesquisa = (it) => {
     pastaId: it.pastaId ?? it.PastaId ?? null,
     dataCriacao:
       it.dataCriacao ?? it.DataCriacao ?? it.criadoEm ?? it.CriadoEm ?? it.Datacriacao ?? it.data_criacao ?? null,
-    tipoPesquisa: tipoDesc ? { descricao: tipoDesc } : it.tipoPesquisa,
+    tipoPesquisa: tipoDesc
+      ? { descricao: tipoDesc }
+      : typeof it?.tipoPesquisa === 'string'
+        ? { descricao: it.tipoPesquisa }
+        : it.tipoPesquisa,
   };
 };
 
@@ -221,8 +256,11 @@ const HomePage = () => {
       if (!tipoLookup || tipoLookup.size === 0) return arr;
 
       return arr.map((p) => {
-        const hasDesc = p?.tipoPesquisa?.descricao;
-        if (hasDesc) return p;
+        const existente = extractTipoDescricao(p?.tipoPesquisa);
+        if (existente) {
+          if (p?.tipoPesquisa?.descricao === existente) return p;
+          return { ...p, tipoPesquisa: { descricao: existente } };
+        }
 
         const tid = getTipoId(p);
         if (!tid) return p;
@@ -286,8 +324,8 @@ const HomePage = () => {
           const map = new Map();
           for (const t of tiposRes.value.data) {
             const id = t?.tipoPesquisaId ?? t?.TipoPesquisaId ?? t?.tipopesquisaid ?? t?.id;
-            const desc = t?.descricao ?? t?.Descricao ?? t?.nome ?? '';
-            if (id) map.set(Number(id), String(desc || '').trim());
+            const desc = extractTipoDescricao(t) ?? t?.nome ?? t?.Nome ?? '';
+            if (id && desc?.trim()) map.set(Number(id), String(desc).trim());
           }
           setTipoLookup(map);
         } else {
@@ -805,23 +843,25 @@ const HomePage = () => {
             <span>Todas</span>
           </div>
 
-          <div
-            className={[
-              styles.pastaChip,
-              pastaSelecionada === 'sem' ? styles.pastaChipActive : '',
-              pastaHover === 'sem' ? styles.pastaChipHover : '',
-              pastaPulse === 'sem' ? styles.pastaChipPulse : ''
-            ].join(' ')}
-            onClick={() => setPastaSelecionada('sem')}
-            onDragOver={allowDrop}
-            onDragEnter={() => onPastaDragEnter('sem')}
-            onDragLeave={() => onPastaDragLeave('sem')}
-            onDrop={(e) => onPastaDrop(e, 'sem')}
-            title="Pesquisas sem pasta"
-          >
-            <Folder size={16} />
-            <span>Sem pasta</span>
-          </div>
+          {pastas.length === 0 && (
+            <div
+              className={[
+                styles.pastaChip,
+                pastaSelecionada === 'sem' ? styles.pastaChipActive : '',
+                pastaHover === 'sem' ? styles.pastaChipHover : '',
+                pastaPulse === 'sem' ? styles.pastaChipPulse : ''
+              ].join(' ')}
+              onClick={() => setPastaSelecionada('sem')}
+              onDragOver={allowDrop}
+              onDragEnter={() => onPastaDragEnter('sem')}
+              onDragLeave={() => onPastaDragLeave('sem')}
+              onDrop={(e) => onPastaDrop(e, 'sem')}
+              title="Pesquisas sem pasta"
+            >
+              <Folder size={16} />
+              <span>Sem pasta</span>
+            </div>
+          )}
 
           {pastas.map((p) => (
             <div
@@ -889,7 +929,10 @@ const HomePage = () => {
             <div className={styles.grid}>
               {listaFiltrada.map((p) => {
                 const pid = getPid(p);
-                const descTipo = p?.tipoPesquisa?.descricao ?? (tipoLookup.get(Number(getTipoId(p))) || 'Sem tipo');
+                const descTipo =
+                  extractTipoDescricao(p?.tipoPesquisa) ??
+                  tipoLookup.get(Number(getTipoId(p))) ??
+                  'Sem tipo';
                 return (
                   <article
                     key={pid}
@@ -1074,7 +1117,7 @@ const HomePage = () => {
               <button className={styles.btnGhost} onClick={() => setIsExcluirOpen(false)}>
                 Cancelar
               </button>
-              <button className={`${styles.btnPrimary} ${styles.navDanger}`} onClick={confirmarExcluir}>
+              <button className={`${styles.btnPrimary} ${styles.navDangerExcluirPesquisa}`} onClick={confirmarExcluir}>
                 Excluir
               </button>
             </div>

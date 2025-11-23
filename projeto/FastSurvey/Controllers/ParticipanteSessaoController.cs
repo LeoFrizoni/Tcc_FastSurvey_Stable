@@ -31,8 +31,21 @@ namespace FASTSURVEY.Controllers
 
         [HttpPost("entrar")]
         [ProducesResponseType(typeof(ParticipanteResponse), 201)]
-        public async Task<IActionResult> RegistrarEntrada(
+        public Task<IActionResult> RegistrarEntrada(
             [FromBody] ParticipanteRequest request,
+            CancellationToken ct
+        ) => RegistrarEntradaCore(request, ct);
+
+        [HttpPost("public/entrar")]
+        [AllowAnonymous]
+        [ProducesResponseType(typeof(ParticipanteResponse), 201)]
+        public Task<IActionResult> RegistrarEntradaPublica(
+            [FromBody] ParticipanteRequest request,
+            CancellationToken ct
+        ) => RegistrarEntradaCore(request, ct);
+
+        private async Task<IActionResult> RegistrarEntradaCore(
+            ParticipanteRequest request,
             CancellationToken ct
         )
         {
@@ -42,11 +55,28 @@ namespace FASTSURVEY.Controllers
                     return BadRequest(ModelState);
 
                 var participante = await _service.RegistrarEntradaAsync(request, ct);
-                return CreatedAtAction(nameof(ObterPorId), new { id = participante.ParticipanteId }, participante);
+                return CreatedAtAction(
+                    nameof(ObterPorId),
+                    new { id = participante.ParticipanteId },
+                    participante
+                );
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Dados inválidos ao registrar participante na sessão {SessaoId}",
+                    request.SessaoId
+                );
+                return BadRequest(new { message = ex.Message });
             }
             catch (InvalidOperationException ex)
             {
-                _logger.LogWarning(ex, "Tentativa de registrar entrada de participante duplicado: {Nome}", request.NomeParticipante);
+                _logger.LogWarning(
+                    ex,
+                    "Tentativa de registrar entrada de participante duplicado: {Nome}",
+                    request.NomeParticipante
+                );
                 return Conflict(new { message = ex.Message });
             }
             catch (Exception ex)

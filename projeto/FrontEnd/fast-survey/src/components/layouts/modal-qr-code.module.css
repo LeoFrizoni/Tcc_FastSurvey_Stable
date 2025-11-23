@@ -28,6 +28,32 @@
   color: #333;
 }
 
+.btn-download {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(92, 56, 215, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  max-height: 50px;
+  margin-top: 1.2rem;
+}
+
+.btn-download:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(92, 56, 215, 0.35);
+}
+
+.btn-download:active {
+  transform: translateY(0);
+  filter: brightness(0.95);
+}
+
 .btn-fechar {
   margin-top: 1.2rem;
   padding: 0.75rem 1.5rem;

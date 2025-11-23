@@ -28,6 +28,7 @@ namespace FASTSURVEY.Dtos.Pesquisas
         public bool PermiteRespostasAnonimas { get; set; } = true;
         public int? LimiteRespostas { get; set; }
         public bool Ativa { get; set; } = true;
+        public int? PesoMaximoProva { get; set; }
 
         // Só mantenha estes se a Model/DB já tiver colunas
         public string? Slug { get; set; }
@@ -57,6 +58,7 @@ namespace FASTSURVEY.Dtos.Pesquisas
         public bool? PermiteRespostasAnonimas { get; set; }
         public int? LimiteRespostas { get; set; }
         public bool? Ativa { get; set; }
+        public int? PesoMaximoProva { get; set; }
 
         // idem observação
         public string? Slug { get; set; }

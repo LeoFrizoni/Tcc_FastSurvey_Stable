@@ -156,6 +156,7 @@ namespace FASTSURVEY.Services.Resposta
                             DataResposta = DateTime.UtcNow,
                             RespostaAnonima = request.RespostaAnonima,
                             SessaoId = request.SessaoId,
+                            ParticipanteId = request.ParticipanteId,
                         }
                     );
                 }
@@ -173,6 +174,7 @@ namespace FASTSURVEY.Services.Resposta
                             DataResposta = DateTime.UtcNow,
                             RespostaAnonima = request.RespostaAnonima,
                             SessaoId = request.SessaoId,
+                            ParticipanteId = request.ParticipanteId,
                             Opcao = opcoes,
                         }
                     );

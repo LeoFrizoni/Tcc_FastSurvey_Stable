@@ -385,13 +385,27 @@
   gap:8px;
 }
 .badge{
-  background: var(--brand-ghost);
-  color: var(--brand);
-  font-weight: 800;
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border:1px solid #e9e3ff;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  background:linear-gradient(120deg, rgba(124,58,237,.12), rgba(124,58,237,.28));
+  color:var(--brand);
+  font-weight:800;
+  font-size:0.78rem;
+  padding:6px 14px;
+  border-radius:999px;
+  border:1px solid rgba(124,58,237,.28);
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  box-shadow:0 6px 16px rgba(124,58,237,.22);
+}
+.badge::before{
+  content:"";
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:var(--brand);
+  box-shadow:0 0 0 4px rgba(124,58,237,.15);
 }
 
 /* Tag de pasta no card */
@@ -481,6 +495,7 @@
   padding:12px 12px;
   font-size:14px;
   outline:none;
+  max-width: 90%;
 }
 .textInput:focus{
   border-color: var(--brand);
