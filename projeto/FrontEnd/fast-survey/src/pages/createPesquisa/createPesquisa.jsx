@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import TopNavbar from "../../components/layouts/TopNavBar";
@@ -155,6 +156,7 @@ const CardWrapper = React.memo(function CardWrapper({
 });
 
 const CriarPesquisa = () => {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(true);
   const [isPerguntasAberto, setIsPerguntasAberto] = useState(false);
   const [qrUrl, setQrUrl] = useState("");
@@ -176,6 +178,10 @@ const CriarPesquisa = () => {
   const [blocos, setBlocos] = useState([]);
   const [autorNome, setAutorNome] = useState("");
   const [tiposPesquisa, setTiposPesquisa] = useState([]);
+
+  const voltarParaHome = useCallback(() => {
+    navigate('/home');
+  }, [navigate]);
 
   useEffect(() => {
     const loginId = localStorage.getItem("userId") || 
@@ -1134,6 +1140,7 @@ const CriarPesquisa = () => {
               setDadosPesquisa(dados);
               setShowModal(false);
             }}
+            onClose={voltarParaHome}
           />
         )}
 

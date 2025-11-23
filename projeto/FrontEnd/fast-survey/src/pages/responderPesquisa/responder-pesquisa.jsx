@@ -1045,7 +1045,7 @@ const ResponderPesquisa = () => {
             <section ref={pdfRef} className={styles.exportArea}>
               <div className={styles.header}>
                 <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-                  <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataStr} />
+                  <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataRaw} />
                   <InformacoesPesquisa
                     key={`informacoes-${renderKey}`}
                     titulo={pesquisa.titulo}

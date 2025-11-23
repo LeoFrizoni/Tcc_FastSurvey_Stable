@@ -29,6 +29,7 @@
   gap: 1.5rem;
   font-family: 'Segoe UI', sans-serif;
   animation: fadeIn 0.3s ease-in-out;
+  position: relative;
 }
 
 .modal-criar h2 {
@@ -82,6 +83,25 @@
 
 .modal-criar button:hover {
   background: linear-gradient(135deg, #6c48e6, #503ed6);
+}
+
+.modal-criar button.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  color: #6b7280;
+  padding: 0.2rem;
+  line-height: 1;
+  font-size: 1.2rem;
+  box-shadow: none;
+}
+
+.modal-criar button.closeButton:hover,
+.modal-criar button.closeButton:focus-visible {
+  color: #111827;
+  background: rgba(107, 114, 128, 0.1);
+  border-radius: 50%;
 }
 
 /* ===== Radio Buttons Melhorados ===== */

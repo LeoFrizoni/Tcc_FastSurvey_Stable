@@ -3,7 +3,7 @@ import axios from "axios";
 import styles from "./modal-criar-pesquisa.module.css";
 import { API_BASE_URL } from "../../config";
 
-export default function ModalCriarPesquisa({ onConfirm }) {
+export default function ModalCriarPesquisa({ onConfirm, onClose }) {
   const [titulo, setTitulo] = useState("");
   const [descricao, setDescricao] = useState("");
   const [tipoSelecionado, setTipoSelecionado] = useState("");
@@ -45,6 +45,18 @@ export default function ModalCriarPesquisa({ onConfirm }) {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!onClose) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const itensTipos = useMemo(() => {
     return (tipos ?? [])
@@ -106,6 +118,16 @@ export default function ModalCriarPesquisa({ onConfirm }) {
   return (
     <div className={styles["modal-overlay"]}>
       <div className={styles["modal-criar"]} role="dialog" aria-modal="true" aria-labelledby="titulo-modal">
+        {onClose && (
+          <button
+            type="button"
+            className={styles.closeButton}
+            aria-label="Fechar"
+            onClick={onClose}
+          >
+            X
+          </button>
+        )}
         <h2 id="titulo-modal">Nova Pesquisa</h2>
 
         <div className={styles["form-group"]}>

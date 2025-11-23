@@ -800,7 +800,7 @@ const ResultadosPesquisa = () => {
           {/* ===== Coluna esquerda — entra no PDF ===== */}
           <section ref={pdfRef} className={styles.exportArea}>
                          <section className={styles.headerSection} aria-label="Cabeçalho da pesquisa">
-               <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataStr} />
+               <CabecalhoPesquisa key={`cabecalho-${renderKey}`} autor={autor} data={dataRaw} />
                <InformacoesPesquisa
                  key={`informacoes-${renderKey}`}
                  titulo={pesquisa.titulo || "Sem título"}
