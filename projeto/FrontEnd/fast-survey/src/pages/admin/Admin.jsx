@@ -3,7 +3,8 @@ import styles from './admin.module.css';
 import { logout, getToken } from '../../utils/auth';
 
 // FORCE UPDATE v4 - Endpoints corrigidos e funcionando - CACHE CLEARED
-const API = 'http://localhost:5062/api';
+import env from '../../config/env';
+const API = `${env.REACT_APP_API_URL}`;
 
 const buildAuthHeaders = (extra = {}) => {
   const token = getToken();

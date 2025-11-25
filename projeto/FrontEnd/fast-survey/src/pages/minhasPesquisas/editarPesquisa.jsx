@@ -27,7 +27,8 @@ import { toast } from 'react-toastify';
 import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
 
 // Configuração da API
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5062';
+import env from '../../config/env';
+const API_BASE_URL = env.REACT_APP_API_URL;
 
 const mapPerguntasDoTemplate = (templateJson) => {
   if (!templateJson) return {};

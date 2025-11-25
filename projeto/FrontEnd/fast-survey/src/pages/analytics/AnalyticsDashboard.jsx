@@ -20,7 +20,8 @@ import { toast } from 'react-toastify';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import styles from './AnalyticsDashboard.module.css';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5062';
+import env from '../../config/env';
+const API_BASE = env.REACT_APP_API_URL;
 const api = axios.create({ baseURL: API_BASE });
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');

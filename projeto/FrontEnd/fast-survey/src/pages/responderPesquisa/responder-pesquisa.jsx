@@ -13,7 +13,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import api from '../../lib/api';
 
 /* ================== Config API / Auth ================== */
-const API_BASE = 'http://localhost:5062';
+import env from '../../config/env';
+const API_BASE = env.REACT_APP_API_URL;
 
 // Cache para nomes de usuários
 const userNamesCache = new Map();

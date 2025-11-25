@@ -12,18 +12,18 @@ import { checkUsernameAvailability } from "../../helpers/validateEmail";
 
 /* ===================== Endpoints (mantidos) ===================== */
 const ENDPOINTS = {
-  login: "/api/login/Autenticar",
-  register: "/api/login/Cadastrar",
-  googleAuthPreferred: "/api/login/GoogleAuth",
-  googleAuthFallback: "/api/Login/GoogleAuth",
+  login: "login/Autenticar",
+  register: "login/Cadastrar",
+  googleAuthPreferred: "login/GoogleAuth",
+  googleAuthFallback: "Login/GoogleAuth",
 };
 
 const RESET_PASSWORD_ENDPOINTS = [
-  "/api/login/EsqueciSenha",
+  "login/EsqueciSenha",
 ];
 
 const RESEND_VERIFICATION_ENDPOINTS = [
-  "/api/login/ReenviarConfirmacao",
+  "login/ReenviarConfirmacao",
 ];
 
 /* ===== Termos de Uso (texto longo; exibido com pre-wrap para manter formatação) ===== */
@@ -677,7 +677,7 @@ export default function Login() {
     
     setLoadingConfirmation(true);
     try {
-      await api.post("/api/login/ConfirmarEmail", { token: confirmationCode });
+      await api.post("login/ConfirmarEmail", { token: confirmationCode });
       toast.success("Email confirmado com sucesso! Você já pode fazer login.");
       setShowEmailConfirmation(false);
       setConfirmationCode('');
@@ -699,7 +699,7 @@ export default function Login() {
     if (!pendingEmail || !/^\S+@\S+\.\S+$/.test(pendingEmail))
       return toast.warn("Email inválido.");
     try {
-      await api.post("/api/login/ReenviarConfirmacao", { email: pendingEmail });
+      await api.post("login/ReenviarConfirmacao", { email: pendingEmail });
       toast.success("Código de confirmação reenviado para seu email.");
     } catch (err) {
       const msg =

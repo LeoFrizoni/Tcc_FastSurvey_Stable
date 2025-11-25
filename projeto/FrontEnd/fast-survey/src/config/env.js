@@ -2,10 +2,10 @@
 const isDev = process.env.NODE_ENV === 'development';
 
 const env = {
-  NODE_ENV: process.env.NODE_ENV ?? 'development',
-  REACT_APP_ENV: process.env.REACT_APP_ENV ?? process.env.NODE_ENV ?? 'development',
-  REACT_APP_API_URL: process.env.REACT_APP_API_URL ?? 'http://localhost:5062',
-  REACT_APP_GOOGLE_CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID ?? '',
+  NODE_ENV: process.env.NODE_ENV ?? 'production',
+  REACT_APP_ENV: process.env.REACT_APP_ENV ?? process.env.NODE_ENV ?? 'production',
+  REACT_APP_API_URL: process.env.REACT_APP_API_URL ?? 'https://fastsurvey.app.br/api',
+  REACT_APP_GOOGLE_CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID ?? '473742777071-ut3vd4lh06jn255iqqfonggteta7aqjc.apps.googleusercontent.com',
 };
 
 // Logs só no dev e sem expor o Client ID por completo

@@ -52,7 +52,7 @@ function debugToken() {
   // 5. Testar requisição para API
   console.log('13. Testando requisição para API...');
   
-  fetch('http://localhost:5062/api/login/Perfil', {
+  fetch(`${window.REACT_APP_API_URL || 'https://fastsurvey.app.br/api'}/login/Perfil`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -83,7 +83,7 @@ function debugToken() {
 function testLogin(usuario, senha) {
   console.log('🔍 === TESTE DE LOGIN ===');
   
-  fetch('http://localhost:5062/api/login/Autenticar', {
+  fetch(`${window.REACT_APP_API_URL || 'https://fastsurvey.app.br/api'}/login/Autenticar`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -122,7 +122,7 @@ function testCurrentToken() {
   }
   
   // Testar endpoint simples
-  fetch('http://localhost:5062/api/TipoPergunta', {
+  fetch(`${window.REACT_APP_API_URL || 'https://fastsurvey.app.br/api'}/TipoPergunta`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${token}`,
