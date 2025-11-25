@@ -1,5 +1,8 @@
 #nullable enable
 using FASTSURVEY.Dtos.Respostas;
+using FASTSURVEY.Services.Analises;
+using FASTSURVEY.Services.Cache;
+using FASTSURVEY.Services.Resultados;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 using RespostaModel = SISTEMA_FASTSURVEY.MODEL.Models.Respostas;
@@ -9,55 +12,74 @@ namespace FASTSURVEY.Services.Resposta
     public class RespostaService : IRespostaService
     {
         private readonly FastSurveyContext _ctx;
+        private readonly ISentimentAnalysisDispatcher _sentimentDispatcher;
+        private readonly ICacheService _cache;
 
-        public RespostaService(FastSurveyContext ctx) => _ctx = ctx;
+        public RespostaService(
+            FastSurveyContext ctx,
+            ISentimentAnalysisDispatcher sentimentDispatcher,
+            ICacheService cache
+        )
+        {
+            _ctx = ctx;
+            _sentimentDispatcher = sentimentDispatcher;
+            _cache = cache;
+        }
 
         // --- helpers ---
-        private static RespostaDto MapToDto(Respostas r) =>
+        private static RespostaDto MapToDto(Respostas r, string? sessaoCodigo = null) =>
             new()
             {
                 RespostaId = r.RespostaId,
                 PerguntaId = r.PerguntaId,
                 Texto = r.Texto,
                 DataResposta = r.DataResposta,
+                RespondidaEm = r.RespondidaEm,
                 Opcoes = r.Opcao?.Select(o => o.OpcaoId).ToList() ?? new(),
                 RespostaAnonima = r.RespostaAnonima,
                 SessaoId = r.SessaoId,
+                SessaoCodigo = sessaoCodigo,
                 ParticipanteId = r.ParticipanteId,
+                ParticipanteNome = r.Participante?.NomeParticipante,
             };
 
         // --- criação unitária ---
+
+        private Task InvalidarResultadosAsync(
+            int pesquisaId,
+            IEnumerable<int>? perguntaIds,
+            CancellationToken ct
+        ) => ResultadosCacheHelper.InvalidatePesquisaAsync(_cache, pesquisaId, perguntaIds, ct);
 
         public async Task<RespostaModel> CriarDiscursivaAsync(
             CriarRespostaDiscursivaRequest req,
             CancellationToken ct = default
         )
         {
-            var perguntaExiste = await _ctx
+            var pergunta = await _ctx
                 .Perguntas.AsNoTracking()
-                .AnyAsync(p => p.PerguntaId == req.PerguntaId, ct);
-            if (!perguntaExiste)
+                .Select(p => new { p.PerguntaId, p.PesquisaId })
+                .FirstOrDefaultAsync(p => p.PerguntaId == req.PerguntaId, ct);
+            if (pergunta is null)
                 throw new InvalidOperationException("Pergunta não encontrada.");
 
-            if (req.PesquisaId.HasValue)
+            var pesquisaId = req.PesquisaId ?? pergunta.PesquisaId;
+
+            if (req.PesquisaId.HasValue && pergunta.PesquisaId != req.PesquisaId.Value)
             {
-                var pertence = await _ctx
-                    .Perguntas.AsNoTracking()
-                    .AnyAsync(
-                        p => p.PerguntaId == req.PerguntaId && p.PesquisaId == req.PesquisaId.Value,
-                        ct
-                    );
-                if (!pertence)
-                    throw new InvalidOperationException(
-                        "A pergunta informada não pertence à pesquisa enviada."
-                    );
+                throw new InvalidOperationException(
+                    "A pergunta informada não pertence à pesquisa enviada."
+                );
             }
+
+            var textoAjustado = (req.Texto ?? string.Empty).Trim();
 
             var entity = new RespostaModel
             {
                 PerguntaId = req.PerguntaId,
-                Texto = (req.Texto ?? string.Empty).Trim(),
+                Texto = textoAjustado,
                 DataResposta = DateTime.UtcNow,
+                RespondidaEm = DateTime.UtcNow,
                 RespostaAnonima = req.RespostaAnonima,
                 SessaoId = req.SessaoId,
                 ParticipanteId = req.ParticipanteId,
@@ -65,6 +87,8 @@ namespace FASTSURVEY.Services.Resposta
 
             _ctx.Respostas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
+            await _sentimentDispatcher.AnalyzeAsync(entity.RespostaId, textoAjustado, ct);
+            await InvalidarResultadosAsync(pesquisaId, new[] { req.PerguntaId }, ct);
             return entity;
         }
 
@@ -80,23 +104,17 @@ namespace FASTSURVEY.Services.Resposta
 
             var pergunta = await _ctx
                 .Perguntas.AsNoTracking()
+                .Select(p => new { p.PerguntaId, p.PesquisaId })
                 .FirstOrDefaultAsync(p => p.PerguntaId == req.PerguntaId, ct);
             if (pergunta is null)
                 throw new InvalidOperationException("Pergunta não encontrada.");
 
-            if (req.PesquisaId.HasValue)
-            {
-                var pertence = await _ctx
-                    .Perguntas.AsNoTracking()
-                    .AnyAsync(
-                        p => p.PerguntaId == req.PerguntaId && p.PesquisaId == req.PesquisaId.Value,
-                        ct
-                    );
-                if (!pertence)
-                    throw new InvalidOperationException(
-                        "A pergunta informada não pertence à pesquisa enviada."
-                    );
-            }
+            var pesquisaId = req.PesquisaId ?? pergunta.PesquisaId;
+
+            if (req.PesquisaId.HasValue && pergunta.PesquisaId != req.PesquisaId.Value)
+                throw new InvalidOperationException(
+                    "A pergunta informada não pertence à pesquisa enviada."
+                );
 
             var opcoes = await _ctx
                 .OpcoesPergunta.Where(o => opSel.Contains(o.OpcaoId))
@@ -116,6 +134,7 @@ namespace FASTSURVEY.Services.Resposta
             {
                 PerguntaId = req.PerguntaId,
                 DataResposta = DateTime.UtcNow,
+                RespondidaEm = DateTime.UtcNow,
                 RespostaAnonima = req.RespostaAnonima,
                 SessaoId = req.SessaoId,
                 ParticipanteId = req.ParticipanteId,
@@ -125,6 +144,7 @@ namespace FASTSURVEY.Services.Resposta
 
             _ctx.Respostas.Add(entity);
             await _ctx.SaveChangesAsync(ct);
+            await InvalidarResultadosAsync(pesquisaId, new[] { req.PerguntaId }, ct);
             return entity;
         }
 
@@ -154,6 +174,7 @@ namespace FASTSURVEY.Services.Resposta
                             PerguntaId = item.PerguntaId,
                             Texto = item.Texto.Trim(),
                             DataResposta = DateTime.UtcNow,
+                            RespondidaEm = DateTime.UtcNow,
                             RespostaAnonima = request.RespostaAnonima,
                             SessaoId = request.SessaoId,
                             ParticipanteId = request.ParticipanteId,
@@ -172,9 +193,11 @@ namespace FASTSURVEY.Services.Resposta
                         {
                             PerguntaId = item.PerguntaId,
                             DataResposta = DateTime.UtcNow,
+                            RespondidaEm = DateTime.UtcNow,
                             RespostaAnonima = request.RespostaAnonima,
                             SessaoId = request.SessaoId,
                             ParticipanteId = request.ParticipanteId,
+                            Texto = string.Join(", ", opcoes.Select(o => o.OpcaoId)),
                             Opcao = opcoes,
                         }
                     );
@@ -183,6 +206,20 @@ namespace FASTSURVEY.Services.Resposta
 
             _ctx.Respostas.AddRange(respostasCriadas);
             await _ctx.SaveChangesAsync(ct);
+
+            var tarefasAnalise = respostasCriadas
+                .Where(r => !string.IsNullOrWhiteSpace(r.Texto) && (r.Opcao == null || r.Opcao.Count == 0))
+                .Select(r => _sentimentDispatcher.AnalyzeAsync(r.RespostaId, r.Texto!, ct));
+            await Task.WhenAll(tarefasAnalise);
+
+            if (respostasCriadas.Count > 0)
+            {
+                await InvalidarResultadosAsync(
+                    pesquisaId,
+                    respostasCriadas.Select(r => r.PerguntaId),
+                    ct
+                );
+            }
 
             return respostasCriadas.FirstOrDefault()?.RespostaId ?? 0;
         }
@@ -193,9 +230,23 @@ namespace FASTSURVEY.Services.Resposta
         {
             var r = await _ctx
                 .Respostas.Include(x => x.Opcao)
+                .Include(x => x.Participante)
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.RespostaId == id, ct);
-            return r is null ? null : MapToDto(r);
+            if (r is null)
+                return null;
+
+            string? sessaoCodigo = null;
+            if (!string.IsNullOrWhiteSpace(r.SessaoId))
+            {
+                sessaoCodigo = await _ctx
+                    .SessoesInterativas.AsNoTracking()
+                    .Where(s => s.SessaoId == r.SessaoId)
+                    .Select(s => s.CodigoAcesso)
+                    .FirstOrDefaultAsync(ct);
+            }
+
+            return MapToDto(r, sessaoCodigo);
         }
 
         public async Task<IEnumerable<RespostaDto>> ListarPorPesquisaAsync(
@@ -206,12 +257,33 @@ namespace FASTSURVEY.Services.Resposta
             var list = await _ctx
                 .Respostas.Include(r => r.Opcao)
                 .Include(r => r.Pergunta)
+                .Include(r => r.Participante)
                 .AsNoTracking()
                 .Where(r => r.Pergunta.PesquisaId == pesquisaId)
                 .OrderBy(r => r.DataResposta)
                 .ToListAsync(ct);
 
-            return list.Select(MapToDto);
+            var sessaoIds = list
+                .Select(r => r.SessaoId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            var codigos = sessaoIds.Count == 0
+                ? new Dictionary<string, string>()
+                : await _ctx
+                    .SessoesInterativas.AsNoTracking()
+                    .Where(s => sessaoIds.Contains(s.SessaoId))
+                    .ToDictionaryAsync(s => s.SessaoId, s => s.CodigoAcesso, ct);
+
+            return list.Select(r =>
+            {
+                var codigo = r.SessaoId != null
+                    && codigos.TryGetValue(r.SessaoId, out var value)
+                    ? value
+                    : null;
+                return MapToDto(r, codigo);
+            });
         }
 
         public async Task<int> ObterTotalRespostasAsync(
@@ -367,12 +439,21 @@ namespace FASTSURVEY.Services.Resposta
 
         public async Task<bool> ExcluirAsync(int id, CancellationToken ct = default)
         {
-            var r = await _ctx.Respostas.FirstOrDefaultAsync(x => x.RespostaId == id, ct);
+            var r = await _ctx
+                .Respostas.Include(x => x.Pergunta)
+                .FirstOrDefaultAsync(x => x.RespostaId == id, ct);
             if (r is null)
                 return false;
 
+            var pesquisaId = r.Pergunta?.PesquisaId;
+            var perguntaId = r.PerguntaId;
+
             _ctx.Respostas.Remove(r);
             await _ctx.SaveChangesAsync(ct);
+            if (pesquisaId.HasValue)
+            {
+                await InvalidarResultadosAsync(pesquisaId.Value, new[] { perguntaId }, ct);
+            }
             return true;
         }
     }

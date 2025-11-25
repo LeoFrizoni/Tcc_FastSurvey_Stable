@@ -17,12 +17,14 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  ListChecks
+  ListChecks,
+  ArrowRight
 } from 'lucide-react';
 import axios from 'axios';
 import TopNavbar from '../../components/layouts/TopNavBar';
 import styles from './editarPesquisa.module.css';
 import { toast } from 'react-toastify';
+import ResultadosCompletos from '../../components/charts/ResultadosCompletos';
 
 // Configuração da API
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5062';
@@ -94,6 +96,7 @@ const EditarPesquisa = () => {
   const [erroRespostas, setErroRespostas] = useState('');
   const [filtroUsuario, setFiltroUsuario] = useState('todos');
   const [participantesInfo, setParticipantesInfo] = useState({});
+  const [mostrarGraficosPreview, setMostrarGraficosPreview] = useState(false);
 
   // Função para obter token de autenticação
   const getAuthHeaders = useCallback(() => {
@@ -302,6 +305,10 @@ const EditarPesquisa = () => {
   const fecharModalRespostas = () => {
     setMostrarRespostas(false);
     setFiltroUsuario('todos');
+  };
+
+  const toggleGraficosPreview = () => {
+    setMostrarGraficosPreview((prev) => !prev);
   };
 
   const rotuloParticipante = useCallback(
@@ -541,6 +548,42 @@ const EditarPesquisa = () => {
                   />
                 </div>
               )}
+            </div>
+
+            {/* Gráficos e Insights */}
+            <div className={`${styles.formSection} ${styles.chartsSection}`}>
+              <div className={styles.sectionHeader}>
+                <div className={styles.sectionTitleWrapper}>
+                  <BarChart3 size={20} />
+                  <h3>Gráficos e Insights</h3>
+                </div>
+                <button
+                  type="button"
+                  className={styles.toggleChartsButton}
+                  onClick={toggleGraficosPreview}
+                >
+                  {mostrarGraficosPreview ? 'Ocultar pré-visualização' : 'Mostrar pré-visualização'}
+                </button>
+              </div>
+
+              {mostrarGraficosPreview ? (
+                <div className={styles.chartsPreviewContainer}>
+                  <ResultadosCompletos pesquisaId={id} modoCompacto />
+                </div>
+              ) : (
+                <p className={styles.chartsPlaceholder}>
+                  Ative a pré-visualização para carregar os gráficos desta pesquisa diretamente nesta tela.
+                </p>
+              )}
+
+              <button
+                type="button"
+                className={styles.outlineButton}
+                onClick={() => navigate(`/minhas-pesquisas/resultado/${id}`)}
+              >
+                <ArrowRight size={18} />
+                Abrir página completa de gráficos
+              </button>
             </div>
 
             {/* Ações do Formulário */}

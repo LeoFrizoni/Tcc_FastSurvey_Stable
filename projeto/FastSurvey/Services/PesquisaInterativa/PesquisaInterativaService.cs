@@ -1,7 +1,9 @@
 #nullable enable
 using System.Security.Cryptography;
 using FASTSURVEY.Dtos.Pesquisas;
+using FASTSURVEY.Services.Cache;
 using FASTSURVEY.Services.Result;
+using FASTSURVEY.Services.Resultados;
 using Microsoft.EntityFrameworkCore;
 using SISTEMA_FASTSURVEY.MODEL.Models;
 
@@ -10,8 +12,13 @@ namespace FASTSURVEY.Services.PesquisaInterativa
     public sealed class PesquisaInterativaService : IPesquisaInterativaService
     {
         private readonly FastSurveyContext _ctx;
+        private readonly ICacheService _cache;
 
-        public PesquisaInterativaService(FastSurveyContext ctx) => _ctx = ctx;
+        public PesquisaInterativaService(FastSurveyContext ctx, ICacheService cache)
+        {
+            _ctx = ctx;
+            _cache = cache;
+        }
 
         // =========================
         // INICIAR
@@ -296,7 +303,9 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                 {
                     ParticipanteId = request.ParticipanteId,
                     PerguntaId = request.PerguntaId,
+                    Texto = request.TextoResposta?.Trim() ?? string.Empty,
                     TextoResposta = request.TextoResposta,
+                    DataResposta = DateTime.UtcNow,
                     RespondidaEm = DateTime.UtcNow,
                 };
 
@@ -316,6 +325,12 @@ namespace FASTSURVEY.Services.PesquisaInterativa
                 }
 
                 await _ctx.SaveChangesAsync(ct);
+                await ResultadosCacheHelper.InvalidatePesquisaAsync(
+                    _cache,
+                    sessao.PesquisaId,
+                    new[] { request.PerguntaId },
+                    ct
+                );
 
                 return ServiceResult<RespostaInterativaResponse>.Ok(
                     new RespostaInterativaResponse

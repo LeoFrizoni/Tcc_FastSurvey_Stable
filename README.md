@@ -15,6 +15,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 - 🔧 **[Correções Realizadas](./Documentacao_Projeto/CORREÇÕES_REALIZADAS.md)** - Histórico de correções
 - 🚀 **[Melhorias Implementadas](./Documentacao_Projeto/MELHORIAS_IMPLEMENTADAS.md)** - Funcionalidades adicionadas
 - 🔌 **[Novos Endpoints](./Documentacao_Projeto/NOVOS_ENDPOINTS.md)** - API disponível
+- 🤖 **[Pipeline de Analise de Sentimento](./Documentacao_Projeto/PIPELINE_ANALISE_SENTIMENTO.md)** - Guia de configuração e validação do novo fluxo de IA
 
 **Para uma visão completa do sistema, comece pela [Documentação Completa](./Documentacao_Projeto/DOCUMENTACAO_COMPLETA_FASTSURVEY.md).**
 
@@ -23,6 +24,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 ## 🚀 Funcionalidades
 
 ### Backend (ASP.NET Core)
+
 - **Autenticação JWT** com refresh tokens
 - **CRUD completo** de pesquisas, perguntas e respostas
 - **Sistema de pastas** para organização
@@ -32,8 +34,10 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 - **Exportação de resultados** (PDF, Excel, CSV)
 - **Sistema de permissões** por tipo de usuário
 - **Envio de emails** para confirmação e reset de senha
+- **Análise automática de sentimentos** para respostas discursivas, com persistência e dashboards
 
 ### Frontend (React)
+
 - **Interface responsiva** para desktop e mobile
 - **Sistema de autenticação** com login/cadastro
 - **Criador visual de pesquisas** com drag & drop
@@ -45,6 +49,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 ## 🛠️ Tecnologias Utilizadas
 
 ### Backend (ASP.NET Core 8.0)
+
 - **ASP.NET Core 8.0** - Framework web
 - **Entity Framework Core 8.0.2** - ORM para PostgreSQL
 - **Npgsql.EntityFrameworkCore.PostgreSQL 8.0.2** - Provider PostgreSQL
@@ -61,6 +66,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 - **System.Drawing.Common 8.0.0** - Manipulação de imagens
 
 ### Frontend (React 19)
+
 - **React 19.0.0** - Biblioteca principal com Hooks
 - **React Router DOM 7.5.3** - Roteamento e navegação
 - **Axios 1.9.0** - Cliente HTTP para requisições à API
@@ -79,6 +85,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 - **CSS Modules** - Sistema de estilização modular
 
 ### Banco de Dados
+
 - **PostgreSQL 12+** - Banco de dados principal
 - **Entity Framework Core** - ORM e migrations
 
@@ -92,6 +99,7 @@ O objetivo principal do FastSurvey é oferecer uma plataforma simples, intuitiva
 ## 🔧 Instalação e Configuração
 
 ### 1. Clone o repositório
+
 ```bash
 git clone https://github.com/seu-usuario/fastsurvey.git
 cd fastsurvey
@@ -100,11 +108,14 @@ cd fastsurvey
 ### 2. Configuração do Banco de Dados
 
 #### Instalar PostgreSQL
+
 - Baixe e instale o PostgreSQL: https://www.postgresql.org/download/
 - Crie um banco de dados chamado `fastsurvey`
 
 #### Configurar Connection String
+
 Edite o arquivo `projeto/FastSurvey/appsettings.json`:
+
 ```json
 {
   "ConnectionStrings": {
@@ -114,6 +125,7 @@ Edite o arquivo `projeto/FastSurvey/appsettings.json`:
 ```
 
 #### Executar Migrations
+
 ```bash
 cd projeto/FastSurvey
 dotnet ef database update
@@ -122,13 +134,16 @@ dotnet ef database update
 ### 3. Configuração do Backend
 
 #### Instalar dependências
+
 ```bash
 cd projeto/FastSurvey
 dotnet restore
 ```
 
 #### Configurar JWT e Email
+
 Edite o arquivo `appsettings.json`:
+
 ```json
 {
   "Jwt": {
@@ -147,30 +162,74 @@ Edite o arquivo `appsettings.json`:
 ```
 
 #### Executar o Backend
+
 ```bash
 dotnet run
 ```
+
 O backend estará disponível em: `https://localhost:5062`
+
+### 3.1. Configurar a IA de Sentimentos (novo pipeline)
+
+1. **Habilite a seção `SentimentAI` no `appsettings.json`:**
+
+```json
+"SentimentAI": {
+  "Enabled": true,
+  "PythonPath": "python",
+  "WorkingDirectory": "../sentiment-analysis-ai",
+  "Script": "scripts/analyze_response.py",
+  "TimeoutSeconds": 30
+}
+```
+
+2. **Prepare o ambiente Python** dentro de `projeto/sentiment-analysis-ai`:
+
+```powershell
+cd projeto/sentiment-analysis-ai
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+3. **Sincronize a conexão com o banco** (usa o mesmo PostgreSQL do FastSurvey). Ajuste se necessário:
+
+```powershell
+$env:SENTIMENT_DB_URL = "postgresql+psycopg2://USUARIO:SENHA@HOST:PORTA/BANCO"
+```
+
+4. **Teste o pipeline manualmente** (substitua os IDs reais):
+
+```powershell
+python .\scripts\analyze_response.py --resposta-id 123 --texto "Excelente atendimento, continuem assim"
+```
+
+A saída JSON é registrada no stdout e o resultado fica disponível na tabela `Analises`, aparecendo em `Resultados > Sentimentos` no frontend.
 
 ### 4. Configuração do Frontend
 
 #### Instalar dependências
+
 ```bash
 cd projeto/FrontEnd/fast-survey
 npm install
 ```
 
 #### Configurar variáveis de ambiente
+
 Crie um arquivo `.env` na raiz do frontend:
+
 ```env
 REACT_APP_API_URL=http://localhost:5062
 REACT_APP_GOOGLE_CLIENT_ID=seu-google-client-id
 ```
 
 #### Executar o Frontend
+
 ```bash
 npm start
 ```
+
 O frontend estará disponível em: `http://localhost:3000`
 
 ## 📁 Estrutura do Projeto
@@ -208,10 +267,13 @@ TCC_FastSurvey-develop/
 ## 🔐 Configuração de Autenticação
 
 ### JWT
+
 O sistema usa JWT para autenticação. Configure as chaves no `appsettings.json`.
 
 ### Google OAuth (Opcional)
+
 Para habilitar login com Google:
+
 1. Crie um projeto no Google Cloud Console
 2. Configure OAuth 2.0
 3. Adicione o Client ID no arquivo `.env`
@@ -219,6 +281,7 @@ Para habilitar login com Google:
 ## 📊 Funcionalidades Principais
 
 ### 1. Sistema de Usuários
+
 - Cadastro e login com autenticação JWT
 - Login com Google OAuth
 - Recuperação de senha via email
@@ -226,6 +289,7 @@ Para habilitar login com Google:
 - Tipos de usuário (Admin, Usuário)
 
 ### 2. Criação de Pesquisas
+
 - Interface drag & drop intuitiva
 - Múltiplos tipos de pergunta (múltipla escolha, texto, nota, etc.)
 - Upload de anexos (imagens, PDFs)
@@ -233,12 +297,14 @@ Para habilitar login com Google:
 - Geração de QR Codes para distribuição
 
 ### 3. Pesquisas Interativas
+
 - Modo apresentação (tipo Kahoot)
 - Resultados em tempo real
 - Códigos de acesso para participantes
 - Sessões ativas com controle de tempo
 
 ### 4. Análise de Resultados
+
 - Gráficos interativos e estatísticos
 - Exportação de dados (PDF, Excel, CSV)
 - Estatísticas detalhadas
@@ -246,6 +312,7 @@ Para habilitar login com Google:
 - Análise de respostas por IA
 
 ### 5. Recursos Avançados
+
 - Armazenamento seguro de respostas
 - Interface amigável para administradores e respondentes
 - Sistema de notificações
@@ -254,11 +321,13 @@ Para habilitar login com Google:
 ## 🚀 Deploy
 
 ### Backend (Azure/AWS)
+
 ```bash
 dotnet publish -c Release
 ```
 
 ### Frontend (Vercel/Netlify)
+
 ```bash
 npm run build
 ```
@@ -277,10 +346,10 @@ Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalh
 
 ## 👥 Autores
 
-- **Leonardo** - *Desenvolvimento Backend e Frontend*
-- **Lucas** - *Desenvolvimento Backend e Frontend*
-- **Marco** - *Desenvolvimento Backend e Frontend*
-- **Rafael** - *Desenvolvimento Backend e Frontend*
+- **Leonardo** - _Desenvolvimento Backend e Frontend_
+- **Lucas** - _Desenvolvimento Backend e Frontend_
+- **Marco** - _Desenvolvimento Backend e Frontend_
+- **Rafael** - _Desenvolvimento Backend e Frontend_
 
 **Trabalho de Conclusão de Curso (TCC)** - Curso de Sistemas de Informação do Centro Universitário Dom Bosco
 

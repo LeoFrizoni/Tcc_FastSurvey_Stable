@@ -119,6 +119,79 @@
   border-bottom: 2px solid var(--brand-ghost);
 }
 
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.sectionTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chartsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toggleChartsButton {
+  border: none;
+  background: var(--brand-ghost);
+  color: var(--brand-ink);
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleChartsButton:hover {
+  background: rgba(124,58,237,0.15);
+}
+
+.chartsPreviewContainer {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--paper);
+  padding: 12px;
+  max-height: 600px;
+  overflow: auto;
+}
+
+.chartsPlaceholder {
+  color: var(--muted);
+  font-size: 0.95rem;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px dashed var(--border);
+}
+
+.outlineButton {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: 2px solid var(--brand-ink);
+  background: transparent;
+  color: var(--brand-ink);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.outlineButton:hover {
+  background: var(--brand-ghost);
+}
+
 /* ===================== FORM ELEMENTS ===================== */
 .formGroup {
   margin-bottom: 20px;

@@ -1,4 +1,5 @@
 ﻿// ===== Services da API =====
+using FASTSURVEY.Services.Analises;
 using FASTSURVEY.Services.Analytics;
 using FASTSURVEY.Services.Anexo;
 using FASTSURVEY.Services.Blocklist;
@@ -97,6 +98,10 @@ namespace FASTSURVEY
             services.AddScoped<IExternalLoginsService, ExternalLoginsService>();
             services.AddScoped<IFeatureFlagsService, FeatureFlagsService>();
             services.AddScoped<IParticipantesSessaoService, ParticipantesSessaoService>();
+
+            // ===== AI / Sentimento =====
+            services.Configure<SentimentAiOptions>(config.GetSection(SentimentAiOptions.SectionName));
+            services.AddSingleton<ISentimentAnalysisDispatcher, PythonSentimentAnalysisDispatcher>();
 
             // ===== Email Service =====
             services.AddScoped<IEmailSender, SmtpEmailSender>();

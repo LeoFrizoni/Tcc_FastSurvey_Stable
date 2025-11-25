@@ -178,6 +178,11 @@ html, body { height: 100%; }
   margin-bottom: 10px;
 }
 
+.pageTabs{
+  margin: 0 auto 24px;
+  max-width: 420px;
+}
+
 .tabButton{
   flex: 1;
   padding: 8px 12px;
@@ -243,6 +248,14 @@ html, body { height: 100%; }
 }
 
 .smallInfo{ font-size: .88rem; color: var(--muted); }
+
+.chartsSection{
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: clamp(16px, 4vw, 32px);
+  box-shadow: 0 1px 2px rgba(16,24,40,.04);
+}
 .carregando{
   display: flex; justify-content: center; align-items: center;
   min-height: 60vh; font-size: 1.1rem; color: var(--muted);

@@ -1,0 +1,8 @@
+{
+  "responses": [
+    {"id": "1", "text": "Eu adorei o atendimento, equipe fantástica!"},
+    {"id": "2", "text": "O app travou e perdi meus dados, péssimo."},
+    {"id": "3", "text": "É ok, poderia melhorar a navegação."},
+    {"id": "4", "text": "Como funciona o reembolso?"}
+  ]
+}

@@ -231,7 +231,7 @@ public partial class FastSurveyContext : DbContext
                 .HasDefaultValue(0)
                 .HasComment("Pontuação da opção quando correta");
             entity.Property(e => e.Texto)
-                .IsRequired()
+                .IsRequired(false)
                 .HasMaxLength(200);
 
             entity.HasOne(d => d.Pergunta).WithMany(p => p.OpcoesPergunta)
@@ -302,7 +302,7 @@ public partial class FastSurveyContext : DbContext
                 .HasComment("Pontuação total da pergunta");
             entity.Property(e => e.TemGabarito).HasDefaultValue(false);
             entity.Property(e => e.TempoLimite).HasComment("Tempo limite em segundos para responder");
-            entity.Property(e => e.Texto).IsRequired();
+            entity.Property(e => e.Texto).IsRequired(false);
 
             entity.HasOne(d => d.Pesquisa).WithMany(p => p.Perguntas)
                 .HasForeignKey(d => d.PesquisaId)
@@ -470,7 +470,7 @@ public partial class FastSurveyContext : DbContext
             entity.Property(e => e.RespostaAnonima).HasDefaultValue(false);
             entity.Property(e => e.SessaoId).HasMaxLength(50);
             entity.Property(e => e.TempoResposta).HasComment("Tempo gasto para responder em segundos");
-            entity.Property(e => e.Texto).IsRequired();
+            entity.Property(e => e.Texto).IsRequired(false);
 
             entity.HasOne(d => d.Participante).WithMany(p => p.Respostas)
                 .HasForeignKey(d => d.ParticipanteId)

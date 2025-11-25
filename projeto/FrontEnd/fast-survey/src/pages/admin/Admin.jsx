@@ -1,9 +1,21 @@
 import React, { useEffect, useState, useRef } from 'react';
 import styles from './admin.module.css';
-import { logout } from '../../utils/auth';
+import { logout, getToken } from '../../utils/auth';
 
 // FORCE UPDATE v4 - Endpoints corrigidos e funcionando - CACHE CLEARED
 const API = 'http://localhost:5062/api';
+
+const buildAuthHeaders = (extra = {}) => {
+  const token = getToken();
+  if (!token) {
+    console.warn('[Admin] Token não encontrado em localStorage/sessionStorage');
+    return extra;
+  }
+  return {
+    ...extra,
+    Authorization: `Bearer ${token}`,
+  };
+};
 
 /** Lê a resposta em segurança:
  * - Se 204/205 ou body vazio => retorna valor padrão ([], {} ou null conforme passado)
@@ -69,21 +81,21 @@ const AdminPage = () => {
         if (aba === 'usuarios') {
           const data = await fetchJSONSafe(`${API}/admin/usuarios`, { 
             signal: controller.signal,
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            headers: buildAuthHeaders()
           }, { defaultValue: [], expect: 'array' });
           setUsuarios(data);
         }
         if (aba === 'tipousuario') {
           const data = await fetchJSONSafe(`${API}/TipoUsuario`, { 
             signal: controller.signal,
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            headers: buildAuthHeaders()
           }, { defaultValue: [], expect: 'array' });
           setTiposUsuario(data);
         }
         if (aba === 'tipopesquisa') {
           const data = await fetchJSONSafe(`${API}/TipoPesquisa`, { 
             signal: controller.signal,
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            headers: buildAuthHeaders()
           }, { defaultValue: [], expect: 'array' });
           setTiposPesquisa(data);
         }
@@ -103,7 +115,7 @@ const AdminPage = () => {
   async function fetchUsuarios() {
     try {
       const data = await fetchJSONSafe(`${API}/admin/usuarios`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: [], expect: 'array' });
       setUsuarios(data);
     } catch (err) {
@@ -115,7 +127,7 @@ const AdminPage = () => {
   async function fetchTiposUsuario() {
     try {
       const data = await fetchJSONSafe(`${API}/TipoUsuario`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: [], expect: 'array' });
       setTiposUsuario(data);
     } catch (err) {
@@ -127,7 +139,7 @@ const AdminPage = () => {
   async function fetchTiposPesquisa() {
     try {
       const data = await fetchJSONSafe(`${API}/TipoPesquisa`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: [], expect: 'array' });
       setTiposPesquisa(data);
     } catch (err) {
@@ -148,10 +160,7 @@ const AdminPage = () => {
         {
           method: 'PUT',
           body: JSON.stringify(edit),
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -167,7 +176,7 @@ const AdminPage = () => {
     try {
       await fetchJSONSafe(`${API}/admin/usuarios/${id}`, { 
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: null, expect: 'object' });
       await fetchUsuarios();
     } catch (err) {
@@ -212,10 +221,7 @@ const AdminPage = () => {
         {
           method: 'PUT',
           body: JSON.stringify({ tipoUsuario: edit.tipoUsuario }),
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -231,7 +237,7 @@ const AdminPage = () => {
     try {
       await fetchJSONSafe(`${API}/TipoUsuario/${id}`, { 
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: null, expect: 'object' });
       await fetchTiposUsuario();
     } catch (err) {
@@ -247,10 +253,7 @@ const AdminPage = () => {
         {
           method: 'POST',
           body: JSON.stringify({ tipoUsuario: novo.tipousuario }),
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -273,10 +276,7 @@ const AdminPage = () => {
         {
           method: 'PUT',
           body: JSON.stringify({ tipoPesquisa: edit.tipoPesquisa }),
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         },
         { defaultValue: null, expect: 'object' }
       );
@@ -292,7 +292,7 @@ const AdminPage = () => {
     try {
       await fetchJSONSafe(`${API}/TipoPesquisa/${id}`, { 
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        headers: buildAuthHeaders()
       }, { defaultValue: null, expect: 'object' });
       await fetchTiposPesquisa();
     } catch (err) {
@@ -308,10 +308,7 @@ const AdminPage = () => {
         {
           method: 'POST',
           body: JSON.stringify({ tipoPesquisa: novo.tipopesquisa }),
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: buildAuthHeaders({ 'Content-Type': 'application/json' }),
         },
         { defaultValue: null, expect: 'object' }
       );

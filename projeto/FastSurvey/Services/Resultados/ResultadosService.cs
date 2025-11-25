@@ -1,4 +1,5 @@
 #nullable enable
+using System.Text.Json;
 using FASTSURVEY.Dtos.Respostas;
 using FASTSURVEY.Services.Cache;
 using FASTSURVEY.Services.Result;
@@ -12,11 +13,6 @@ namespace FASTSURVEY.Services.Resultados
         private readonly FastSurveyContext _ctx;
         private readonly ICacheService _cache;
 
-        private const string CACHE_PESQUISA_PREFIX = "resultados:pesquisa:";
-        private const string CACHE_PERGUNTA_PREFIX = "resultados:pergunta:";
-        private const string CACHE_GRAFICOS_PREFIX = "resultados:graficos:";
-        private const string CACHE_DASHBOARD_PREFIX = "resultados:dashboard:";
-
         public ResultadosService(FastSurveyContext ctx, ICacheService cache)
         {
             _ctx = ctx;
@@ -29,7 +25,7 @@ namespace FASTSURVEY.Services.Resultados
             CancellationToken ct = default
         )
         {
-            var cacheKey = $"{CACHE_PESQUISA_PREFIX}{request.PesquisaId}";
+            var cacheKey = ResultadosCacheHelper.PesquisaKey(request.PesquisaId);
 
             try
             {
@@ -79,21 +75,12 @@ namespace FASTSURVEY.Services.Resultados
 
                         var totalRespostas = pesquisa.Perguntas.Sum(p => p.TotalRespostas);
 
-                        var estatisticasTask = CalcularEstatisticasAsync(request.PesquisaId, token);
-                        var opcoesContagensTasks = Task.WhenAll(
-                            pesquisa.Perguntas.Select(p =>
-                                CalcularContagemOpcoesAsync(p.PerguntaId, token)
-                            )
+                        var perguntaIds = pesquisa.Perguntas.Select(p => p.PerguntaId).ToList();
+                        var countsByPerguntaId = await CalcularContagemOpcoesPorPerguntaAsync(
+                            perguntaIds,
+                            token
                         );
-
-                        await Task.WhenAll(estatisticasTask, opcoesContagensTasks);
-
-                        var countsByPerguntaId = pesquisa
-                            .Perguntas.Select(
-                                (p, i) =>
-                                    new { p.PerguntaId, counts = opcoesContagensTasks.Result[i] }
-                            )
-                            .ToDictionary(x => x.PerguntaId, x => x.counts);
+                        var estatisticas = await CalcularEstatisticasAsync(request.PesquisaId, token);
 
                         var resultado = new
                         {
@@ -108,7 +95,12 @@ namespace FASTSURVEY.Services.Resultados
                             perguntas = pesquisa
                                 .Perguntas.Select(pergunta =>
                                 {
-                                    var cont = countsByPerguntaId[pergunta.PerguntaId];
+                                    var cont = countsByPerguntaId.TryGetValue(
+                                            pergunta.PerguntaId,
+                                            out var mapa
+                                        )
+                                        ? mapa
+                                        : new Dictionary<int, int>();
                                     return new
                                     {
                                         id = pergunta.PerguntaId,
@@ -139,7 +131,7 @@ namespace FASTSURVEY.Services.Resultados
                                     };
                                 })
                                 .ToList(),
-                            estatisticas = await estatisticasTask,
+                            estatisticas,
                         };
 
                         return (object)resultado;
@@ -169,7 +161,7 @@ namespace FASTSURVEY.Services.Resultados
             CancellationToken ct = default
         )
         {
-            var cacheKey = $"{CACHE_PERGUNTA_PREFIX}{request.PerguntaId}";
+            var cacheKey = ResultadosCacheHelper.PerguntaKey(request.PerguntaId);
 
             try
             {
@@ -324,7 +316,7 @@ namespace FASTSURVEY.Services.Resultados
             CancellationToken ct = default
         )
         {
-            var cacheKey = $"{CACHE_GRAFICOS_PREFIX}{pesquisaId}";
+            var cacheKey = ResultadosCacheHelper.GraficosKey(pesquisaId);
 
             try
             {
@@ -352,36 +344,57 @@ namespace FASTSURVEY.Services.Resultados
                             })
                             .ToListAsync(token);
 
-                        var tasks = dadosPerguntas.Select(async pergunta =>
-                        {
-                            var contagemOpcoes = await CalcularContagemOpcoesAsync(
-                                pergunta.PerguntaId,
-                                token
-                            );
-                            return new
-                            {
-                                perguntaId = pergunta.PerguntaId,
-                                texto = pergunta.Texto,
-                                tipo = pergunta.TipoPerguntaId,
-                                totalRespostas = pergunta.TotalRespostas,
-                                dados = pergunta
-                                    .Opcoes.OrderBy(o => o.Ordem)
-                                    .Select(o => new
-                                    {
-                                        label = o.Texto,
-                                        value = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0),
-                                        percentual = pergunta.TotalRespostas > 0
-                                            ? (double)contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0)
-                                                * 100.0
-                                                / pergunta.TotalRespostas
-                                            : 0.0,
-                                    })
-                                    .ToList(),
-                            };
-                        });
+                        var contagens = await CalcularContagemOpcoesPorPerguntaAsync(
+                            dadosPerguntas.Select(p => p.PerguntaId).ToList(),
+                            token
+                        );
 
-                        var resultados = await Task.WhenAll(tasks);
-                        return (object)new { graficos = resultados };
+                        var resultados = dadosPerguntas
+                            .Select(pergunta =>
+                            {
+                                var contagemOpcoes = contagens.TryGetValue(
+                                        pergunta.PerguntaId,
+                                        out var mapa
+                                    )
+                                    ? mapa
+                                    : new Dictionary<int, int>();
+
+                                var dados = pergunta
+                                    .Opcoes.OrderBy(o => o.Ordem)
+                                    .Select(o =>
+                                    {
+                                        var totalVotos = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0);
+                                        var percentual = pergunta.TotalRespostas > 0
+                                            ? (double)totalVotos * 100.0 / pergunta.TotalRespostas
+                                            : 0.0;
+                                        return new
+                                        {
+                                            label = o.Texto,
+                                            value = totalVotos,
+                                            percentual,
+                                        };
+                                    })
+                                    .ToList();
+
+                                return new
+                                {
+                                    perguntaId = pergunta.PerguntaId,
+                                    texto = pergunta.Texto,
+                                    tipo = pergunta.TipoPerguntaId,
+                                    totalRespostas = pergunta.TotalRespostas,
+                                    chartType = MapearTipoGrafico(pergunta.TipoPerguntaId, dados.Count),
+                                    dados,
+                                };
+                            })
+                            .ToList();
+
+                        var sentimento = await ObterSentimentInsightsAsync(pesquisaId, token);
+                        return (object)new
+                        {
+                            graficos = resultados,
+                            sentimentInsights = sentimento,
+                            meta = new { atualizadoEm = DateTime.UtcNow },
+                        };
                     },
                     absoluteExpiration: TimeSpan.FromMinutes(20),
                     ct: ct
@@ -401,7 +414,7 @@ namespace FASTSURVEY.Services.Resultados
             CancellationToken ct = default
         )
         {
-            var cacheKey = $"{CACHE_DASHBOARD_PREFIX}{loginId}";
+            var cacheKey = ResultadosCacheHelper.DashboardKey(loginId);
 
             try
             {
@@ -487,6 +500,96 @@ namespace FASTSURVEY.Services.Resultados
             }
         }
 
+        private async Task<object?> ObterSentimentInsightsAsync(int pesquisaId, CancellationToken ct)
+        {
+            var registros = await _ctx
+                .Analises.AsNoTracking()
+                .Where(a => a.Resposta.Pergunta.PesquisaId == pesquisaId)
+                .Select(a => new
+                {
+                    a.RespostaId,
+                    a.Analytics,
+                    a.Keywords,
+                    Texto = a.Resposta.Texto,
+                    a.Resposta.DataResposta,
+                })
+                .ToListAsync(ct);
+
+            if (registros.Count == 0)
+            {
+                return null;
+            }
+
+            var sentimentos = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var categorias = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var palavras = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            var exemplos = new List<object>();
+
+            foreach (var registro in registros.OrderByDescending(r => r.DataResposta))
+            {
+                var sentiment = "indefinido";
+                var categoria = "sem-categoria";
+
+                if (registro.Analytics is not null)
+                {
+                    var root = registro.Analytics.RootElement.Clone();
+                    if (root.TryGetProperty("sentiment", out var sentimentProp))
+                        sentiment = sentimentProp.GetString() ?? sentiment;
+                    if (root.TryGetProperty("category", out var categoriaProp))
+                        categoria = categoriaProp.GetString() ?? categoria;
+                }
+
+                sentimentos[sentiment] = sentimentos.GetValueOrDefault(sentiment, 0) + 1;
+                categorias[categoria] = categorias.GetValueOrDefault(categoria, 0) + 1;
+
+                if (registro.Keywords is not null)
+                {
+                    var keywordsClone = registro.Keywords.RootElement.Clone();
+                    foreach (var entry in keywordsClone.EnumerateArray())
+                    {
+                        if (entry.ValueKind != JsonValueKind.Array || entry.GetArrayLength() == 0)
+                            continue;
+                        var termo = entry[0].GetString();
+                        if (string.IsNullOrWhiteSpace(termo))
+                            continue;
+                        var peso = entry.GetArrayLength() > 1 && entry[1].TryGetInt32(out var w) ? w : 1;
+                        palavras[termo] = palavras.GetValueOrDefault(termo, 0) + Math.Max(1, peso);
+                    }
+                }
+
+                if (exemplos.Count < 6)
+                {
+                    exemplos.Add(new
+                    {
+                        respostaId = registro.RespostaId,
+                        texto = registro.Texto,
+                        dataResposta = registro.DataResposta,
+                        sentimento = sentiment,
+                        categoria,
+                    });
+                }
+
+                registro.Analytics?.Dispose();
+                registro.Keywords?.Dispose();
+            }
+
+            var palavrasOrdenadas = palavras
+                .OrderByDescending(k => k.Value)
+                .Take(12)
+                .Select(k => new { termo = k.Key, peso = k.Value })
+                .ToList();
+
+            return new
+            {
+                total = registros.Count,
+                sentimentos,
+                categorias,
+                palavrasChave = palavrasOrdenadas,
+                exemplos,
+            };
+        }
+
         // ====================== RELATÓRIO COMPLETO ======================
         public async Task<ServiceResult<object>> ObterRelatorioCompletoAsync(
             int pesquisaId,
@@ -506,42 +609,48 @@ namespace FASTSURVEY.Services.Resultados
                 if (pesquisa is null)
                     return ServiceResult<object>.Fail("NOT_FOUND", "Pesquisa não encontrada");
 
-                var perguntasComEstatisticas = await Task.WhenAll(
-                    pesquisa
-                        .Perguntas.OrderBy(p => p.Ordem)
-                        .Select(async p =>
-                        {
-                            var contagemOpcoes = await CalcularContagemOpcoesAsync(
-                                p.PerguntaId,
-                                ct
-                            );
-                            var totalRespostas = p.Respostas.Count;
-
-                            return new
-                            {
-                                perguntaId = p.PerguntaId,
-                                texto = p.Texto,
-                                tipo = p.TipoPerguntaId,
-                                ordem = p.Ordem,
-                                totalRespostas,
-                                opcoes = p
-                                    .OpcoesPergunta.OrderBy(o => o.Ordem)
-                                    .Select(o => new
-                                    {
-                                        opcaoId = o.OpcaoId,
-                                        texto = o.Texto,
-                                        ordem = o.Ordem,
-                                        totalVotos = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0),
-                                        percentual = totalRespostas > 0
-                                            ? (double)contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0)
-                                                * 100.0
-                                                / totalRespostas
-                                            : 0.0,
-                                    })
-                                    .ToList(),
-                            };
-                        })
+                var contagensPorPergunta = await CalcularContagemOpcoesPorPerguntaAsync(
+                    pesquisa.Perguntas.Select(p => p.PerguntaId),
+                    ct
                 );
+
+                var perguntasComEstatisticas = pesquisa
+                    .Perguntas.OrderBy(p => p.Ordem)
+                    .Select(p =>
+                    {
+                        var contagemOpcoes = contagensPorPergunta.TryGetValue(
+                                p.PerguntaId,
+                                out var mapa
+                            )
+                            ? mapa
+                            : new Dictionary<int, int>();
+                        var totalRespostas = p.Respostas.Count;
+
+                        return new
+                        {
+                            perguntaId = p.PerguntaId,
+                            texto = p.Texto,
+                            tipo = p.TipoPerguntaId,
+                            ordem = p.Ordem,
+                            totalRespostas,
+                            opcoes = p
+                                .OpcoesPergunta.OrderBy(o => o.Ordem)
+                                .Select(o => new
+                                {
+                                    opcaoId = o.OpcaoId,
+                                    texto = o.Texto,
+                                    ordem = o.Ordem,
+                                    totalVotos = contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0),
+                                    percentual = totalRespostas > 0
+                                        ? (double)contagemOpcoes.GetValueOrDefault(o.OpcaoId, 0)
+                                            * 100.0
+                                            / totalRespostas
+                                        : 0.0,
+                                })
+                                .ToList(),
+                        };
+                    })
+                    .ToList();
 
                 var resultadoFinal = new
                 {
@@ -566,21 +675,64 @@ namespace FASTSURVEY.Services.Resultados
 
         // ====================== PRIVADOS ======================
 
+        private static string MapearTipoGrafico(int tipoPerguntaId, int totalOpcoes) =>
+            tipoPerguntaId switch
+            {
+                1 => "sentiment",
+                2 when totalOpcoes <= 3 => "pie",
+                2 => "bar",
+                3 when totalOpcoes <= 4 => "donut",
+                3 => "stacked-bar",
+                _ => "bar",
+            };
+
         private async Task<Dictionary<int, int>> CalcularContagemOpcoesAsync(
             int perguntaId,
             CancellationToken ct
         )
         {
-            // Se houver tabela de junção RespostasOpcoes, adapte a projeção.
+            var mapa = await CalcularContagemOpcoesPorPerguntaAsync(new[] { perguntaId }, ct);
+            return mapa.TryGetValue(perguntaId, out var contagem)
+                ? contagem
+                : new Dictionary<int, int>();
+        }
+
+        private async Task<Dictionary<int, Dictionary<int, int>>> CalcularContagemOpcoesPorPerguntaAsync(
+            IEnumerable<int> perguntaIds,
+            CancellationToken ct
+        )
+        {
+            var ids = perguntaIds?
+                .Where(id => id > 0)
+                .Distinct()
+                .ToList()
+                ?? new List<int>();
+
+            var resultado = ids.ToDictionary(id => id, _ => new Dictionary<int, int>());
+
+            if (ids.Count == 0)
+                return resultado;
+
             var contagem = await _ctx
                 .Respostas.AsNoTracking()
-                .Where(r => r.PerguntaId == perguntaId)
-                .SelectMany(r => r.Opcao ?? new List<OpcoesPergunta>())
-                .GroupBy(o => o.OpcaoId)
-                .Select(g => new { OpcaoId = g.Key, Count = g.Count() })
+                .Where(r => ids.Contains(r.PerguntaId))
+                .SelectMany(r => r.Opcao.Select(o => new { r.PerguntaId, o.OpcaoId }))
+                .GroupBy(x => new { x.PerguntaId, x.OpcaoId })
+                .Select(g => new { g.Key.PerguntaId, g.Key.OpcaoId, Count = g.Count() })
                 .ToListAsync(ct);
 
-            return contagem.ToDictionary(x => x.OpcaoId, x => x.Count);
+            foreach (var item in contagem)
+            {
+                if (!resultado.TryGetValue(item.PerguntaId, out var mapa))
+                {
+                    mapa = new Dictionary<int, int>();
+                    resultado[item.PerguntaId] = mapa;
+                }
+
+                mapa[item.OpcaoId] = item.Count;
+            }
+
+            return resultado;
         }
 
         private async Task<object> CalcularEstatisticasAsync(int pesquisaId, CancellationToken ct)

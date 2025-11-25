@@ -71,6 +71,7 @@ Thumbs.db
 *.tmp
 *.orig
 *.rej
+projeto/sentiment-analysis-ai/venv/
 
 # --------------------------
 # TESTES

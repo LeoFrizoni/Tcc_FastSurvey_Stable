@@ -84,10 +84,13 @@ namespace FASTSURVEY.Dtos.Respostas
         public int PerguntaId { get; set; }
         public string? Texto { get; set; }
         public DateTime DataResposta { get; set; }
+        public DateTime? RespondidaEm { get; set; }
         public List<int> Opcoes { get; set; } = new();
         public bool RespostaAnonima { get; set; }
         public string? SessaoId { get; set; }
+        public string? SessaoCodigo { get; set; }
         public int? ParticipanteId { get; set; }
+        public string? ParticipanteNome { get; set; }
     }
 
     // ---------- RESULTADOS E ESTATÍSTICAS ----------

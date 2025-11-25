@@ -1,0 +1,24 @@
+{
+  "responses": [
+    {"id": "1", "text": "Atendimento excelente, rápido e eficiente. Recomendo!"},
+    {"id": "2", "text": "O site é confuso, demorei para encontrar o que queria."},
+    {"id": "3", "text": "Preço justo e qualidade muito boa do produto."},
+    {"id": "4", "text": "Aplicativo travou diversas vezes, perdi meu progresso."},
+    {"id": "5", "text": "Nada demais, poderia ter mais opções de filtros."},
+    {"id": "6", "text": "Entrega atrasou, mas o suporte resolveu rapidamente."},
+    {"id": "7", "text": "Interface moderna e intuitiva, gostei bastante!"},
+    {"id": "8", "text": "Horrível, me arrependi da compra, qualidade péssima."},
+    {"id": "9", "text": "Fantástico! Funcionou melhor do que eu esperava."},
+    {"id": "10", "text": "O pagamento ficou falhando, tive que tentar várias vezes."},
+    {"id": "11", "text": "Ótimo custo-benefício e entrega rápida."},
+    {"id": "12", "text": "Não gostei do atendimento, respostas demoradas."},
+    {"id": "13", "text": "Recomendo adicionar tutorial para novos usuários."},
+    {"id": "14", "text": "Produto veio com defeito, precisei trocar."},
+    {"id": "15", "text": "Excelente experiência no geral, voltarei a comprar."},
+    {"id": "16", "text": "Suporte não respondeu minha dúvida a tempo."},
+    {"id": "17", "text": "Maravilhoso, exatamente o que eu precisava!"},
+    {"id": "18", "text": "Regular, não teve nada que chamasse atenção."},
+    {"id": "19", "text": "Péssimo, não funcionou no meu celular."},
+    {"id": "20", "text": "Gostei das novas funcionalidades, ficaram ótimas."}
+  ]
+}

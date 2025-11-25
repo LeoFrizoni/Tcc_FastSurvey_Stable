@@ -36,18 +36,23 @@ const InteractiveJoin = lazy(() => import('../pages/interactive/InteractiveJoin'
 const AnalyticsDashboard = lazy(() => import('../pages/analytics/AnalyticsDashboard'));
 
 const PrivateRouteAdmin = ({ children }) => {
-  const token = localStorage.getItem('token');
-  const tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
-  
+  let token = localStorage.getItem('token');
+  let tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
+
+  if (!token || !tipoUsuarioId) {
+    token = sessionStorage.getItem('token');
+    tipoUsuarioId = Number(sessionStorage.getItem('tipousuarioid'));
+  }
+
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (tipoUsuarioId === 15) {
     return children;
-  } else {
-    return <Navigate to="/home" replace />;
   }
+
+  return <Navigate to="/home" replace />;
 };
 
 const RootRedirect = () => {
@@ -82,31 +87,42 @@ const AppRoutes = () => {
 
   // Verificar se usuário já está logado e redirecionar adequadamente
   const LoginGuard = () => {
-    clearInvalidAuth(); // Limpa tokens inválidos
+    const [shouldRedirect, setShouldRedirect] = React.useState(null);
     
-    // Verificar primeiro localStorage, depois sessionStorage
-    let token = localStorage.getItem('token');
-    let tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
+    React.useEffect(() => {
+      clearInvalidAuth(); // Limpa tokens inválidos
+      
+      // Verificar primeiro localStorage, depois sessionStorage
+      let token = localStorage.getItem('token');
+      let tipoUsuarioId = Number(localStorage.getItem('tipousuarioid'));
+      
+      if (!token || !tipoUsuarioId) {
+        token = sessionStorage.getItem('token');
+        tipoUsuarioId = Number(sessionStorage.getItem('tipousuarioid'));
+      }
+      
+      // Se tem token válido e é admin, redireciona para /admin
+      if (token && tipoUsuarioId === 15) {
+        console.log('🔍 LoginGuard - Usuário admin logado, redirecionando para /admin');
+        setShouldRedirect('/admin');
+        return;
+      }
+      
+      // Se tem token válido mas não é admin, redireciona para /home
+      if (token && tipoUsuarioId !== 15 && token) {
+        console.log('🔍 LoginGuard - Usuário logado, redirecionando para /home');
+        setShouldRedirect('/home');
+        return;
+      }
+      
+      // Se não tem token, mostra página de login
+      console.log('🔍 LoginGuard - Usuário não logado, mostrando página de login');
+      setShouldRedirect(null);
+    }, []);
     
-    if (!token || !tipoUsuarioId) {
-      token = sessionStorage.getItem('token');
-      tipoUsuarioId = Number(sessionStorage.getItem('tipousuarioid'));
+    if (shouldRedirect) {
+      return <Navigate to={shouldRedirect} replace />;
     }
-    
-    // Se tem token válido e é admin, redireciona para /admin
-    if (token && tipoUsuarioId === 15) {
-      console.log('🔍 LoginGuard - Usuário admin logado, redirecionando para /admin');
-      return <Navigate to="/admin" replace />;
-    }
-    
-    // Se tem token válido mas não é admin, redireciona para /home
-    if (token && tipoUsuarioId !== 15) {
-      console.log('🔍 LoginGuard - Usuário logado, redirecionando para /home');
-      return <Navigate to="/home" replace />;
-    }
-    
-    // Se não tem token, mostra página de login
-    console.log('🔍 LoginGuard - Usuário não logado, mostrando página de login');
     
     return LoginElement;
   };

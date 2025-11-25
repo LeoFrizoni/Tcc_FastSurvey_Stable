@@ -38,10 +38,13 @@ namespace FASTSURVEY.Controllers
                     PerguntaId = entity.PerguntaId,
                     Texto = entity.Texto,
                     DataResposta = entity.DataResposta,
+                    RespondidaEm = entity.RespondidaEm,
                     Opcoes = new(),
                     RespostaAnonima = entity.RespostaAnonima,
                     SessaoId = entity.SessaoId,
+                    SessaoCodigo = null,
                     ParticipanteId = entity.ParticipanteId,
+                    ParticipanteNome = entity.Participante?.NomeParticipante,
                 };
                 return Ok(dto);
             }
@@ -87,10 +90,13 @@ namespace FASTSURVEY.Controllers
                     PerguntaId = entity.PerguntaId,
                     Texto = entity.Texto,
                     DataResposta = entity.DataResposta,
+                    RespondidaEm = entity.RespondidaEm,
                     Opcoes = entity.Opcao?.Select(o => o.OpcaoId).ToList() ?? new(),
                     RespostaAnonima = entity.RespostaAnonima,
                     SessaoId = entity.SessaoId,
+                    SessaoCodigo = null,
                     ParticipanteId = entity.ParticipanteId,
+                    ParticipanteNome = entity.Participante?.NomeParticipante,
                 };
                 return Ok(dto);
             }
